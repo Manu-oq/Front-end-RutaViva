@@ -1,30 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
+import 'package:geolocator/geolocator.dart'; 
 import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/utils/location_handler.dart'; 
 import '../providers/map_provider.dart';
 import '../widgets/custom_map_marker.dart';
 
-class MapScreen extends ConsumerWidget { 
+class MapScreen extends ConsumerWidget {
   const MapScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final mapState = ref.watch(mapProvider);
+    final MapController mapController = MapController();
 
     return Scaffold(
       body: Stack(
         children: [
-
+          // 1. EL MAPA
           FlutterMap(
+            mapController: mapController, 
             options: MapOptions(
-              initialCenter: const LatLng(-39.35, -71.70), 
+              initialCenter: const LatLng(-39.35, -71.70),
               initialZoom: 11.0,
               interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all, 
+                flags: InteractiveFlag.all,
               ),
             ),
             children: [
@@ -32,21 +36,19 @@ class MapScreen extends ConsumerWidget {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.rutaviva.app',
               ),
-
               PolylineLayer(
                 polylines: [
                   Polyline(
                     points: mapState.routePolyline,
                     strokeWidth: 5.0,
-                    color: theme.colorScheme.tertiary, 
+                    color: theme.colorScheme.tertiary,
                     borderStrokeWidth: 2.0,
                     borderColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    strokeCap: StrokeCap.round, 
+                    strokeCap: StrokeCap.round,
                     strokeJoin: StrokeJoin.round,
                   ),
                 ],
               ),
-
               MarkerLayer(
                 markers: mapState.points.map((point) {
                   return Marker(
@@ -81,22 +83,52 @@ class MapScreen extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Icon(Icons.gps_fixed, color: theme.colorScheme.secondary),
+
+                    IconButton(
+                      icon: Icon(Icons.gps_fixed, color: theme.colorScheme.secondary),
+                      onPressed: () async {
+                        final hasPermission = await LocationHandler.handleLocationPermission();
+
+                        if (!context.mounted) return;
+
+                        if (hasPermission) {
+                          final position = await Geolocator.getCurrentPosition();
+
+                          if (!context.mounted) return;
+
+                          mapController.move(
+                            LatLng(position.latitude, position.longitude), 
+                            14.0 
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Se requieren permisos de ubicación.")),
+                          );
+                        }
+                      },
+                    ),
                   ],
                 ),
               ),
             ),
           ),
           
+
           Positioned(
             bottom: 40,
             right: 20,
             child: Column(
               children: [
                 _buildMapAction(theme, Icons.add, () {
+                  // Aumentar zoom
+                  final newZoom = mapController.camera.zoom + 1;
+                  mapController.move(mapController.camera.center, newZoom);
                 }),
                 const SizedBox(height: 12),
                 _buildMapAction(theme, Icons.remove, () {
+                  // Disminuir zoom
+                  final newZoom = mapController.camera.zoom - 1;
+                  mapController.move(mapController.camera.center, newZoom);
                 }),
               ],
             ),
@@ -105,6 +137,7 @@ class MapScreen extends ConsumerWidget {
       ),
     );
   }
+
   Widget _buildMapAction(ThemeData theme, IconData icon, VoidCallback onTap) {
     return Container(
       decoration: BoxDecoration(

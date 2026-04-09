@@ -6,6 +6,7 @@ import '../../features/onboarding/presentation/pages/vibe_selection_page.dart';
 import '../../features/itinerary/presentation/pages/itinerary_detail_page.dart'; 
 import '../../features/chat_ai/presentation/pages/chat_screen.dart';
 import '../../features/user_profile/presentation/pages/profile_screen.dart';
+import '../../features/map/presentation/pages/poi_detail_full_page.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login', 
@@ -46,6 +47,14 @@ final appRouter = GoRouter(
       path: '/profile',
       name: 'profile',
       builder: (context, state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: '/poi-detail/:id',
+      name: 'poi_detail',
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return PoiDetailFullPage(poiId: id);
+      },
     ),
     ],
 );

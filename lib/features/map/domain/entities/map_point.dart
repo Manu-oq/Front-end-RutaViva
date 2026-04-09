@@ -11,6 +11,7 @@ class MapPoint {
   final String? imageUrl;    
   final String? phone;       
   final bool isLocalAuthentic;
+  final List<String>? amenities; // Ejemplo: ['wifi', 'parking', 'wc']
 
   MapPoint({
     required this.id,
@@ -21,5 +22,6 @@ class MapPoint {
     this.imageUrl,    
     this.phone,       
     this.isLocalAuthentic = true,
+    this.amenities,
   });
 }
