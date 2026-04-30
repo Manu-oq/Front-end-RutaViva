@@ -12,11 +12,11 @@ class HomeHeader extends StatelessWidget {
         delegate: SliverChildListDelegate([
           Text("Buenos días,", style: theme.textTheme.headlineMedium),
           Text(
-            "Explora el sur de Chile", 
+            "Explora el sur de Chile",
             style: theme.textTheme.displayLarge?.copyWith(
               color: theme.colorScheme.secondary,
               height: 0.9,
-            )
+            ),
           ),
           const SizedBox(height: 16),
           Text(

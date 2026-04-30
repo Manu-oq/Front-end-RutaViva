@@ -19,7 +19,9 @@ class AIInputBar extends StatelessWidget {
               child: TextField(
                 decoration: InputDecoration(
                   hintText: "¿A dónde quiere ir tu corazón?",
-                  hintStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey,
+                  ),
                   border: InputBorder.none,
                   filled: false,
                 ),
@@ -28,7 +30,7 @@ class AIInputBar extends StatelessWidget {
             CircleAvatar(
               backgroundColor: theme.colorScheme.primary,
               child: const Icon(Icons.arrow_upward, color: Colors.white),
-            )
+            ),
           ],
         ),
       ),

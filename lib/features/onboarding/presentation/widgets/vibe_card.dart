@@ -18,7 +18,7 @@ class VibeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -27,7 +27,7 @@ class VibeCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(32),
           image: DecorationImage(
-            image: NetworkImage(imagePath), 
+            image: NetworkImage(imagePath),
             fit: BoxFit.cover,
           ),
         ),
@@ -40,7 +40,10 @@ class VibeCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, AppColors.volcanicObsidian.withValues(alpha: 0.8)],
+                    colors: [
+                      Colors.transparent,
+                      AppColors.volcanicObsidian.withValues(alpha: 0.8),
+                    ],
                   ),
                 ),
               ),
@@ -54,13 +57,23 @@ class VibeCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(24),
                 child: Container(
                   padding: const EdgeInsets.all(24),
-                  color: Colors.white.withValues(alpha: 0.2), 
+                  color: Colors.white.withValues(alpha: 0.2),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(category.toUpperCase(), style: theme.textTheme.labelLarge?.copyWith(color: Colors.white70)),
+                      Text(
+                        category.toUpperCase(),
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: Colors.white70,
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      Text(title, style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white)),
+                      Text(
+                        title,
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
                     ],
                   ),
                 ),

@@ -18,15 +18,15 @@ class CustomMapMarker extends ConsumerWidget {
     switch (point.category) {
       case PointCategory.comida:
         icon = Icons.restaurant;
-        color = theme.colorScheme.secondary; 
+        color = theme.colorScheme.secondary;
         break;
       case PointCategory.dormir:
         icon = Icons.hotel;
-        color = theme.colorScheme.tertiary; 
+        color = theme.colorScheme.tertiary;
         break;
       case PointCategory.cultura:
         icon = Icons.museum;
-        color = theme.colorScheme.primary; 
+        color = theme.colorScheme.primary;
         break;
       default:
         icon = Icons.location_on;
@@ -38,7 +38,7 @@ class CustomMapMarker extends ConsumerWidget {
         ref.read(mapProvider.notifier).selectPoint(point);
         showModalBottomSheet(
           context: context,
-          backgroundColor: Colors.transparent, 
+          backgroundColor: Colors.transparent,
           isScrollControlled: true,
           builder: (context) => PoiDetailSheet(point: point),
         );
@@ -54,7 +54,7 @@ class CustomMapMarker extends ConsumerWidget {
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 10,
-                )
+                ),
               ],
             ),
             child: Icon(icon, color: Colors.white, size: 20),
@@ -66,11 +66,14 @@ class CustomMapMarker extends ConsumerWidget {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              point.name, 
-              style: theme.textTheme.labelSmall?.copyWith(fontSize: 8, fontWeight: FontWeight.bold),
+              point.name,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
-          )
+          ),
         ],
       ),
     );

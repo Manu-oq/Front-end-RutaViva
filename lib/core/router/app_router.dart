@@ -1,60 +1,61 @@
 import 'package:go_router/go_router.dart';
+import 'app_routes.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/map/presentation/pages/map_screen.dart';
 import '../../features/onboarding/presentation/pages/vibe_selection_page.dart';
-import '../../features/itinerary/presentation/pages/itinerary_detail_page.dart'; 
+import '../../features/itinerary/presentation/pages/itinerary_detail_page.dart';
 import '../../features/chat_ai/presentation/pages/chat_screen.dart';
 import '../../features/user_profile/presentation/pages/profile_screen.dart';
 import '../../features/map/presentation/pages/poi_detail_full_page.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/login', 
+  initialLocation: AppRoutes.login,
   routes: [
     GoRoute(
-      path: '/login',
-      name: 'login',
+      path: AppRoutes.login,
+      name: AppRouteNames.login,
       builder: (context, state) => const LoginPage(),
     ),
     GoRoute(
-      path: '/',
-      name: 'home',
+      path: AppRoutes.home,
+      name: AppRouteNames.home,
       builder: (context, state) => const HomePage(),
     ),
     GoRoute(
-      path: '/map',
-      name: 'map',
+      path: AppRoutes.map,
+      name: AppRouteNames.map,
       builder: (context, state) => const MapScreen(),
     ),
 
     GoRoute(
-      path: '/onboarding',
-      name: 'onboarding',
+      path: AppRoutes.onboarding,
+      name: AppRouteNames.onboarding,
       builder: (context, state) => const VibeSelectionPage(),
     ),
 
     GoRoute(
-      path: '/itinerary-detail',
-      name: 'itinerary_detail',
+      path: AppRoutes.itineraryDetail,
+      name: AppRouteNames.itineraryDetail,
       builder: (context, state) => const ItineraryDetailPage(),
     ),
     GoRoute(
-      path: '/chat',
-      name: 'chat',
+      path: AppRoutes.chat,
+      name: AppRouteNames.chat,
       builder: (context, state) => const ChatScreen(),
     ),
     GoRoute(
-      path: '/profile',
-      name: 'profile',
+      path: AppRoutes.profile,
+      name: AppRouteNames.profile,
       builder: (context, state) => const ProfileScreen(),
     ),
     GoRoute(
-      path: '/poi-detail/:id',
-      name: 'poi_detail',
+      path: AppRoutes.poiDetail,
+      name: AppRouteNames.poiDetail,
       builder: (context, state) {
         final id = state.pathParameters['id']!;
         return PoiDetailFullPage(poiId: id);
       },
     ),
-    ],
+  ],
 );

@@ -5,11 +5,11 @@ enum PointCategory { comida, dormir, cultura, trekking }
 class MapPoint {
   final String id;
   final String name;
-  final LatLng coordinates; 
+  final LatLng coordinates;
   final PointCategory category;
-  final String? description; 
-  final String? imageUrl;    
-  final String? phone;       
+  final String? description;
+  final String? imageUrl;
+  final String? phone;
   final bool isLocalAuthentic;
   final List<String>? amenities; // Ejemplo: ['wifi', 'parking', 'wc']
 
@@ -18,9 +18,9 @@ class MapPoint {
     required this.name,
     required this.coordinates,
     required this.category,
-    this.description, 
-    this.imageUrl,    
-    this.phone,       
+    this.description,
+    this.imageUrl,
+    this.phone,
     this.isLocalAuthentic = true,
     this.amenities,
   });

@@ -3,27 +3,45 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
-import 'package:geolocator/geolocator.dart'; 
+import 'package:geolocator/geolocator.dart';
 import '../../../../core/widgets/glass_container.dart';
-import '../../../../core/utils/location_handler.dart'; 
+import '../../../../core/utils/location_handler.dart';
 import '../providers/map_provider.dart';
 import '../widgets/custom_map_marker.dart';
 
-class MapScreen extends ConsumerWidget {
+class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends ConsumerState<MapScreen> {
+  late final MapController _mapController;
+
+  @override
+  void initState() {
+    super.initState();
+    _mapController = MapController();
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mapState = ref.watch(mapProvider);
-    final MapController mapController = MapController();
 
     return Scaffold(
       body: Stack(
         children: [
           // 1. EL MAPA
           FlutterMap(
-            mapController: mapController, 
+            mapController: _mapController,
             options: MapOptions(
               initialCenter: const LatLng(-39.35, -71.70),
               initialZoom: 11.0,
@@ -43,7 +61,9 @@ class MapScreen extends ConsumerWidget {
                     strokeWidth: 5.0,
                     color: theme.colorScheme.tertiary,
                     borderStrokeWidth: 2.0,
-                    borderColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderColor: theme.colorScheme.primary.withValues(
+                      alpha: 0.1,
+                    ),
                     strokeCap: StrokeCap.round,
                     strokeJoin: StrokeJoin.round,
                   ),
@@ -69,7 +89,10 @@ class MapScreen extends ConsumerWidget {
             child: GlassContainer(
               borderRadius: BorderRadius.circular(16),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     IconButton(
@@ -79,30 +102,41 @@ class MapScreen extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         "Explora La Araucanía",
-                        style: theme.textTheme.headlineMedium?.copyWith(fontSize: 18),
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontSize: 18,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
 
                     IconButton(
-                      icon: Icon(Icons.gps_fixed, color: theme.colorScheme.secondary),
+                      icon: Icon(
+                        Icons.gps_fixed,
+                        color: theme.colorScheme.secondary,
+                      ),
                       onPressed: () async {
-                        final hasPermission = await LocationHandler.handleLocationPermission();
+                        final hasPermission =
+                            await LocationHandler.handleLocationPermission();
 
                         if (!context.mounted) return;
 
                         if (hasPermission) {
-                          final position = await Geolocator.getCurrentPosition();
+                          final position =
+                              await Geolocator.getCurrentPosition();
 
                           if (!context.mounted) return;
 
-                          mapController.move(
-                            LatLng(position.latitude, position.longitude), 
-                            14.0 
+                          _mapController.move(
+                            LatLng(position.latitude, position.longitude),
+                            14.0,
                           );
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Se requieren permisos de ubicación.")),
+                            const SnackBar(
+                              content: Text(
+                                "Se requieren permisos de ubicación.",
+                              ),
+                            ),
                           );
                         }
                       },
@@ -112,7 +146,6 @@ class MapScreen extends ConsumerWidget {
               ),
             ),
           ),
-          
 
           Positioned(
             bottom: 40,
@@ -121,18 +154,18 @@ class MapScreen extends ConsumerWidget {
               children: [
                 _buildMapAction(theme, Icons.add, () {
                   // Aumentar zoom
-                  final newZoom = mapController.camera.zoom + 1;
-                  mapController.move(mapController.camera.center, newZoom);
+                  final newZoom = _mapController.camera.zoom + 1;
+                  _mapController.move(_mapController.camera.center, newZoom);
                 }),
                 const SizedBox(height: 12),
                 _buildMapAction(theme, Icons.remove, () {
                   // Disminuir zoom
-                  final newZoom = mapController.camera.zoom - 1;
-                  mapController.move(mapController.camera.center, newZoom);
+                  final newZoom = _mapController.camera.zoom - 1;
+                  _mapController.move(_mapController.camera.center, newZoom);
                 }),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -147,9 +180,9 @@ class MapScreen extends ConsumerWidget {
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
-            spreadRadius: 2
-          )
-        ]
+            spreadRadius: 2,
+          ),
+        ],
       ),
       child: IconButton(
         icon: Icon(icon, color: theme.colorScheme.primary),

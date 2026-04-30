@@ -13,8 +13,10 @@ class AuthenticitySeal extends StatelessWidget {
         borderRadius: BorderRadius.circular(100),
       ),
       child: Text(
-        "Sello de Autenticidad", 
-        style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.secondary)
+        "Sello de Autenticidad",
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.secondary,
+        ),
       ),
     );
   }

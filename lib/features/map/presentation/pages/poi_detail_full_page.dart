@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../domain/entities/map_point.dart';
 import '../providers/map_provider.dart';
 import '../widgets/authenticity_seal.dart';
 import '../widgets/amenity_item.dart';
@@ -12,17 +13,27 @@ class PoiDetailFullPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final poi = ref.watch(mapProvider).points.firstWhere((p) => p.id == poiId);
+    final poi = _findPointById(ref.watch(mapProvider).points, poiId);
+
+    if (poi == null) {
+      return Scaffold(
+        appBar: AppBar(),
+        body: Center(
+          child: Text(
+            'No encontramos este punto de interés.',
+            style: theme.textTheme.bodyLarge,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           // Widget Extraído
-          PoiGalleryHeader(
-            imageUrl: poi.imageUrl ?? '', 
-            heroTag: 'poi_${poi.id}'
-          ),
-          
+          PoiGalleryHeader(imageUrl: poi.imageUrl, heroTag: 'poi_${poi.id}'),
+
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -31,27 +42,48 @@ class PoiDetailFullPage extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      Text(poi.category.name.toUpperCase(), style: theme.textTheme.labelLarge),
+                      Text(
+                        poi.category.name.toUpperCase(),
+                        style: theme.textTheme.labelLarge,
+                      ),
                       const Spacer(),
-                      if (poi.isLocalAuthentic) const AuthenticitySeal(), 
+                      if (poi.isLocalAuthentic) const AuthenticitySeal(),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(poi.name, style: theme.textTheme.displayLarge?.copyWith(fontSize: 32)),
+                  Text(
+                    poi.name,
+                    style: theme.textTheme.displayLarge?.copyWith(fontSize: 32),
+                  ),
                   const SizedBox(height: 24),
-                  
-                  Text("Descripción", style: theme.textTheme.headlineMedium?.copyWith(fontSize: 20)),
+
+                  Text(
+                    "Descripción",
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontSize: 20,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text(poi.description ?? "Sin descripción disponible.", style: theme.textTheme.bodyLarge),
-                  
+                  Text(
+                    poi.description ?? "Sin descripción disponible.",
+                    style: theme.textTheme.bodyLarge,
+                  ),
+
                   const SizedBox(height: 32),
 
                   if (poi.amenities != null) ...[
-                    Text("Servicios", style: theme.textTheme.headlineMedium?.copyWith(fontSize: 20)),
+                    Text(
+                      "Servicios",
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontSize: 20,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     Wrap(
                       spacing: 24,
-                      children: poi.amenities!.map((a) => AmenityItem(type: a)).toList(),
+                      children: poi.amenities!
+                          .map((a) => AmenityItem(type: a))
+                          .toList(),
                     ),
                   ],
 
@@ -59,7 +91,7 @@ class PoiDetailFullPage extends ConsumerWidget {
 
                   if (poi.phone != null)
                     ElevatedButton.icon(
-                      onPressed: () {}, 
+                      onPressed: () {},
                       icon: const Icon(Icons.chat),
                       label: const Text("Contactar por WhatsApp"),
                       style: ElevatedButton.styleFrom(
@@ -75,5 +107,15 @@ class PoiDetailFullPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  static MapPoint? _findPointById(List<MapPoint> points, String poiId) {
+    for (final point in points) {
+      if (point.id == poiId) {
+        return point;
+      }
+    }
+
+    return null;
   }
 }

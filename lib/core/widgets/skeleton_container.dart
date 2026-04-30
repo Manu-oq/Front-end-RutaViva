@@ -7,18 +7,20 @@ class SkeletonContainer extends StatelessWidget {
   final BorderRadius borderRadius;
 
   const SkeletonContainer({
-    super.key, 
-    this.width = double.infinity, 
-    required this.height, 
+    super.key,
+    this.width = double.infinity,
+    required this.height,
     this.borderRadius = const BorderRadius.all(Radius.circular(16)),
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Shimmer.fromColors(
-      baseColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      baseColor: theme.colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.5,
+      ),
       highlightColor: theme.colorScheme.surface,
       child: Container(
         width: width,

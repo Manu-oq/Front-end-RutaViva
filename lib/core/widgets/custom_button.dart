@@ -7,11 +7,11 @@ class CustomButton extends StatelessWidget {
   final bool isPrimary;
 
   const CustomButton({
-    super.key, 
-    required this.text, 
+    super.key,
+    required this.text,
     required this.onPressed,
     this.isLoading = false,
-    this.isPrimary = true, 
+    this.isPrimary = true,
   });
 
   @override
@@ -20,24 +20,30 @@ class CustomButton extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 56, 
+      height: 56,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: isPrimary ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest,
-          foregroundColor: isPrimary ? theme.colorScheme.onPrimary : theme.colorScheme.primary,
+          backgroundColor: isPrimary
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surfaceContainerHighest,
+          foregroundColor: isPrimary
+              ? theme.colorScheme.onPrimary
+              : theme.colorScheme.primary,
           elevation: 0,
-          shape: const StadiumBorder(), 
+          shape: const StadiumBorder(),
         ),
-        child: isLoading 
-          ? const CircularProgressIndicator(strokeWidth: 2) 
-          : Text(
-              text, 
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: isPrimary ? theme.colorScheme.onPrimary : theme.colorScheme.primary,
-                fontSize: 16
-              )
-            ),
+        child: isLoading
+            ? const CircularProgressIndicator(strokeWidth: 2)
+            : Text(
+                text,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: isPrimary
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.primary,
+                  fontSize: 16,
+                ),
+              ),
       ),
     );
   }

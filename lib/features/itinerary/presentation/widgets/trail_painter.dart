@@ -15,7 +15,11 @@ class TrailPainter extends CustomPainter {
     const dashSpace = 5;
     double startY = 0;
     while (startY < size.height) {
-      canvas.drawLine(Offset(size.width / 2, startY), Offset(size.width / 2, startY + dashWidth), paint);
+      canvas.drawLine(
+        Offset(size.width / 2, startY),
+        Offset(size.width / 2, startY + dashWidth),
+        paint,
+      );
       startY += dashWidth + dashSpace;
     }
   }

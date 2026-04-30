@@ -15,14 +15,18 @@ class ChatHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Ara Assistant", 
-                style: theme.textTheme.headlineMedium?.copyWith(fontSize: 22)
+                "Ara Assistant",
+                style: theme.textTheme.headlineMedium?.copyWith(fontSize: 22),
               ),
               Row(
                 children: [
                   Text("SEÑAL 98%", style: theme.textTheme.labelSmall),
                   const SizedBox(width: 8),
-                  Icon(Icons.sensors, size: 12, color: theme.colorScheme.secondary),
+                  Icon(
+                    Icons.sensors,
+                    size: 12,
+                    color: theme.colorScheme.secondary,
+                  ),
                 ],
               ),
             ],
@@ -30,7 +34,7 @@ class ChatHeader extends StatelessWidget {
           const CircleAvatar(
             radius: 24,
             backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=ara'),
-          )
+          ),
         ],
       ),
     );

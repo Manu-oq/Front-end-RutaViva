@@ -13,5 +13,6 @@ class InterestsNotifier extends Notifier<List<String>> {
   }
 }
 
-final interestsProvider =
-    NotifierProvider<InterestsNotifier, List<String>>(InterestsNotifier.new);
+final interestsProvider = NotifierProvider<InterestsNotifier, List<String>>(
+  InterestsNotifier.new,
+);

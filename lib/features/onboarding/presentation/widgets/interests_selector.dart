@@ -7,9 +7,27 @@ class InterestsSelector extends ConsumerWidget {
   const InterestsSelector({super.key});
 
   static const List<String> availableInterests = [
-    "ComidaMapuche", "Senderismo", "Fotografía", "Artesanía",
-    "Aves", "Termas", "Nieve", "Historia", "Ríos", "Silencio",
-    "Aventura", "CulturaViva", "BosqueNativo", "ObservaciónDeEstrellas", "GastronomíaLocal", "Relajación", "VidaSilvestre", "Paisajes", "Cascadas", "PueblosOriginarios", "YogaAlAireLibre"
+    "ComidaMapuche",
+    "Senderismo",
+    "Fotografía",
+    "Artesanía",
+    "Aves",
+    "Termas",
+    "Nieve",
+    "Historia",
+    "Ríos",
+    "Silencio",
+    "Aventura",
+    "CulturaViva",
+    "BosqueNativo",
+    "ObservaciónDeEstrellas",
+    "GastronomíaLocal",
+    "Relajación",
+    "VidaSilvestre",
+    "Paisajes",
+    "Cascadas",
+    "PueblosOriginarios",
+    "YogaAlAireLibre",
   ];
 
   @override
@@ -17,14 +35,15 @@ class InterestsSelector extends ConsumerWidget {
     final selectedInterests = ref.watch(interestsProvider);
 
     return Wrap(
-      spacing: 10, 
-      runSpacing: 10, 
+      spacing: 10,
+      runSpacing: 10,
       children: availableInterests.map((interest) {
         final isSelected = selectedInterests.contains(interest);
         return InterestTag(
           label: interest,
           isSelected: isSelected,
-          onTap: () => ref.read(interestsProvider.notifier).toggleInterest(interest),
+          onTap: () =>
+              ref.read(interestsProvider.notifier).toggleInterest(interest),
         );
       }).toList(),
     );

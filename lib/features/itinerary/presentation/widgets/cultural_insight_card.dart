@@ -7,16 +7,16 @@ class CulturalInsightCard extends StatelessWidget {
   final IconData icon;
 
   const CulturalInsightCard({
-    super.key, 
-    required this.text, 
+    super.key,
+    required this.text,
     required this.label,
-    this.icon = Icons.auto_awesome, 
+    this.icon = Icons.auto_awesome,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -33,11 +33,11 @@ class CulturalInsightCard extends StatelessWidget {
               Icon(icon, size: 18, color: theme.colorScheme.secondary),
               const SizedBox(width: 8),
               Text(
-                label.toUpperCase(), 
+                label.toUpperCase(),
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: theme.colorScheme.secondary,
                   letterSpacing: 1.2,
-                )
+                ),
               ),
             ],
           ),

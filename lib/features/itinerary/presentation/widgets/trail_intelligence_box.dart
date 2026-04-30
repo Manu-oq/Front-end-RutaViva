@@ -15,7 +15,10 @@ class TrailIntelligenceBox extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Inteligencia del Sendero", style: theme.textTheme.headlineMedium?.copyWith(fontSize: 20)),
+          Text(
+            "Inteligencia del Sendero",
+            style: theme.textTheme.headlineMedium?.copyWith(fontSize: 20),
+          ),
           const SizedBox(height: 20),
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -28,7 +31,10 @@ class TrailIntelligenceBox extends StatelessWidget {
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _InfoTile(label: "CONECTIVIDAD", value: "Disponible sin conexión"),
+              _InfoTile(
+                label: "CONECTIVIDAD",
+                value: "Disponible sin conexión",
+              ),
               _InfoTile(label: "DIFICULTAD", value: "Meditativa"),
             ],
           ),
@@ -50,7 +56,12 @@ class _InfoTile extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: theme.textTheme.labelSmall),
-        Text(value, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }

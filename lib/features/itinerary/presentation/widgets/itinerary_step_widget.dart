@@ -16,7 +16,7 @@ class ItineraryStepWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -24,8 +24,12 @@ class ItineraryStepWidget extends StatelessWidget {
           Column(
             children: [
               Container(
-                width: 12, height: 12,
-                decoration: BoxDecoration(color: theme.colorScheme.secondary, shape: BoxShape.circle),
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.secondary,
+                  shape: BoxShape.circle,
+                ),
               ),
               Expanded(
                 child: CustomPaint(
@@ -40,7 +44,13 @@ class ItineraryStepWidget extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (time.isNotEmpty) Text(time, style: theme.textTheme.headlineMedium?.copyWith(fontSize: 18)),
+                if (time.isNotEmpty)
+                  Text(
+                    time,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontSize: 18,
+                    ),
+                  ),
                 if (description.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(description, style: theme.textTheme.bodyMedium),

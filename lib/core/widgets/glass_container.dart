@@ -8,9 +8,9 @@ class GlassContainer extends StatelessWidget {
   final BorderRadius? borderRadius;
 
   const GlassContainer({
-    super.key, 
-    required this.child, 
-    this.blur = 30.0, 
+    super.key,
+    required this.child,
+    this.blur = 30.0,
     this.opacity = 0.7,
     this.borderRadius,
   });

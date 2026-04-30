@@ -11,7 +11,10 @@ class DestinationSkeleton extends StatelessWidget {
       sliver: SliverToBoxAdapter(
         child: Column(
           children: [
-            const SkeletonContainer(height: 250, borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+            const SkeletonContainer(
+              height: 250,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            ),
             const SizedBox(height: 12),
             const SkeletonContainer(height: 20, width: 150),
             const SizedBox(height: 12),

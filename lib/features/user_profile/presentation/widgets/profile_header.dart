@@ -15,7 +15,10 @@ class ProfileHeader extends StatelessWidget {
             backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=mateo'),
           ),
           const SizedBox(height: 16),
-          Text("Mateo Vicuña", style: theme.textTheme.displayLarge?.copyWith(fontSize: 32)),
+          Text(
+            "Mateo Vicuña",
+            style: theme.textTheme.displayLarge?.copyWith(fontSize: 32),
+          ),
           Text("VIAJERO SUSTENTABLE", style: theme.textTheme.labelLarge),
           const SizedBox(height: 12),
           Text(

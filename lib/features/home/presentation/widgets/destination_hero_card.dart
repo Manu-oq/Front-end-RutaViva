@@ -35,15 +35,25 @@ class DestinationHeroCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                child: Image.network(imageUrl, height: 250, width: double.infinity, fit: BoxFit.cover),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(32),
+                ),
+                child: Image.network(
+                  imageUrl,
+                  height: 250,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(category.toUpperCase(), style: theme.textTheme.labelLarge),
+                    Text(
+                      category.toUpperCase(),
+                      style: theme.textTheme.labelLarge,
+                    ),
                     const SizedBox(height: 8),
                     Text(title, style: theme.textTheme.headlineMedium),
                     const SizedBox(height: 12),
@@ -51,14 +61,22 @@ class DestinationHeroCard extends StatelessWidget {
                     const SizedBox(height: 20),
                     Row(
                       children: [
-                        _SmallButton(label: "Establecer Ruta", isPrimary: true, onTap: onSetRoute),
+                        _SmallButton(
+                          label: "Establecer Ruta",
+                          isPrimary: true,
+                          onTap: onSetRoute,
+                        ),
                         const SizedBox(width: 12),
-                        _SmallButton(label: "Detalles", isPrimary: false, onTap: onDetails),
+                        _SmallButton(
+                          label: "Detalles",
+                          isPrimary: false,
+                          onTap: onDetails,
+                        ),
                       ],
-                    )
+                    ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -72,7 +90,11 @@ class _SmallButton extends StatelessWidget {
   final bool isPrimary;
   final VoidCallback onTap;
 
-  const _SmallButton({required this.label, required this.isPrimary, required this.onTap});
+  const _SmallButton({
+    required this.label,
+    required this.isPrimary,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -82,13 +104,17 @@ class _SmallButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         decoration: BoxDecoration(
-          color: isPrimary ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest,
+          color: isPrimary
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(100),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isPrimary ? theme.colorScheme.onPrimary : theme.colorScheme.primary,
+            color: isPrimary
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.primary,
             fontWeight: FontWeight.bold,
           ),
         ),

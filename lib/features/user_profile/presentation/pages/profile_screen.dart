@@ -18,7 +18,7 @@ class ProfileScreen extends StatelessWidget {
             ImpactSection(),
             SizedBox(height: 32),
             AccountSettings(),
-            SizedBox(height: 100), 
+            SizedBox(height: 100),
           ],
         ),
       ),

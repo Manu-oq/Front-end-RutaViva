@@ -18,8 +18,10 @@ class AmenityItem extends StatelessWidget {
 
     return Column(
       children: [
-        Icon(iconMap[type] ?? Icons.help_outline, 
-             color: theme.colorScheme.primary.withValues(alpha: 0.6)),
+        Icon(
+          iconMap[type] ?? Icons.help_outline,
+          color: theme.colorScheme.primary.withValues(alpha: 0.6),
+        ),
         const SizedBox(height: 4),
         Text(type.toUpperCase(), style: theme.textTheme.labelSmall),
       ],

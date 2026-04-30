@@ -6,10 +6,10 @@ class InterestTag extends StatelessWidget {
   final VoidCallback onTap;
 
   const InterestTag({
-    super.key, 
-    required this.label, 
-    required this.isSelected, 
-    required this.onTap
+    super.key,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
   });
 
   @override
@@ -22,13 +22,16 @@ class InterestTag extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-
-          color: isSelected 
-              ? theme.colorScheme.secondary 
-              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(100), 
+          color: isSelected
+              ? theme.colorScheme.secondary
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
+          borderRadius: BorderRadius.circular(100),
           border: Border.all(
-            color: isSelected ? theme.colorScheme.secondary : Colors.transparent,
+            color: isSelected
+                ? theme.colorScheme.secondary
+                : Colors.transparent,
             width: 1,
           ),
         ),

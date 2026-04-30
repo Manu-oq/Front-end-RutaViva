@@ -19,11 +19,15 @@ class PoiDetailSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          
           if (point.imageUrl != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(24),
-              child: Image.network(point.imageUrl!, height: 200, width: double.infinity, fit: BoxFit.cover),
+              child: Image.network(
+                point.imageUrl!,
+                height: 200,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
             )
           else
             Container(
@@ -33,19 +37,31 @@ class PoiDetailSheet extends StatelessWidget {
                 color: theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: Icon(Icons.image_not_supported_outlined, color: theme.colorScheme.primary),
+              child: Icon(
+                Icons.image_not_supported_outlined,
+                color: theme.colorScheme.primary,
+              ),
             ),
-          
+
           const SizedBox(height: 20),
 
-          Text(point.name, style: theme.textTheme.displayLarge?.copyWith(fontSize: 24)),
-          Text(point.category.name.toUpperCase(), style: theme.textTheme.labelLarge),
+          Text(
+            point.name,
+            style: theme.textTheme.displayLarge?.copyWith(fontSize: 24),
+          ),
+          Text(
+            point.category.name.toUpperCase(),
+            style: theme.textTheme.labelLarge,
+          ),
           const SizedBox(height: 12),
 
           Text(
-            point.description ?? "Un tesoro local por descubrir. Visítalo para conocer su historia de primera mano.",
+            point.description ??
+                "Un tesoro local por descubrir. Visítalo para conocer su historia de primera mano.",
             style: theme.textTheme.bodyMedium?.copyWith(
-              fontStyle: point.description == null ? FontStyle.italic : FontStyle.normal,
+              fontStyle: point.description == null
+                  ? FontStyle.italic
+                  : FontStyle.normal,
             ),
           ),
           const SizedBox(height: 24),
@@ -54,7 +70,7 @@ class PoiDetailSheet extends StatelessWidget {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {}, 
+                    onPressed: () {},
                     icon: const Icon(Icons.chat_bubble_outline),
                     label: const Text("WhatsApp"),
                     style: ElevatedButton.styleFrom(

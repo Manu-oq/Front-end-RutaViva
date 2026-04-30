@@ -6,14 +6,15 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   List<MessageEntity> build() {
     return [
       MessageEntity(
-        text: "¡Hola! Soy Ara. ¿En qué rincón de la Araucanía quieres perderte hoy?",
+        text:
+            "¡Hola! Soy Ara. ¿En qué rincón de la Araucanía quieres perderte hoy?",
         isUser: false,
         timestamp: DateTime.now(),
       ),
     ];
   }
 
-  void sendMessage(String text) async {
+  Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
     final userMessage = MessageEntity(
@@ -31,20 +32,24 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     );
     state = [...state, typingIndicator];
 
-
     await Future.delayed(const Duration(seconds: 2));
 
+    state = [
+      for (final message in state)
+        if (!identical(message, typingIndicator)) message,
+    ];
 
-    state = state.where((m) => !m.isTyping).toList(); 
-    
     final araResponse = MessageEntity(
-      text: "He analizado tu deseo. Basado en la tranquilidad que buscas, te sugiero el sendero de la Cascada del Silencio. ¿Te gustaría ver la ruta?",
+      text:
+          "He analizado tu deseo. Basado en la tranquilidad que buscas, te sugiero el sendero de la Cascada del Silencio. ¿Te gustaría ver la ruta?",
       isUser: false,
       timestamp: DateTime.now(),
     );
-    
+
     state = [...state, araResponse];
   }
 }
 
-final chatProvider = NotifierProvider<ChatNotifier, List<MessageEntity>>(ChatNotifier.new);
+final chatProvider = NotifierProvider<ChatNotifier, List<MessageEntity>>(
+  ChatNotifier.new,
+);

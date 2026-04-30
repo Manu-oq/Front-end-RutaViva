@@ -8,7 +8,9 @@ class EmergencyButton extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: theme.colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
       builder: (context) => Padding(
         padding: const EdgeInsets.all(32.0),
         child: Column(
@@ -16,9 +18,24 @@ class EmergencyButton extends StatelessWidget {
           children: [
             Text("NÚMEROS DE EMERGENCIA", style: theme.textTheme.labelLarge),
             const SizedBox(height: 24),
-            _buildEmergencyTile(context, "CONAF (Incendios)", "130", Icons.local_fire_department),
-            _buildEmergencyTile(context, "Carabineros", "133", Icons.local_police),
-            _buildEmergencyTile(context, "Ambulancia", "131", Icons.medical_services),
+            _buildEmergencyTile(
+              context,
+              "CONAF (Incendios)",
+              "130",
+              Icons.local_fire_department,
+            ),
+            _buildEmergencyTile(
+              context,
+              "Carabineros",
+              "133",
+              Icons.local_police,
+            ),
+            _buildEmergencyTile(
+              context,
+              "Ambulancia",
+              "131",
+              Icons.medical_services,
+            ),
             const SizedBox(height: 20),
             Text(
               "Tu ubicación actual será compartida al llamar.",
@@ -30,12 +47,20 @@ class EmergencyButton extends StatelessWidget {
     );
   }
 
-  Widget _buildEmergencyTile(BuildContext context, String title, String number, IconData icon) {
+  Widget _buildEmergencyTile(
+    BuildContext context,
+    String title,
+    String number,
+    IconData icon,
+  ) {
     return ListTile(
       leading: Icon(icon, color: Colors.redAccent),
       title: Text(title),
-      trailing: Text(number, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-      onTap: () {}, 
+      trailing: Text(
+        number,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      ),
+      onTap: () {},
     );
   }
 

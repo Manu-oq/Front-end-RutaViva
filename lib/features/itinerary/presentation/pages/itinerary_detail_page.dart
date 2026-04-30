@@ -32,10 +32,12 @@ class ItineraryDetailPage extends StatelessWidget {
 
             const ItineraryStepWidget(
               time: "08:30 — La Mañana de la Tejedora",
-              description: "Comienza con la Sra. Rosa en Curarrehue. Su telar lleva la historia de tres generaciones de artesanos Mapuche.",
+              description:
+                  "Comienza con la Sra. Rosa en Curarrehue. Su telar lleva la historia de tres generaciones de artesanos Mapuche.",
               child: CulturalInsightCard(
                 label: "Sabiduría Cultural",
-                text: "El hilo azul en nuestros textiles representa el espíritu del cielo. Nunca tejemos en silencio; tejemos las historias que hemos escuchado.",
+                text:
+                    "El hilo azul en nuestros textiles representa el espíritu del cielo. Nunca tejemos en silencio; tejemos las historias que hemos escuchado.",
               ),
             ),
 
@@ -44,13 +46,16 @@ class ItineraryDetailPage extends StatelessWidget {
               description: "",
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: Image.network("https://images.unsplash.com/photo-1590736962236-407a505f9630", fit: BoxFit.cover),
+                child: Image.network(
+                  "https://images.unsplash.com/photo-1590736962236-407a505f9630",
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
 
             const SizedBox(height: 32),
             const TrailIntelligenceBox(),
-            const SizedBox(height: 100), 
+            const SizedBox(height: 100),
           ],
         ),
       ),
