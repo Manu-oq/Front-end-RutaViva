@@ -10,7 +10,6 @@ import '../widgets/ai_input_bar.dart';
 import '../widgets/destination_hero_card.dart';
 import '../widgets/destination_skeleton.dart';
 import '../widgets/home_header.dart';
-import '../widgets/mist_navigation.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -101,13 +100,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
           ),
           const Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: MistNavigation(),
-          ),
-          const Positioned(
-            bottom: 90,
+            bottom: 16,
             left: 20,
             right: 20,
             child: AIInputBar(),

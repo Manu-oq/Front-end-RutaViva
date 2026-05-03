@@ -7,6 +7,7 @@ import '../../features/bookmarks/presentation/pages/bookmarks_page.dart';
 import '../../features/chat_ai/presentation/pages/chat_screen.dart';
 import '../../features/entrepreneur/presentation/pages/entrepreneur_dashboard_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/home/presentation/widgets/mist_navigation.dart';
 import '../../features/itinerary/presentation/pages/itinerary_detail_page.dart';
 import '../../features/itinerary/presentation/pages/itinerary_history_page.dart';
 import '../../features/map/presentation/pages/create_poi_page.dart';
@@ -56,24 +57,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RegisterPage(),
       ),
       GoRoute(
-        path: AppRoutes.home,
-        name: AppRouteNames.home,
-        builder: (context, state) => const HomePage(),
-      ),
-      GoRoute(
-        path: AppRoutes.map,
-        name: AppRouteNames.map,
-        builder: (context, state) => const MapScreen(),
-      ),
-      GoRoute(
         path: AppRoutes.onboarding,
         name: AppRouteNames.onboarding,
         builder: (context, state) => const VibeSelectionPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.itineraryHistory,
-        name: AppRouteNames.itineraryHistory,
-        builder: (context, state) => const ItineraryHistoryPage(),
       ),
       GoRoute(
         path: AppRoutes.itineraryDetail,
@@ -87,11 +73,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.chat,
         name: AppRouteNames.chat,
         builder: (context, state) => const ChatScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.profile,
-        name: AppRouteNames.profile,
-        builder: (context, state) => const ProfileScreen(),
       ),
       GoRoute(
         path: AppRoutes.editProfile,
@@ -117,17 +98,42 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: AppRoutes.bookmarks,
-        name: AppRouteNames.bookmarks,
-        builder: (context, state) => const BookmarksPage(),
-      ),
-      GoRoute(
         path: AppRoutes.poiDetail,
         name: AppRouteNames.poiDetail,
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return PoiDetailFullPage(poiId: id);
         },
+      ),
+      ShellRoute(
+        builder: (context, state, child) => MistNavigation(child: child),
+        routes: [
+          GoRoute(
+            path: AppRoutes.home,
+            name: AppRouteNames.home,
+            builder: (context, state) => const HomePage(),
+          ),
+          GoRoute(
+            path: AppRoutes.map,
+            name: AppRouteNames.map,
+            builder: (context, state) => const MapScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.itineraryHistory,
+            name: AppRouteNames.itineraryHistory,
+            builder: (context, state) => const ItineraryHistoryPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.bookmarks,
+            name: AppRouteNames.bookmarks,
+            builder: (context, state) => const BookmarksPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.profile,
+            name: AppRouteNames.profile,
+            builder: (context, state) => const ProfileScreen(),
+          ),
+        ],
       ),
     ],
   );

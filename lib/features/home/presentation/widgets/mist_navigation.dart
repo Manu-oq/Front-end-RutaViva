@@ -1,47 +1,74 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../core/widgets/glass_container.dart';
 
 class MistNavigation extends StatelessWidget {
-  const MistNavigation({super.key});
+  final Widget child;
+  const MistNavigation({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final uri = GoRouterState.of(context).uri;
+    final selectedIndex = _calculateSelectedIndex(uri);
 
-    return GlassContainer(
-      blur: 40,
-      opacity: 0.8,
-      child: Container(
-        height: 80,
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-              icon: Icon(
-                Icons.auto_awesome,
-                color: theme.colorScheme.secondary,
-              ),
-              onPressed: () => context.goNamed(AppRouteNames.chat),
-            ),
-            IconButton(
-              icon: const Icon(Icons.map_outlined, color: Colors.grey),
-              onPressed: () => context.pushNamed(AppRouteNames.map),
-            ),
-            IconButton(
-              icon: const Icon(Icons.route_outlined, color: Colors.grey),
-              onPressed: () =>
-                  context.pushNamed(AppRouteNames.itineraryHistory),
-            ),
-            IconButton(
-              icon: const Icon(Icons.person_outline, color: Colors.grey),
-              onPressed: () => context.goNamed(AppRouteNames.profile),
-            ),
-          ],
-        ),
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: (index) => _onItemTapped(index, context),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Inicio',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Mapa',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.route_outlined),
+            selectedIcon: Icon(Icons.route),
+            label: 'Rutas',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bookmark_outline),
+            selectedIcon: Icon(Icons.bookmark),
+            label: 'Guardados',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
+        ],
       ),
     );
+  }
+
+  int _calculateSelectedIndex(Uri uri) {
+    final path = uri.path;
+    if (path.startsWith(AppRoutes.home)) return 0;
+    if (path.startsWith(AppRoutes.map)) return 1;
+    if (path.startsWith(AppRoutes.itineraryHistory)) return 2;
+    if (path.startsWith(AppRoutes.bookmarks)) return 3;
+    if (path.startsWith(AppRoutes.profile)) return 4;
+    return 0;
+  }
+
+  void _onItemTapped(int index, BuildContext context) {
+    switch (index) {
+      case 0:
+        context.goNamed(AppRouteNames.home);
+      case 1:
+        context.goNamed(AppRouteNames.map);
+      case 2:
+        context.goNamed(AppRouteNames.itineraryHistory);
+      case 3:
+        context.goNamed(AppRouteNames.bookmarks);
+      case 4:
+        context.goNamed(AppRouteNames.profile);
+    }
   }
 }
