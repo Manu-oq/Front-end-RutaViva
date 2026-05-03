@@ -27,16 +27,17 @@ class RutaVivaApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
-    return Stack(
-      children: [
-        MaterialApp.router(
-          title: 'Ruta Viva',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          routerConfig: router,
-        ),
-        const GlobalLoadingOverlay(),
-      ],
+    return MaterialApp.router(
+      builder: (context, child) => Stack(
+        children: [
+          child!,
+          const GlobalLoadingOverlay(),
+        ],
+      ),
+      title: 'Ruta Viva',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      routerConfig: router,
     );
   }
 }

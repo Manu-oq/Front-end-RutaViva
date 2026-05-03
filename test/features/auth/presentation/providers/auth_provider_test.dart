@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:ruta_viva/core/error/api_exception.dart';
-import 'package:ruta_viva/core/network/api_provider.dart';
 import 'package:ruta_viva/core/network/auth_token_provider.dart';
 import 'package:ruta_viva/core/network/dio_client.dart';
 import 'package:ruta_viva/core/storage/local_storage_provider.dart';
