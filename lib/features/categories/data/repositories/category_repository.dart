@@ -20,6 +20,13 @@ final categoryNameMapProvider = Provider<Map<int, String>>((ref) {
   return {for (final category in categories) category.id: category.name};
 });
 
+final categoriesByIdProvider = Provider<Map<int, CategoryModel>>((ref) {
+  final categories = ref
+      .watch(categoriesProvider)
+      .maybeWhen(data: (items) => items, orElse: () => const <CategoryModel>[]);
+  return {for (final category in categories) category.id: category};
+});
+
 class CategoryRepository {
   final DioClient _client;
 
