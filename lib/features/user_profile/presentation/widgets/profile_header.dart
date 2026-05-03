@@ -1,28 +1,51 @@
 import 'package:flutter/material.dart';
 
 class ProfileHeader extends StatelessWidget {
-  const ProfileHeader({super.key});
+  final String displayName;
+  final String subtitle;
+  final String supportingText;
+
+  const ProfileHeader({
+    super.key,
+    required this.displayName,
+    required this.subtitle,
+    required this.supportingText,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final initial = displayName.isNotEmpty
+        ? displayName.substring(0, 1).toUpperCase()
+        : 'R';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 60,
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=mateo'),
+            backgroundColor: theme.colorScheme.secondary.withValues(
+              alpha: 0.18,
+            ),
+            child: Text(
+              initial,
+              style: theme.textTheme.displayLarge?.copyWith(
+                color: theme.colorScheme.secondary,
+                fontSize: 42,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           Text(
-            "Mateo Vicuña",
+            displayName,
+            textAlign: TextAlign.center,
             style: theme.textTheme.displayLarge?.copyWith(fontSize: 32),
           ),
-          Text("VIAJERO SUSTENTABLE", style: theme.textTheme.labelLarge),
+          Text(subtitle, style: theme.textTheme.labelLarge),
           const SizedBox(height: 12),
           Text(
-            "Dedicado a preservar el espíritu de la Araucanía a través de la exploración consciente.",
+            supportingText,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium,
           ),

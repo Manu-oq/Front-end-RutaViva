@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
 
 class ImpactSection extends StatelessWidget {
-  const ImpactSection({super.key});
+  final int loadedPois;
+  final int itinerarySteps;
+  final bool hasActiveSession;
+
+  const ImpactSection({
+    super.key,
+    required this.loadedPois,
+    required this.itinerarySteps,
+    required this.hasActiveSession,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -13,12 +22,12 @@ class ImpactSection extends StatelessWidget {
         color: theme.colorScheme.primary,
         borderRadius: BorderRadius.circular(32),
       ),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _ImpactStat(value: "12.4k", label: "PUNTOS"),
-          _ImpactStat(value: "14", label: "FAMILIAS"),
-          _ImpactStat(value: "8.4t", label: "CO2"),
+          _ImpactStat(value: loadedPois.toString(), label: 'POIS'),
+          _ImpactStat(value: itinerarySteps.toString(), label: 'PARADAS'),
+          _ImpactStat(value: hasActiveSession ? 'OK' : 'NO', label: 'SESIÓN'),
         ],
       ),
     );
