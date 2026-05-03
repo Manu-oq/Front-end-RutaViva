@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../itinerary/presentation/providers/itinerary_provider.dart';
 import '../../domain/entities/message_entity.dart';
 
 class ChatNotifier extends Notifier<List<MessageEntity>> {
@@ -7,15 +8,17 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     return [
       MessageEntity(
         text:
-            "¡Hola! Soy Ara. ¿En qué rincón de la Araucanía quieres perderte hoy?",
+            '¡Hola! Soy Ara. ¿En qué rincón de la Araucanía quieres perderte hoy?',
         isUser: false,
         timestamp: DateTime.now(),
       ),
     ];
   }
 
-  Future<void> sendMessage(String text) async {
-    if (text.trim().isEmpty) return;
+  Future<bool> sendMessage(String text) async {
+    if (text.trim().isEmpty) {
+      return false;
+    }
 
     final userMessage = MessageEntity(
       text: text,
@@ -25,28 +28,46 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     state = [...state, userMessage];
 
     final typingIndicator = MessageEntity(
-      text: "Ara está pensando...",
+      text: 'Ara está conectando con la ruta viva...',
       isUser: false,
       timestamp: DateTime.now(),
       isTyping: true,
     );
     state = [...state, typingIndicator];
 
-    await Future.delayed(const Duration(seconds: 2));
+    final itinerary = await ref
+        .read(itineraryProvider.notifier)
+        .generate(query: text);
 
     state = [
       for (final message in state)
         if (!identical(message, typingIndicator)) message,
     ];
 
+    if (itinerary == null) {
+      final errorMessage =
+          ref.read(itineraryProvider).errorMessage ??
+          'No pude generar la ruta. Revisa tu sesión o intenta con otra búsqueda.';
+      state = [
+        ...state,
+        MessageEntity(
+          text: errorMessage,
+          isUser: false,
+          timestamp: DateTime.now(),
+        ),
+      ];
+      return false;
+    }
+
     final araResponse = MessageEntity(
       text:
-          "He analizado tu deseo. Basado en la tranquilidad que buscas, te sugiero el sendero de la Cascada del Silencio. ¿Te gustaría ver la ruta?",
+          'Listo. Generé “${itinerary.title}” con ${itinerary.steps.length} paradas usando POIs reales del backend.',
       isUser: false,
       timestamp: DateTime.now(),
     );
 
     state = [...state, araResponse];
+    return true;
   }
 }
 

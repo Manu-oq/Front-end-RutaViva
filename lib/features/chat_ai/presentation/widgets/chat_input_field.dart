@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/widgets/glass_container.dart';
+import '../../../itinerary/presentation/providers/itinerary_provider.dart';
 import '../providers/chat_provider.dart';
 
 class ChatInputField extends ConsumerStatefulWidget {
@@ -12,6 +15,7 @@ class ChatInputField extends ConsumerStatefulWidget {
 
 class _ChatInputFieldState extends ConsumerState<ChatInputField> {
   late final TextEditingController _controller;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -27,10 +31,30 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
 
   Future<void> _submitMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _isSubmitting) {
+      return;
+    }
 
-    await ref.read(chatProvider.notifier).sendMessage(text);
+    setState(() => _isSubmitting = true);
+    final created = await ref.read(chatProvider.notifier).sendMessage(text);
     _controller.clear();
+
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isSubmitting = false);
+
+    if (created) {
+      final itinerary = ref.read(itineraryProvider).current;
+      if (itinerary == null) {
+        return;
+      }
+
+      context.goNamed(
+        AppRouteNames.itineraryDetail,
+        pathParameters: {'id': itinerary.id},
+      );
+    }
   }
 
   @override
@@ -48,22 +72,32 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
             Expanded(
               child: TextField(
                 controller: _controller,
+                enabled: !_isSubmitting,
                 onSubmitted: (_) => _submitMessage(),
                 decoration: const InputDecoration(
-                  hintText: "Escribe tu deseo...",
+                  hintText: 'Escribe tu deseo...',
                   border: InputBorder.none,
                 ),
               ),
             ),
             GestureDetector(
-              onTap: _submitMessage,
+              onTap: _isSubmitting ? null : _submitMessage,
               child: CircleAvatar(
                 backgroundColor: theme.colorScheme.primary,
-                child: const Icon(
-                  Icons.arrow_upward,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.arrow_upward,
+                        color: Colors.white,
+                        size: 20,
+                      ),
               ),
             ),
           ],
