@@ -1,39 +1,92 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
-import '../widgets/home_header.dart';
-import '../widgets/destination_hero_card.dart';
-import '../widgets/ai_input_bar.dart';
-import '../widgets/mist_navigation.dart';
 import '../../../../core/widgets/emergency_button.dart';
+import '../../../map/domain/entities/map_point.dart';
+import '../../../map/presentation/providers/map_provider.dart';
+import '../widgets/ai_input_bar.dart';
+import '../widgets/destination_hero_card.dart';
+import '../widgets/destination_skeleton.dart';
+import '../widgets/home_header.dart';
+import '../widgets/mist_navigation.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      final state = ref.read(mapProvider);
+      if (state.points.isEmpty && !state.isLoading) {
+        ref.read(mapProvider.notifier).loadNearby();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final mapState = ref.watch(mapProvider);
+    final secondaryPoints = mapState.points.skip(1).take(4).toList();
+
     return Scaffold(
       body: Stack(
         children: [
-          CustomScrollView(
-            slivers: [
-              const HomeHeader(),
-              DestinationHeroCard(
-                title: "Salto de la China",
-                category: "Naturaleza • A 45 min",
-                description:
-                    "Un velo de agua de 70 m, escondido en lo profundo de los bosques de araucarias.",
-                imageUrl:
-                    'https://images.unsplash.com/photo-1596230529625-7ee10f7b09b6?q=80&w=1000',
-                onSetRoute: () => context.pushNamed(AppRouteNames.map),
-                onDetails: () =>
-                    context.pushNamed(AppRouteNames.itineraryDetail),
-              ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 150)),
-            ],
+          RefreshIndicator(
+            onRefresh: () => ref
+                .read(mapProvider.notifier)
+                .loadNearby(center: mapState.center),
+            child: CustomScrollView(
+              slivers: [
+                const HomeHeader(),
+                if (mapState.isLoading && mapState.points.isEmpty)
+                  const DestinationSkeleton()
+                else if (mapState.points.isEmpty)
+                  SliverToBoxAdapter(
+                    child: _EmptyHomeState(
+                      errorMessage: mapState.errorMessage,
+                      onRetry: () => ref
+                          .read(mapProvider.notifier)
+                          .loadNearby(center: mapState.center),
+                    ),
+                  )
+                else ...[
+                  DestinationHeroCard(
+                    title: mapState.points.first.name,
+                    category: mapState.points.first.category.label,
+                    description:
+                        mapState.points.first.description ??
+                        'Punto de interés disponible en Ruta Viva.',
+                    imageUrl: mapState.points.first.imageUrl,
+                    distanceLabel: _distanceLabel(mapState.points.first),
+                    onSetRoute: () => context.pushNamed(AppRouteNames.map),
+                    onDetails: () => context.pushNamed(
+                      AppRouteNames.poiDetail,
+                      pathParameters: {'id': mapState.points.first.id},
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 160),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final point = secondaryPoints[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _PoiListTile(point: point),
+                        );
+                      }, childCount: secondaryPoints.length),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-
           const Positioned(
             top: 16,
             left: 16,
@@ -45,14 +98,12 @@ class HomePage extends StatelessWidget {
               child: EmergencyButton(),
             ),
           ),
-
           const Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: MistNavigation(),
           ),
-
           const Positioned(
             bottom: 90,
             left: 20,
@@ -60,6 +111,96 @@ class HomePage extends StatelessWidget {
             child: AIInputBar(),
           ),
         ],
+      ),
+    );
+  }
+
+  String? _distanceLabel(MapPoint point) {
+    final distance = point.distanceMeters;
+    if (distance == null) {
+      return null;
+    }
+    if (distance < 1000) {
+      return '${distance.round()} m';
+    }
+    return '${(distance / 1000).toStringAsFixed(1)} km';
+  }
+}
+
+class _PoiListTile extends StatelessWidget {
+  final MapPoint point;
+
+  const _PoiListTile({required this.point});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+          child: Icon(Icons.place_outlined, color: theme.colorScheme.primary),
+        ),
+        title: Text(point.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(point.category.label),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () => context.pushNamed(
+          AppRouteNames.poiDetail,
+          pathParameters: {'id': point.id},
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyHomeState extends StatelessWidget {
+  final String? errorMessage;
+  final VoidCallback onRetry;
+
+  const _EmptyHomeState({required this.errorMessage, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(28),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.travel_explore,
+              color: theme.colorScheme.secondary,
+              size: 40,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No hay POIs cargados todavía',
+              style: theme.textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              errorMessage ??
+                  'Intenta refrescar para consultar nuevamente el backend.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
       ),
     );
   }

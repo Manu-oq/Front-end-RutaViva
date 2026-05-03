@@ -5,7 +5,8 @@ class DestinationHeroCard extends StatelessWidget {
   final String title;
   final String category;
   final String description;
-  final String imageUrl;
+  final String? imageUrl;
+  final String? distanceLabel;
   final VoidCallback onSetRoute;
   final VoidCallback onDetails;
 
@@ -14,7 +15,8 @@ class DestinationHeroCard extends StatelessWidget {
     required this.title,
     required this.category,
     required this.description,
-    required this.imageUrl,
+    this.imageUrl,
+    this.distanceLabel,
     required this.onSetRoute,
     required this.onDetails,
   });
@@ -22,6 +24,8 @@ class DestinationHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+
     return SliverPadding(
       padding: const EdgeInsets.all(24),
       sliver: SliverToBoxAdapter(
@@ -38,37 +42,58 @@ class DestinationHeroCard extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(32),
                 ),
-                child: Image.network(
-                  imageUrl,
-                  height: 250,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+                child: hasImage
+                    ? Image.network(
+                        imageUrl!,
+                        height: 250,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const _DestinationImageFallback(),
+                      )
+                    : const _DestinationImageFallback(),
               ),
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      category.toUpperCase(),
-                      style: theme.textTheme.labelLarge,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            category.toUpperCase(),
+                            style: theme.textTheme.labelLarge,
+                          ),
+                        ),
+                        if (distanceLabel != null)
+                          Text(
+                            distanceLabel!,
+                            style: theme.textTheme.labelSmall,
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Text(title, style: theme.textTheme.headlineMedium),
                     const SizedBox(height: 12),
-                    Text(description, style: theme.textTheme.bodyMedium),
+                    Text(
+                      description,
+                      style: theme.textTheme.bodyMedium,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 20),
-                    Row(
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
                       children: [
                         _SmallButton(
-                          label: "Establecer Ruta",
+                          label: 'Ver en mapa',
                           isPrimary: true,
                           onTap: onSetRoute,
                         ),
-                        const SizedBox(width: 12),
                         _SmallButton(
-                          label: "Detalles",
+                          label: 'Detalles',
                           isPrimary: false,
                           onTap: onDetails,
                         ),
@@ -80,6 +105,26 @@ class DestinationHeroCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DestinationImageFallback extends StatelessWidget {
+  const _DestinationImageFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      height: 250,
+      width: double.infinity,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.landscape_outlined,
+        size: 72,
+        color: theme.colorScheme.primary,
       ),
     );
   }

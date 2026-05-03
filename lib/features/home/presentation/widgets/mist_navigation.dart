@@ -31,8 +31,9 @@ class MistNavigation extends StatelessWidget {
               onPressed: () => context.pushNamed(AppRouteNames.map),
             ),
             IconButton(
-              icon: const Icon(Icons.explore_outlined, color: Colors.grey),
-              onPressed: () => context.pushNamed(AppRouteNames.onboarding),
+              icon: const Icon(Icons.route_outlined, color: Colors.grey),
+              onPressed: () =>
+                  context.pushNamed(AppRouteNames.itineraryHistory),
             ),
             IconButton(
               icon: const Icon(Icons.person_outline, color: Colors.grey),
