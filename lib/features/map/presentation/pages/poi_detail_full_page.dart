@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../bookmarks/presentation/widgets/bookmark_button.dart';
+import '../../../categories/data/repositories/category_repository.dart';
 import '../../../media/presentation/widgets/image_upload_panel.dart';
 import '../../../reviews/presentation/widgets/reviews_section.dart';
 import '../../data/repositories/poi_repository.dart';
@@ -51,14 +52,15 @@ class PoiDetailFullPage extends ConsumerWidget {
   }
 }
 
-class _PoiDetailBody extends StatelessWidget {
+class _PoiDetailBody extends ConsumerWidget {
   final MapPoint poi;
 
   const _PoiDetailBody({required this.poi});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final names = ref.watch(categoriesByIdProvider);
 
     return Scaffold(
       body: CustomScrollView(
@@ -73,7 +75,7 @@ class _PoiDetailBody extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        poi.category.label.toUpperCase(),
+                        poi.categoryLabel(names).toUpperCase(),
                         style: theme.textTheme.labelLarge,
                       ),
                       const Spacer(),

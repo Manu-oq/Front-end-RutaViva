@@ -55,30 +55,10 @@ class PoiModel {
       phone: telefonoPublico,
       email: emailPublico,
       categoryIds: categoryIds,
-      category: _categoryFromIds(categoryIds),
       coordinates: LatLng(latitude, longitude),
       imageUrl: ApiConstants.resolveBackendUrl(_firstMediaUrl(multimediaUrls)),
       distanceMeters: distanciaMetros,
     );
-  }
-
-  static PointCategory _categoryFromIds(List<int> ids) {
-    if (ids.contains(1)) {
-      return PointCategory.naturaleza;
-    }
-    if (ids.contains(2)) {
-      return PointCategory.gastronomia;
-    }
-    if (ids.contains(3)) {
-      return PointCategory.turismo;
-    }
-    if (ids.contains(4)) {
-      return PointCategory.alojamiento;
-    }
-    if (ids.contains(5)) {
-      return PointCategory.cultura;
-    }
-    return PointCategory.otro;
   }
 
   static String? _firstMediaUrl(dynamic media) {

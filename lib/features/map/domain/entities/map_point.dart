@@ -1,38 +1,11 @@
 import 'package:latlong2/latlong.dart';
 
-enum PointCategory {
-  naturaleza,
-  gastronomia,
-  turismo,
-  alojamiento,
-  cultura,
-  otro,
-}
-
-extension PointCategoryLabel on PointCategory {
-  String get label {
-    switch (this) {
-      case PointCategory.naturaleza:
-        return 'Naturaleza';
-      case PointCategory.gastronomia:
-        return 'Gastronomía';
-      case PointCategory.turismo:
-        return 'Turismo';
-      case PointCategory.alojamiento:
-        return 'Alojamiento';
-      case PointCategory.cultura:
-        return 'Cultura';
-      case PointCategory.otro:
-        return 'Otro';
-    }
-  }
-}
+import '../../../categories/data/models/category_model.dart';
 
 class MapPoint {
   final String id;
   final String name;
   final LatLng coordinates;
-  final PointCategory category;
   final List<int> categoryIds;
   final String? description;
   final String? imageUrl;
@@ -46,7 +19,6 @@ class MapPoint {
     required this.id,
     required this.name,
     required this.coordinates,
-    required this.category,
     this.categoryIds = const [],
     this.description,
     this.imageUrl,
@@ -56,4 +28,17 @@ class MapPoint {
     this.isLocalAuthentic = true,
     this.amenities,
   });
+}
+
+extension MapPointCategoryX on MapPoint {
+  /// Resolves a single user-facing label for this point's primary category.
+  ///
+  /// Looks up [categoryIds] `.first` against the provided [names] map (built
+  /// from `categoriesByIdProvider`). Returns the unified fallback string when
+  /// the point has no categories or the id isn't present in the map (loading,
+  /// error, or unknown backend id).
+  String categoryLabel(Map<int, CategoryModel> names) {
+    if (categoryIds.isEmpty) return 'Sin categoría';
+    return names[categoryIds.first]?.name ?? 'Sin categoría';
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../categories/data/repositories/category_repository.dart';
 import '../../../map/domain/entities/map_point.dart';
 import '../../data/repositories/bookmark_repository.dart';
 
@@ -12,6 +13,7 @@ class BookmarksPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final bookmarks = ref.watch(bookmarkedPoisProvider);
+    final names = ref.watch(categoriesByIdProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -85,7 +87,7 @@ class BookmarksPage extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  subtitle: Text(poi.category.label),
+                  subtitle: Text(poi.categoryLabel(names)),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => context.pushNamed(
                     AppRouteNames.poiDetail,

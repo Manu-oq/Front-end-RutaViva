@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../categories/data/repositories/category_repository.dart';
 import '../../domain/entities/map_point.dart';
 
-class PoiDetailSheet extends StatelessWidget {
+class PoiDetailSheet extends ConsumerWidget {
   final MapPoint point;
   const PoiDetailSheet({super.key, required this.point});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final names = ref.watch(categoriesByIdProvider);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -52,7 +55,7 @@ class PoiDetailSheet extends StatelessWidget {
             style: theme.textTheme.displayLarge?.copyWith(fontSize: 24),
           ),
           Text(
-            point.category.label.toUpperCase(),
+            point.categoryLabel(names).toUpperCase(),
             style: theme.textTheme.labelLarge,
           ),
           const SizedBox(height: 12),

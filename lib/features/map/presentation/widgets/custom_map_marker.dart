@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../categories/presentation/category_style.dart';
 import '../../domain/entities/map_point.dart';
 import '../providers/map_provider.dart';
 import 'poi_detail_sheet.dart';
@@ -12,35 +13,10 @@ class CustomMapMarker extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    IconData icon;
-    Color color;
-
-    switch (point.category) {
-      case PointCategory.naturaleza:
-        icon = Icons.park;
-        color = Colors.green.shade700;
-        break;
-      case PointCategory.gastronomia:
-        icon = Icons.restaurant;
-        color = theme.colorScheme.secondary;
-        break;
-      case PointCategory.turismo:
-        icon = Icons.explore;
-        color = theme.colorScheme.primary;
-        break;
-      case PointCategory.alojamiento:
-        icon = Icons.hotel;
-        color = theme.colorScheme.tertiary;
-        break;
-      case PointCategory.cultura:
-        icon = Icons.museum;
-        color = theme.colorScheme.primary;
-        break;
-      case PointCategory.otro:
-        icon = Icons.location_on;
-        color = Colors.grey;
-        break;
-    }
+    final style = categoryStyleFor(
+      point.categoryIds.isEmpty ? null : point.categoryIds.first,
+      theme.colorScheme,
+    );
 
     return GestureDetector(
       onTap: () {
@@ -57,7 +33,7 @@ class CustomMapMarker extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color,
+              color: style.color,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -66,7 +42,7 @@ class CustomMapMarker extends ConsumerWidget {
                 ),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 20),
+            child: Icon(style.icon, color: Colors.white, size: 20),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

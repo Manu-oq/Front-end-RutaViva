@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/widgets/emergency_button.dart';
+import '../../../categories/data/repositories/category_repository.dart';
 import '../../../map/domain/entities/map_point.dart';
 import '../../../map/presentation/providers/map_provider.dart';
 import '../widgets/ai_input_bar.dart';
@@ -33,6 +34,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final mapState = ref.watch(mapProvider);
+    final names = ref.watch(categoriesByIdProvider);
     final secondaryPoints = mapState.points.skip(1).take(4).toList();
 
     return Scaffold(
@@ -59,7 +61,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 else ...[
                   DestinationHeroCard(
                     title: mapState.points.first.name,
-                    category: mapState.points.first.category.label,
+                    category: mapState.points.first.categoryLabel(names),
                     description:
                         mapState.points.first.description ??
                         'Punto de interés disponible en Ruta Viva.',
@@ -127,14 +129,15 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-class _PoiListTile extends StatelessWidget {
+class _PoiListTile extends ConsumerWidget {
   final MapPoint point;
 
   const _PoiListTile({required this.point});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final names = ref.watch(categoriesByIdProvider);
     return Card(
       elevation: 0,
       color: theme.colorScheme.surface,
@@ -146,7 +149,7 @@ class _PoiListTile extends StatelessWidget {
           child: Icon(Icons.place_outlined, color: theme.colorScheme.primary),
         ),
         title: Text(point.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(point.category.label),
+        subtitle: Text(point.categoryLabel(names)),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () => context.pushNamed(
           AppRouteNames.poiDetail,

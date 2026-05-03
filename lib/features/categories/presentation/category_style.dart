@@ -19,9 +19,8 @@ const CategoryStyle _fallbackStyle = CategoryStyle(
   color: Colors.grey,
 );
 
-/// Resolves the visual [CategoryStyle] for a category [id] preserving the
-/// exact icons and colors that the legacy `PointCategory` enum produced in
-/// `custom_map_marker.dart`.
+/// Resolves the visual [CategoryStyle] for a category [id], preserving the
+/// exact icons and colors historically rendered by `custom_map_marker.dart`.
 ///
 /// Theme-aware colors (secondary, primary, tertiary) are read from the
 /// provided [scheme] so the helper can stay pure (no `BuildContext`) while
@@ -40,30 +39,15 @@ CategoryStyle categoryStyleFor(int? id, ColorScheme scheme) {
     case 1:
       // Naturaleza — preserves the literal `Colors.green.shade700` used
       // historically (not theme-derived) for visual parity.
-      return const CategoryStyle(
-        icon: Icons.park,
-        color: Color(0xFF388E3C),
-      );
+      return const CategoryStyle(icon: Icons.park, color: Color(0xFF388E3C));
     case 2:
-      return CategoryStyle(
-        icon: Icons.restaurant,
-        color: scheme.secondary,
-      );
+      return CategoryStyle(icon: Icons.restaurant, color: scheme.secondary);
     case 3:
-      return CategoryStyle(
-        icon: Icons.explore,
-        color: scheme.primary,
-      );
+      return CategoryStyle(icon: Icons.explore, color: scheme.primary);
     case 4:
-      return CategoryStyle(
-        icon: Icons.hotel,
-        color: scheme.tertiary,
-      );
+      return CategoryStyle(icon: Icons.hotel, color: scheme.tertiary);
     case 5:
-      return CategoryStyle(
-        icon: Icons.museum,
-        color: scheme.primary,
-      );
+      return CategoryStyle(icon: Icons.museum, color: scheme.primary);
     default:
       return _fallbackStyle;
   }
