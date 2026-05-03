@@ -1,11 +1,12 @@
-import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../constants/api_constants.dart';
 
 class DioClient {
   final Dio _dio;
+  final String? Function()? authTokenReader;
 
-  DioClient(this._dio) {
+  DioClient(this._dio, {this.authTokenReader}) {
     _dio
       ..options.baseUrl = ApiConstants.baseUrl
       ..options.connectTimeout = const Duration(
@@ -19,17 +20,11 @@ class DioClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          // Aquí se inyecta el Token de forma global
-          // const token = "tu_token_de_prueba";
-          // options.headers['Authorization'] = 'Bearer $token';
-          return handler.next(options);
-        },
-        onError: (DioException e, handler) {
-          // Centralización de errores (401, 404, 500)
-          if (e.response?.statusCode == 401) {
-            // Lógica de Refresh Token o Logout
+          final token = authTokenReader?.call();
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
           }
-          return handler.next(e);
+          return handler.next(options);
         },
       ),
     );
@@ -41,23 +36,66 @@ class DioClient {
     }
   }
 
-  // Métodos envoltorios para no repetir try-catch en todo el código
-  Future<Response> get(
+  Future<Response<T>> get<T>(
     String url, {
     Map<String, dynamic>? queryParameters,
-  }) async {
-    try {
-      return await _dio.get(url, queryParameters: queryParameters);
-    } catch (e) {
-      rethrow;
-    }
+  }) {
+    return _dio.get<T>(url, queryParameters: queryParameters);
   }
 
-  Future<Response> post(String url, {dynamic data}) async {
-    try {
-      return await _dio.post(url, data: data);
-    } catch (e) {
-      rethrow;
-    }
+  Future<Response<T>> post<T>(
+    String url, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) {
+    return _dio.post<T>(
+      url,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+    );
+  }
+
+  Future<Response<T>> put<T>(
+    String url, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) {
+    return _dio.put<T>(
+      url,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+    );
+  }
+
+  Future<Response<T>> patch<T>(
+    String url, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) {
+    return _dio.patch<T>(
+      url,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+    );
+  }
+
+  Future<Response<T>> delete<T>(
+    String url, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) {
+    return _dio.delete<T>(
+      url,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
+    );
   }
 }
