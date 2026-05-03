@@ -1,61 +1,182 @@
 import 'package:flutter/material.dart';
-import '../widgets/itinerary_step_widget.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/models/itinerary_model.dart';
+import '../../data/repositories/itinerary_repository.dart';
+import '../providers/itinerary_provider.dart';
 import '../widgets/cultural_insight_card.dart';
+import '../widgets/itinerary_step_widget.dart';
 import '../widgets/trail_intelligence_box.dart';
 
-class ItineraryDetailPage extends StatelessWidget {
-  const ItineraryDetailPage({super.key});
+class ItineraryDetailPage extends ConsumerWidget {
+  final String? itineraryId;
+
+  const ItineraryDetailPage({super.key, this.itineraryId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (itineraryId != null) {
+      final itinerary = ref.watch(itineraryDetailProvider(itineraryId!));
+      return itinerary.when(
+        data: (value) => _ItineraryDetailBody(itinerary: value),
+        loading: () =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        error: (error, stackTrace) => _ItineraryDetailError(error: error),
+      );
+    }
+
+    final itineraryState = ref.watch(itineraryProvider);
+    if (itineraryState.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final itinerary = itineraryState.current;
+    if (itinerary == null) {
+      return const _NoItineraryState();
+    }
+
+    return _ItineraryDetailBody(itinerary: itinerary);
+  }
+}
+
+class _ItineraryDetailBody extends StatelessWidget {
+  final ItineraryModel itinerary;
+
+  const _ItineraryDetailBody({required this.itinerary});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
-        title: Text("DÍA 1", style: theme.textTheme.labelLarge),
+        title: Text(
+          _dateRangeLabel(itinerary),
+          style: theme.textTheme.labelLarge,
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("El Camino Narrativo", style: theme.textTheme.displayLarge),
+            Text(itinerary.title, style: theme.textTheme.displayLarge),
             const SizedBox(height: 12),
             Text(
-              "Trazando las rutas tranquilas de la Araucanía. Un viaje a través de valles envueltos en niebla y la calidez de la hospitalidad rural.",
+              'Ruta persistida en backend con ${itinerary.steps.length} paradas.',
               style: theme.textTheme.bodyLarge,
             ),
             const SizedBox(height: 40),
-
-            const ItineraryStepWidget(
-              time: "08:30 — La Mañana de la Tejedora",
-              description:
-                  "Comienza con la Sra. Rosa en Curarrehue. Su telar lleva la historia de tres generaciones de artesanos Mapuche.",
-              child: CulturalInsightCard(
-                label: "Sabiduría Cultural",
-                text:
-                    "El hilo azul en nuestros textiles representa el espíritu del cielo. Nunca tejemos en silencio; tejemos las historias que hemos escuchado.",
-              ),
-            ),
-
-            ItineraryStepWidget(
-              time: "",
-              description: "",
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.network(
-                  "https://images.unsplash.com/photo-1590736962236-407a505f9630",
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 32),
+            for (final step in itinerary.steps) _GeneratedStep(step: step),
+            const SizedBox(height: 16),
             const TrailIntelligenceBox(),
             const SizedBox(height: 100),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _dateRangeLabel(ItineraryModel itinerary) {
+    if (itinerary.startDate == null || itinerary.endDate == null) {
+      return 'ITINERARIO';
+    }
+    return '${_shortDate(itinerary.startDate!)} — ${_shortDate(itinerary.endDate!)}';
+  }
+
+  String _shortDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month';
+  }
+}
+
+class _GeneratedStep extends StatelessWidget {
+  final ItineraryStepModel step;
+
+  const _GeneratedStep({required this.step});
+
+  @override
+  Widget build(BuildContext context) {
+    final infoParts = <String>[
+      if (step.recommendedDuration.isNotEmpty) step.recommendedDuration,
+      if (step.poiNombre != null && step.poiNombre!.isNotEmpty) step.poiNombre!,
+    ];
+
+    return ItineraryStepWidget(
+      time: _stepTimeLabel(step),
+      description: infoParts.join(' • '),
+      child: CulturalInsightCard(
+        label: step.title,
+        text: step.tips.isNotEmpty
+            ? '${step.reason}\n\nConsejo: ${step.tips}'
+            : step.reason,
+      ),
+    );
+  }
+
+  String _stepTimeLabel(ItineraryStepModel step) {
+    final arrival = step.arrivalTime;
+    if (arrival == null) {
+      return 'Parada ${step.stepOrder}';
+    }
+    final hour = arrival.hour.toString().padLeft(2, '0');
+    final minute = arrival.minute.toString().padLeft(2, '0');
+    return '$hour:$minute — Parada ${step.stepOrder}';
+  }
+}
+
+class _NoItineraryState extends StatelessWidget {
+  const _NoItineraryState();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Aún no hay una ruta generada',
+              style: theme.textTheme.displayLarge,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Escribe una intención desde Inicio o Ara Assistant para generar un itinerario usando el backend.',
+              style: theme.textTheme.bodyLarge,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ItineraryDetailError extends StatelessWidget {
+  final Object error;
+
+  const _ItineraryDetailError({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Itinerario')),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'No se pudo cargar el itinerario',
+              style: theme.textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            Text('$error'),
           ],
         ),
       ),
