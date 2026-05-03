@@ -20,8 +20,12 @@ class ProfileScreen extends ConsumerWidget {
     final profile = user?.touristProfile;
 
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(authProvider);
+        },
+        child: SingleChildScrollView(
+          child: Column(
           children: [
             const SizedBox(height: 80),
             ProfileHeader(
@@ -48,7 +52,8 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 32),
             const AccountSettings(),
             const SizedBox(height: 100),
-          ],
+            ],
+          ),
         ),
       ),
     );

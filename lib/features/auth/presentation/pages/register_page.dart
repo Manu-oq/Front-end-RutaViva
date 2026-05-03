@@ -22,6 +22,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _confirmPasswordController = TextEditingController();
   bool _hasOwnTransport = false;
   bool _obscurePassword = true;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -36,6 +37,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    setState(() => _errorMessage = null);
 
     final selectedInterests = ref.read(interestsProvider);
     final success = await ref
@@ -59,9 +62,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     final message =
         ref.read(authProvider).errorMessage ?? 'No se pudo crear la cuenta.';
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    setState(() => _errorMessage = message);
   }
 
   @override
@@ -98,6 +99,43 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     style: theme.textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 28),
+                  if (_errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.error,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _errorMessage = null),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   TextFormField(
                     controller: _nameController,
                     textCapitalization: TextCapitalization.words,

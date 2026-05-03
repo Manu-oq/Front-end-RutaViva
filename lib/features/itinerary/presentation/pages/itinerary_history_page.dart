@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/widgets/skeleton_container.dart';
 import '../../data/models/itinerary_model.dart';
 import '../../data/repositories/itinerary_repository.dart';
 
@@ -41,7 +42,15 @@ class ItineraryHistoryPage extends ConsumerWidget {
             itemCount: items.length,
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListView.separated(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          itemBuilder: (context, index) => SkeletonContainer(
+            height: 120,
+            borderRadius: const BorderRadius.all(Radius.circular(22)),
+          ),
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          itemCount: 4,
+        ),
         error: (error, stackTrace) => Padding(
           padding: const EdgeInsets.all(24),
           child: Column(

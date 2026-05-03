@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/widgets/skeleton_container.dart';
 import '../../data/models/itinerary_model.dart';
 import '../../data/repositories/itinerary_repository.dart';
 import '../providers/itinerary_provider.dart';
@@ -18,15 +19,14 @@ class ItineraryDetailPage extends ConsumerWidget {
       final itinerary = ref.watch(itineraryDetailProvider(itineraryId!));
       return itinerary.when(
         data: (value) => _ItineraryDetailBody(itinerary: value),
-        loading: () =>
-            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        loading: () => const _ItineraryDetailSkeleton(),
         error: (error, stackTrace) => _ItineraryDetailError(error: error),
       );
     }
 
     final itineraryState = ref.watch(itineraryProvider);
     if (itineraryState.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const _ItineraryDetailSkeleton();
     }
 
     final itinerary = itineraryState.current;
@@ -38,13 +38,13 @@ class ItineraryDetailPage extends ConsumerWidget {
   }
 }
 
-class _ItineraryDetailBody extends StatelessWidget {
+class _ItineraryDetailBody extends ConsumerWidget {
   final ItineraryModel itinerary;
 
   const _ItineraryDetailBody({required this.itinerary});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
@@ -56,23 +56,28 @@ class _ItineraryDetailBody extends StatelessWidget {
           style: theme.textTheme.labelLarge,
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(itinerary.title, style: theme.textTheme.displayLarge),
-            const SizedBox(height: 12),
-            Text(
-              'Ruta persistida en backend con ${itinerary.steps.length} paradas.',
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 40),
-            for (final step in itinerary.steps) _GeneratedStep(step: step),
-            const SizedBox(height: 16),
-            const TrailIntelligenceBox(),
-            const SizedBox(height: 100),
-          ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(itineraryDetailProvider(itinerary.id));
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(itinerary.title, style: theme.textTheme.displayLarge),
+              const SizedBox(height: 12),
+              Text(
+                'Ruta persistida en backend con ${itinerary.steps.length} paradas.',
+                style: theme.textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 40),
+              for (final step in itinerary.steps) _GeneratedStep(step: step),
+              const SizedBox(height: 16),
+              const TrailIntelligenceBox(),
+              const SizedBox(height: 100),
+            ],
+          ),
         ),
       ),
     );
@@ -148,6 +153,51 @@ class _NoItineraryState extends StatelessWidget {
             Text(
               'Escribe una intención desde Inicio o Ara Assistant para generar un itinerario usando el backend.',
               style: theme.textTheme.bodyLarge,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ItineraryDetailSkeleton extends StatelessWidget {
+  const _ItineraryDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: const BackButton(color: Colors.black),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 16),
+            SkeletonContainer(height: 28, width: 200),
+            const SizedBox(height: 12),
+            SkeletonContainer(height: 14),
+            const SizedBox(height: 40),
+            ...List.generate(
+              4,
+              (index) => Padding(
+                padding: const EdgeInsets.only(bottom: 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonContainer(height: 14, width: 140),
+                    const SizedBox(height: 12),
+                    SkeletonContainer(
+                      height: 90,
+                      borderRadius: const BorderRadius.all(Radius.circular(20)),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),

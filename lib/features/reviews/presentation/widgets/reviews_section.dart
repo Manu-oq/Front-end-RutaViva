@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/api_exception.dart';
+import '../../../../core/widgets/skeleton_container.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/review_model.dart';
 import '../../data/repositories/review_repository.dart';
@@ -171,10 +172,24 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
         const SizedBox(height: 12),
         summary.when(
           data: (value) => _ReviewSummaryCard(summary: value),
-          loading: () => const LinearProgressIndicator(),
-          error: (error, stackTrace) => Text(
-            'No se pudo cargar el resumen de reviews.',
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.red),
+          loading: () => SkeletonContainer(height: 140),
+          error: (error, stackTrace) => Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Column(
+              children: [
+                Text(
+                  'No se pudo cargar el resumen de reviews.',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.error),
+                ),
+                const SizedBox(height: 4),
+                TextButton.icon(
+                  onPressed: () => _refreshReviews(),
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Reintentar'),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -207,10 +222,29 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
               }).toList(),
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => Text(
-            'No se pudieron cargar las reviews: $error',
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.red),
+          loading: () => Column(
+            children: List.generate(3, (_) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: SkeletonContainer(height: 80),
+            )),
+          ),
+          error: (error, stackTrace) => Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Column(
+              children: [
+                Text(
+                  'No se pudieron cargar las reviews.',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.error),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reintentar'),
+                  onPressed: () => _refreshReviews(),
+                ),
+              ],
+            ),
           ),
         ),
       ],

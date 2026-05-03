@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../../core/widgets/glass_container.dart';
+import '../../../../core/widgets/skeleton_container.dart';
 import '../../../../core/utils/location_handler.dart';
 import '../providers/map_provider.dart';
 import '../widgets/custom_map_marker.dart';
@@ -188,9 +189,18 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               left: 20,
               right: 20,
               bottom: 130,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: const LinearProgressIndicator(minHeight: 6),
+              child: SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: 6,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (_, _) => SkeletonContainer(
+                    width: 100,
+                    height: 36,
+                    borderRadius: const BorderRadius.all(Radius.circular(18)),
+                  ),
+                ),
               ),
             ),
 

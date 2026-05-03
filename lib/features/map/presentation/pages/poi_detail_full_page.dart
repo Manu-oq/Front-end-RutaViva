@@ -63,9 +63,13 @@ class _PoiDetailBody extends ConsumerWidget {
     final names = ref.watch(categoriesByIdProvider);
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          PoiGalleryHeader(imageUrl: poi.imageUrl, heroTag: 'poi_${poi.id}'),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(poiDetailProvider(poi.id));
+        },
+        child: CustomScrollView(
+          slivers: [
+            PoiGalleryHeader(imageUrl: poi.imageUrl, heroTag: 'poi_${poi.id}'),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -155,7 +159,8 @@ class _PoiDetailBody extends ConsumerWidget {
               ),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
