@@ -1,16 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
+import '../../../../core/error/api_exception.dart';
+import '../../data/repositories/poi_repository.dart';
 import '../../domain/entities/map_point.dart';
+
+const araucaniaDefaultCenter = LatLng(-39.35, -71.70);
+const defaultSearchRadiusMeters = 30000.0;
 
 class MapState {
   final List<MapPoint> points;
   final List<LatLng> routePolyline;
   final MapPoint? selectedPoint;
+  final bool isLoading;
+  final String? errorMessage;
+  final LatLng center;
 
   MapState({
     required this.points,
     required this.routePolyline,
+    required this.center,
     this.selectedPoint,
+    this.isLoading = false,
+    this.errorMessage,
   });
 
   MapState copyWith({
@@ -18,6 +29,10 @@ class MapState {
     List<LatLng>? routePolyline,
     MapPoint? selectedPoint,
     bool clearSelection = false,
+    bool? isLoading,
+    String? errorMessage,
+    bool clearError = false,
+    LatLng? center,
   }) {
     return MapState(
       points: points ?? this.points,
@@ -25,6 +40,9 @@ class MapState {
       selectedPoint: clearSelection
           ? null
           : (selectedPoint ?? this.selectedPoint),
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      center: center ?? this.center,
     );
   }
 }
@@ -33,47 +51,73 @@ class MapNotifier extends Notifier<MapState> {
   @override
   MapState build() {
     return MapState(
-      points: [
-        MapPoint(
-          id: '1',
-          name: 'Taller de Nury',
-          description:
-              'Artesanía textil en lana de oveja con tintes naturales de la zona. Conoce el proceso del Witral.',
-          imageUrl:
-              'https://images.unsplash.com/photo-1590736962236-407a505f9630',
-          phone: '+56912345678',
-          coordinates: const LatLng(-39.2952, -71.6611),
-          category: PointCategory.cultura,
-        ),
-        MapPoint(
-          id: '2',
-          name: 'Ruka de Rosa',
-          description:
-              'Gastronomía Mapuche tradicional. Prueba el pan de piñón y el muday en un ambiente ancestral.',
-          imageUrl:
-              'https://images.unsplash.com/photo-1596230529625-7ee10f7b09b6',
-          phone: '+56987654321',
-          coordinates: const LatLng(-39.3552, -71.7011),
-          category: PointCategory.comida,
-        ),
-        MapPoint(
-          id: '3',
-          name: 'Eco-Hostel Volcán',
-          description:
-              'Alojamiento sustentable con vista al Villarrica. Energía solar y gestión de residuos zero waste.',
-          imageUrl:
-              'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
-          phone: '+56955544433',
-          coordinates: const LatLng(-39.4252, -71.7511),
-          category: PointCategory.dormir,
-        ),
-      ],
-      routePolyline: [
-        const LatLng(-39.2952, -71.6611),
-        const LatLng(-39.3552, -71.7011),
-        const LatLng(-39.4252, -71.7511),
-      ],
+      points: const [],
+      routePolyline: const [],
+      center: araucaniaDefaultCenter,
     );
+  }
+
+  Future<void> loadNearby({
+    LatLng center = araucaniaDefaultCenter,
+    double radius = defaultSearchRadiusMeters,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true, center: center);
+    try {
+      final pois = await ref
+          .read(poiRepositoryProvider)
+          .searchNearby(
+            lat: center.latitude,
+            lon: center.longitude,
+            radius: radius,
+          );
+      final points = pois.map((poi) => poi.toMapPoint()).toList();
+      state = state.copyWith(
+        points: points,
+        routePolyline: points.map((point) => point.coordinates).toList(),
+        isLoading: false,
+        center: center,
+      );
+    } catch (error) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _readableError(error),
+      );
+    }
+  }
+
+  Future<void> semanticSearch({
+    required String query,
+    LatLng? center,
+    double radius = defaultSearchRadiusMeters,
+  }) async {
+    final searchCenter = center ?? state.center;
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      center: searchCenter,
+    );
+    try {
+      final pois = await ref
+          .read(poiRepositoryProvider)
+          .semanticSearch(
+            query: query,
+            lat: searchCenter.latitude,
+            lon: searchCenter.longitude,
+            radius: radius,
+          );
+      final points = pois.map((poi) => poi.toMapPoint()).toList();
+      state = state.copyWith(
+        points: points,
+        routePolyline: points.map((point) => point.coordinates).toList(),
+        isLoading: false,
+        center: searchCenter,
+      );
+    } catch (error) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _readableError(error),
+      );
+    }
   }
 
   void selectPoint(MapPoint? point) {
@@ -82,6 +126,13 @@ class MapNotifier extends Notifier<MapState> {
 
   void updateRoute(List<LatLng> newRoute) {
     state = state.copyWith(routePolyline: newRoute);
+  }
+
+  String _readableError(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+    return 'No se pudieron cargar puntos de interés.';
   }
 }
 

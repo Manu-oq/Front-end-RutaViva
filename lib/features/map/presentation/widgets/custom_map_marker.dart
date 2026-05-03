@@ -16,11 +16,19 @@ class CustomMapMarker extends ConsumerWidget {
     Color color;
 
     switch (point.category) {
-      case PointCategory.comida:
+      case PointCategory.naturaleza:
+        icon = Icons.park;
+        color = Colors.green.shade700;
+        break;
+      case PointCategory.gastronomia:
         icon = Icons.restaurant;
         color = theme.colorScheme.secondary;
         break;
-      case PointCategory.dormir:
+      case PointCategory.turismo:
+        icon = Icons.explore;
+        color = theme.colorScheme.primary;
+        break;
+      case PointCategory.alojamiento:
         icon = Icons.hotel;
         color = theme.colorScheme.tertiary;
         break;
@@ -28,9 +36,10 @@ class CustomMapMarker extends ConsumerWidget {
         icon = Icons.museum;
         color = theme.colorScheme.primary;
         break;
-      default:
+      case PointCategory.otro:
         icon = Icons.location_on;
         color = Colors.grey;
+        break;
     }
 
     return GestureDetector(

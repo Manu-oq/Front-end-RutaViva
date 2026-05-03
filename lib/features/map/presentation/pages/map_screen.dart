@@ -23,6 +23,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   void initState() {
     super.initState();
     _mapController = MapController();
+    Future.microtask(() {
+      final current = ref.read(mapProvider);
+      if (current.points.isEmpty && !current.isLoading) {
+        ref.read(mapProvider.notifier).loadNearby();
+      }
+    });
   }
 
   @override
@@ -39,11 +45,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. EL MAPA
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: const LatLng(-39.35, -71.70),
+              initialCenter: araucaniaDefaultCenter,
               initialZoom: 11.0,
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all,
@@ -54,21 +59,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.rutaviva.app',
               ),
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: mapState.routePolyline,
-                    strokeWidth: 5.0,
-                    color: theme.colorScheme.tertiary,
-                    borderStrokeWidth: 2.0,
-                    borderColor: theme.colorScheme.primary.withValues(
-                      alpha: 0.1,
+              if (mapState.routePolyline.length > 1)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: mapState.routePolyline,
+                      strokeWidth: 5.0,
+                      color: theme.colorScheme.tertiary,
+                      borderStrokeWidth: 2.0,
+                      borderColor: theme.colorScheme.primary.withValues(
+                        alpha: 0.1,
+                      ),
+                      strokeCap: StrokeCap.round,
+                      strokeJoin: StrokeJoin.round,
                     ),
-                    strokeCap: StrokeCap.round,
-                    strokeJoin: StrokeJoin.round,
-                  ),
-                ],
-              ),
+                  ],
+                ),
               MarkerLayer(
                 markers: mapState.points.map((point) {
                   return Marker(
@@ -101,14 +107,28 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        "Explora La Araucanía",
+                        mapState.isLoading
+                            ? 'Cargando rutas vivas...'
+                            : 'Explora La Araucanía (${mapState.points.length})',
                         style: theme.textTheme.headlineMedium?.copyWith(
                           fontSize: 18,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-
+                    IconButton(
+                      icon: Icon(
+                        Icons.refresh,
+                        color: theme.colorScheme.primary,
+                      ),
+                      onPressed: mapState.isLoading
+                          ? null
+                          : () => ref
+                                .read(mapProvider.notifier)
+                                .loadNearby(
+                                  center: _mapController.camera.center,
+                                ),
+                    ),
                     IconButton(
                       icon: Icon(
                         Icons.gps_fixed,
@@ -118,23 +138,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         final hasPermission =
                             await LocationHandler.handleLocationPermission();
 
-                        if (!context.mounted) return;
+                        if (!context.mounted) {
+                          return;
+                        }
 
                         if (hasPermission) {
                           final position =
                               await Geolocator.getCurrentPosition();
-
-                          if (!context.mounted) return;
-
-                          _mapController.move(
-                            LatLng(position.latitude, position.longitude),
-                            14.0,
+                          final center = LatLng(
+                            position.latitude,
+                            position.longitude,
                           );
+
+                          if (!context.mounted) {
+                            return;
+                          }
+
+                          _mapController.move(center, 14.0);
+                          await ref
+                              .read(mapProvider.notifier)
+                              .loadNearby(center: center);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                "Se requieren permisos de ubicación.",
+                                'Se requieren permisos de ubicación.',
                               ),
                             ),
                           );
@@ -147,19 +175,36 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           ),
 
+          if (mapState.errorMessage != null)
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 130,
+              child: _MapNotice(message: mapState.errorMessage!),
+            ),
+
+          if (mapState.isLoading)
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 130,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: const LinearProgressIndicator(minHeight: 6),
+              ),
+            ),
+
           Positioned(
             bottom: 40,
             right: 20,
             child: Column(
               children: [
                 _buildMapAction(theme, Icons.add, () {
-                  // Aumentar zoom
                   final newZoom = _mapController.camera.zoom + 1;
                   _mapController.move(_mapController.camera.center, newZoom);
                 }),
                 const SizedBox(height: 12),
                 _buildMapAction(theme, Icons.remove, () {
-                  // Disminuir zoom
                   final newZoom = _mapController.camera.zoom - 1;
                   _mapController.move(_mapController.camera.center, newZoom);
                 }),
@@ -187,6 +232,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       child: IconButton(
         icon: Icon(icon, color: theme.colorScheme.primary),
         onPressed: onTap,
+      ),
+    );
+  }
+}
+
+class _MapNotice extends StatelessWidget {
+  final String message;
+
+  const _MapNotice({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      elevation: 8,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(message, style: theme.textTheme.bodyMedium),
       ),
     );
   }

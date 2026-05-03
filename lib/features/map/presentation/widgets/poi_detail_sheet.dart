@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../domain/entities/map_point.dart';
 
 class PoiDetailSheet extends StatelessWidget {
@@ -50,7 +52,7 @@ class PoiDetailSheet extends StatelessWidget {
             style: theme.textTheme.displayLarge?.copyWith(fontSize: 24),
           ),
           Text(
-            point.category.name.toUpperCase(),
+            point.category.label.toUpperCase(),
             style: theme.textTheme.labelLarge,
           ),
           const SizedBox(height: 12),
@@ -65,6 +67,21 @@ class PoiDetailSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                context.pushNamed(
+                  AppRouteNames.poiDetail,
+                  pathParameters: {'id': point.id},
+                );
+              },
+              icon: const Icon(Icons.info_outline),
+              label: const Text('Ver detalle completo'),
+            ),
+          ),
+          const SizedBox(height: 12),
           if (point.phone != null)
             Row(
               children: [
