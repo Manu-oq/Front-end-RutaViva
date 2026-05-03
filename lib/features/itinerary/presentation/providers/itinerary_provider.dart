@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/error/api_exception.dart';
+import '../../../../core/storage/local_storage_provider.dart';
 import '../../../map/presentation/providers/map_provider.dart';
 import '../../data/models/itinerary_model.dart';
 import '../../data/repositories/itinerary_repository.dart';
@@ -31,8 +34,19 @@ class ItineraryState {
 }
 
 class ItineraryNotifier extends Notifier<ItineraryState> {
+  static const _storageKey = 'ruta_viva.last_itinerary';
+
   @override
-  ItineraryState build() => const ItineraryState();
+  ItineraryState build() {
+    final json = ref.read(sharedPreferencesProvider).getString(_storageKey);
+    if (json != null) {
+      try {
+        final map = jsonDecode(json) as Map<String, dynamic>;
+        return ItineraryState(current: ItineraryModel.fromJson(map));
+      } catch (_) {}
+    }
+    return const ItineraryState();
+  }
 
   void setCurrent(ItineraryModel itinerary) {
     state = ItineraryState(current: itinerary);
@@ -65,6 +79,7 @@ class ItineraryNotifier extends Notifier<ItineraryState> {
           );
       state = ItineraryState(current: itinerary);
       ref.invalidate(itineraryHistoryProvider);
+      _persist(itinerary);
       return itinerary;
     } catch (error) {
       state = state.copyWith(
@@ -73,6 +88,12 @@ class ItineraryNotifier extends Notifier<ItineraryState> {
       );
       return null;
     }
+  }
+
+  void _persist(ItineraryModel itinerary) {
+    ref
+        .read(sharedPreferencesProvider)
+        .setString(_storageKey, jsonEncode(itinerary.toJson()));
   }
 
   String _readableError(Object error) {

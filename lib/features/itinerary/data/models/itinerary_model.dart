@@ -33,6 +33,18 @@ class ItineraryModel {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'tourist_id': touristId,
+      'title': title,
+      'start_date': startDate?.toIso8601String(),
+      'end_date': endDate?.toIso8601String(),
+      'status': status,
+      'steps': steps.map((s) => s.toJson()).toList(),
+    };
+  }
+
   static DateTime? _parseDate(String? value) {
     if (value == null) {
       return null;
@@ -90,6 +102,20 @@ class ItineraryStepModel {
 
   String get recommendedDuration =>
       aiContext?['recommended_duration']?.toString() ?? '';
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'itinerary_id': itineraryId,
+      'poi_id': poiId,
+      'poi_nombre': poiNombre,
+      'poi_descripcion': poiDescripcion,
+      'step_order': stepOrder,
+      'arrival_time': arrivalTime?.toIso8601String(),
+      'departure_time': departureTime?.toIso8601String(),
+      'ai_context': aiContext,
+    };
+  }
 
   static DateTime? _parseDateTime(String? value) {
     if (value == null) {
