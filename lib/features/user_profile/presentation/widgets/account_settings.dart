@@ -42,14 +42,6 @@ class AccountSettings extends ConsumerWidget {
             title: 'Panel emprendedor',
             onTap: () => context.pushNamed(AppRouteNames.entrepreneur),
           ),
-          const _SettingTile(
-            icon: Icons.notifications_none,
-            title: 'Notificaciones',
-          ),
-          const _SettingTile(
-            icon: Icons.security,
-            title: 'Privacidad y Seguridad',
-          ),
           const Divider(height: 32),
           _SettingTile(
             icon: Icons.logout,
