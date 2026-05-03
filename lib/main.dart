@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/router/app_router.dart';
 import 'core/storage/local_storage_provider.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/global_loading_overlay.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,11 +27,16 @@ class RutaVivaApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
-    return MaterialApp.router(
-      title: 'Ruta Viva',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      routerConfig: router,
+    return Stack(
+      children: [
+        MaterialApp.router(
+          title: 'Ruta Viva',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          routerConfig: router,
+        ),
+        const GlobalLoadingOverlay(),
+      ],
     );
   }
 }
