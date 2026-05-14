@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/api_exception.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/skeleton_container.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/review_model.dart';
@@ -46,7 +47,7 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Review enviada. Ara actualizará tu perfil en segundo plano.',
+            'Opinión enviada. Gracias por ayudar a otros viajeros.',
           ),
         ),
       );
@@ -56,7 +57,7 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
       }
       final message = error is ApiException
           ? error.message
-          : 'No se pudo crear la review.';
+          : 'No se pudo publicar la opinión.';
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
@@ -90,7 +91,7 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Review actualizada correctamente.')),
+        const SnackBar(content: Text('Opinión actualizada correctamente.')),
       );
     } catch (error) {
       if (!mounted) {
@@ -98,7 +99,7 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
       }
       final message = error is ApiException
           ? error.message
-          : 'No se pudo actualizar la review.';
+          : 'No se pudo actualizar la opinión.';
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
@@ -109,7 +110,7 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar review'),
+        title: const Text('Eliminar opinión'),
         content: const Text('Esta acción no se puede deshacer.'),
         actions: [
           TextButton(
@@ -136,14 +137,14 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Review eliminada.')));
+      ).showSnackBar(const SnackBar(content: Text('Opinión eliminada.')));
     } catch (error) {
       if (!mounted) {
         return;
       }
       final message = error is ApiException
           ? error.message
-          : 'No se pudo eliminar la review.';
+          : 'No se pudo eliminar la opinión.';
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
@@ -166,33 +167,22 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Reviews',
-          style: theme.textTheme.headlineMedium?.copyWith(fontSize: 20),
-        ),
-        const SizedBox(height: 12),
-        summary.when(
-          data: (value) => _ReviewSummaryCard(summary: value),
-          loading: () => SkeletonContainer(height: 140),
-          error: (error, stackTrace) => Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Column(
-              children: [
-                Text(
-                  'No se pudo cargar el resumen de reviews.',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.error),
-                ),
-                const SizedBox(height: 4),
-                TextButton.icon(
-                  onPressed: () => _refreshReviews(),
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Reintentar'),
-                ),
-              ],
-            ),
+          'Comparte tu experiencia y revisa lo que otros viajeros recomiendan antes de ir.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            height: 1.45,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
+        summary.when(
+          data: (value) => _ReviewSummaryCard(summary: value),
+          loading: () => const SkeletonContainer(height: 154),
+          error: (error, stackTrace) => _InlineError(
+            message: 'No se pudo cargar el resumen de opiniones.',
+            onRetry: _refreshReviews,
+          ),
+        ),
+        const SizedBox(height: 14),
         _ReviewForm(
           controller: _controller,
           rating: _rating,
@@ -200,14 +190,11 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
           onRatingChanged: (value) => setState(() => _rating = value),
           onSubmit: _submitReview,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         reviews.when(
           data: (items) {
             if (items.isEmpty) {
-              return Text(
-                'Aún no hay opiniones para este lugar.',
-                style: theme.textTheme.bodyMedium,
-              );
+              return const _EmptyReviewsCard();
             }
 
             return Column(
@@ -223,28 +210,17 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
             );
           },
           loading: () => Column(
-            children: List.generate(3, (_) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: SkeletonContainer(height: 80),
-            )),
-          ),
-          error: (error, stackTrace) => Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Column(
-              children: [
-                Text(
-                  'No se pudieron cargar las reviews.',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.error),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Reintentar'),
-                  onPressed: () => _refreshReviews(),
-                ),
-              ],
+            children: List.generate(
+              3,
+              (index) => Padding(
+                padding: EdgeInsets.only(bottom: index == 2 ? 0 : 12),
+                child: const SkeletonContainer(height: 104),
+              ),
             ),
+          ),
+          error: (error, stackTrace) => _InlineError(
+            message: 'No se pudieron cargar las opiniones.',
+            onRetry: _refreshReviews,
           ),
         ),
       ],
@@ -260,37 +236,107 @@ class _ReviewSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final average = summary.averageRating.toStringAsFixed(1);
+    final total = summary.totalReviews;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.colorScheme.primary.withValues(alpha: 0.1),
+            AppColors.sun.withValues(alpha: 0.12),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 520;
+          final ratingHeader = _RatingHeader(average: average, total: total);
+          final distribution = Column(
+            children: [
+              for (var star = 5; star >= 1; star--)
+                _RatingDistributionRow(
+                  star: star,
+                  count: summary.ratingDistribution[star] ?? 0,
+                  total: total,
+                ),
+            ],
+          );
+
+          if (isWide) {
+            return Row(
+              children: [
+                Expanded(flex: 4, child: ratingHeader),
+                const SizedBox(width: 22),
+                Expanded(flex: 6, child: distribution),
+              ],
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [ratingHeader, const SizedBox(height: 16), distribution],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RatingHeader extends StatelessWidget {
+  final String average;
+  final int total;
+
+  const _RatingHeader({required this.average, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Container(
+          width: 62,
+          height: 62,
+          decoration: BoxDecoration(
+            color: AppColors.sun.withValues(alpha: 0.22),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: const Icon(
+            Icons.star_rounded,
+            color: AppColors.earth,
+            size: 34,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                summary.averageRating.toStringAsFixed(1),
-                style: theme.textTheme.headlineMedium,
+                average,
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
               ),
-              const SizedBox(width: 8),
-              const Icon(Icons.star, color: Colors.amber),
-              const SizedBox(width: 8),
-              Text('${summary.totalReviews} reviews'),
+              const SizedBox(height: 4),
+              Text(
+                total == 1 ? '1 opinión' : '$total opiniones',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
-          for (var star = 5; star >= 1; star--)
-            _RatingDistributionRow(
-              star: star,
-              count: summary.ratingDistribution[star] ?? 0,
-              total: summary.totalReviews,
-            ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -308,24 +354,43 @@ class _RatingDistributionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final ratio = total == 0 ? 0.0 : count / total;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: 7),
       child: Row(
         children: [
-          SizedBox(width: 28, child: Text('$star★')),
+          SizedBox(
+            width: 38,
+            child: Text(
+              '$star ★',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(999),
               child: LinearProgressIndicator(
                 value: ratio,
-                minHeight: 6,
-                backgroundColor: Colors.black12,
+                minHeight: 8,
+                backgroundColor: theme.colorScheme.outlineVariant,
+                color: AppColors.sun,
               ),
             ),
           ),
           const SizedBox(width: 8),
-          SizedBox(width: 24, child: Text('$count')),
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$count',
+              textAlign: TextAlign.end,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -351,43 +416,52 @@ class _ReviewForm extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(
-          alpha: 0.25,
+          alpha: 0.24,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: List.generate(5, (index) {
-              final value = index + 1;
-              return IconButton(
-                onPressed: isSubmitting ? null : () => onRatingChanged(value),
-                icon: Icon(
-                  value <= rating ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
-                ),
-              );
-            }),
+          Text(
+            'Deja tu opinión',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
           ),
-          TextField(
-            controller: controller,
-            enabled: !isSubmitting,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              hintText:
-                  'Comparte tu experiencia y ayuda a personalizar tus rutas...',
-              border: OutlineInputBorder(),
+          const SizedBox(height: 4),
+          Text(
+            'Tu comentario ayuda a otros viajeros a decidir mejor.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 12),
+          _RatingPicker(
+            rating: rating,
+            enabled: !isSubmitting,
+            onChanged: onRatingChanged,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            enabled: !isSubmitting,
+            minLines: 3,
+            maxLines: 5,
+            textInputAction: TextInputAction.newline,
+            decoration: const InputDecoration(
+              hintText:
+                  'Cuenta qué te gustó, qué recomendarías o qué deberían saber antes de ir...',
+            ),
+          ),
+          const SizedBox(height: 14),
           Align(
             alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
+            child: FilledButton.icon(
               onPressed: isSubmitting ? null : onSubmit,
               icon: isSubmitting
                   ? const SizedBox(
@@ -395,12 +469,42 @@ class _ReviewForm extends StatelessWidget {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.send),
-              label: Text(isSubmitting ? 'Enviando...' : 'Enviar review'),
+                  : const Icon(Icons.send_rounded),
+              label: Text(isSubmitting ? 'Enviando...' : 'Enviar opinión'),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RatingPicker extends StatelessWidget {
+  final int rating;
+  final bool enabled;
+  final ValueChanged<int> onChanged;
+
+  const _RatingPicker({
+    required this.rating,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 4,
+      children: List.generate(5, (index) {
+        final value = index + 1;
+        return IconButton.filledTonal(
+          onPressed: enabled ? () => onChanged(value) : null,
+          icon: Icon(
+            value <= rating ? Icons.star_rounded : Icons.star_border_rounded,
+            color: value <= rating ? AppColors.sun : null,
+          ),
+          tooltip: '$value estrellas',
+        );
+      }),
     );
   }
 }
@@ -427,29 +531,55 @@ class _ReviewTile extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ...List.generate(5, (index) {
-                return Icon(
-                  index < review.ratingStars ? Icons.star : Icons.star_border,
-                  size: 16,
-                  color: Colors.amber,
-                );
-              }),
-              const Spacer(),
-              Text(
-                _shortDate(review.createdAt),
-                style: theme.textTheme.labelSmall,
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: theme.colorScheme.primary.withValues(
+                  alpha: 0.1,
+                ),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _Stars(value: review.ratingStars),
+                        const Spacer(),
+                        Text(
+                          _shortDate(review.createdAt),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      review.textContent,
+                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+                    ),
+                  ],
+                ),
               ),
               if (canManage) ...[
                 const SizedBox(width: 4),
                 PopupMenuButton<_ReviewAction>(
+                  tooltip: 'Opciones de opinión',
                   onSelected: (action) {
                     switch (action) {
                       case _ReviewAction.edit:
@@ -474,8 +604,6 @@ class _ReviewTile extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 8),
-          Text(review.textContent, style: theme.textTheme.bodyMedium),
         ],
       ),
     );
@@ -485,6 +613,101 @@ class _ReviewTile extends StatelessWidget {
     final day = value.day.toString().padLeft(2, '0');
     final month = value.month.toString().padLeft(2, '0');
     return '$day/$month/${value.year}';
+  }
+}
+
+class _Stars extends StatelessWidget {
+  final int value;
+
+  const _Stars({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(5, (index) {
+        return Icon(
+          index < value ? Icons.star_rounded : Icons.star_border_rounded,
+          size: 17,
+          color: AppColors.sun,
+        );
+      }),
+    );
+  }
+}
+
+class _EmptyReviewsCard extends StatelessWidget {
+  const _EmptyReviewsCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.rate_review_outlined, color: theme.colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Aún no hay opiniones. Sé la primera persona en contar cómo fue la experiencia.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _InlineError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.error.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.error.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, color: theme.colorScheme.error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Reintentar')),
+        ],
+      ),
+    );
   }
 }
 
@@ -526,29 +749,25 @@ class _ReviewEditDialogState extends State<_ReviewEditDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Editar review'),
+      title: const Text('Editar opinión'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: List.generate(5, (index) {
-                final value = index + 1;
-                return IconButton(
-                  onPressed: () => setState(() => _rating = value),
-                  icon: Icon(
-                    value <= _rating ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                  ),
-                );
-              }),
+            _RatingPicker(
+              rating: _rating,
+              enabled: true,
+              onChanged: (value) => setState(() => _rating = value),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: _controller,
               minLines: 3,
               maxLines: 6,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                hintText: 'Actualiza tu experiencia...',
+              ),
             ),
           ],
         ),

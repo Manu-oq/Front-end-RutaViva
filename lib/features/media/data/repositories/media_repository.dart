@@ -30,7 +30,7 @@ class MediaRepository {
       final url = response.data?['url']?.toString();
       if (url == null || url.isEmpty) {
         throw const ApiException(
-          message: 'El backend no devolvió URL de imagen.',
+          message: 'No se pudo obtener la URL de la imagen.',
         );
       }
       return ApiConstants.resolveBackendUrl(url) ?? url;

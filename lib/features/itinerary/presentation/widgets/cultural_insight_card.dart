@@ -5,12 +5,14 @@ class CulturalInsightCard extends StatelessWidget {
   final String text;
   final String label;
   final IconData icon;
+  final Widget? action;
 
   const CulturalInsightCard({
     super.key,
     required this.text,
     required this.label,
     this.icon = Icons.auto_awesome,
+    this.action,
   });
 
   @override
@@ -19,36 +21,35 @@ class CulturalInsightCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
         boxShadow: AppColors.ambientShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 18, color: theme.colorScheme.secondary),
-              const SizedBox(width: 8),
-              Text(
-                label.toUpperCase(),
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.secondary,
-                  letterSpacing: 1.2,
-                ),
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: theme.colorScheme.primaryContainer,
+                foregroundColor: theme.colorScheme.primary,
+                child: Icon(icon, size: 18),
               ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(label, style: theme.textTheme.titleMedium)),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            '"$text"',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontStyle: FontStyle.italic,
-              color: theme.colorScheme.primary.withValues(alpha: 0.8),
-            ),
-          ),
+          const SizedBox(height: 14),
+          Text(text, style: theme.textTheme.bodyLarge),
+          if (action != null) ...[
+            const SizedBox(height: 10),
+            Align(alignment: Alignment.centerRight, child: action!),
+          ],
         ],
       ),
     );

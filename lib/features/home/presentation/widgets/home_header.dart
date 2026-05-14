@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../map/presentation/providers/map_provider.dart';
 
@@ -13,26 +15,76 @@ class HomeHeader extends ConsumerWidget {
     final mapState = ref.watch(mapProvider);
     final displayName = user?.email.split('@').first ?? 'viajero';
 
-    return SliverPadding(
-      padding: const EdgeInsets.only(top: 80, left: 24, right: 32),
-      sliver: SliverList(
-        delegate: SliverChildListDelegate([
-          Text('Hola, $displayName', style: theme.textTheme.headlineMedium),
-          Text(
-            'Explora datos reales de La Araucanía',
-            style: theme.textTheme.displayLarge?.copyWith(
-              color: theme.colorScheme.secondary,
-              height: 0.9,
+    return SliverToBoxAdapter(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Padding(
+            padding: const EdgeInsets.only(
+              top: 80,
+              left: 24,
+              right: 24,
+              bottom: 8,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hola, $displayName',
+                  style: theme.textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                    ),
+                  ),
+                  child: Text('RUTA VIVA', style: theme.textTheme.labelLarge),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Descubre La Araucanía',
+                  style: theme.textTheme.displayLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                    height: 0.9,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  mapState.points.isEmpty
+                      ? 'Ara está buscando lugares para inspirar tu próxima ruta.'
+                      : 'Ara encontró ${mapState.points.length} lugares para explorar. Escribe una idea y arma tu ruta personalizada.',
+                  style: theme.textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          context.goNamed(AppRouteNames.itineraryHistory),
+                      icon: const Icon(Icons.route_outlined),
+                      label: const Text('Mis rutas'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => context.pushNamed(AppRouteNames.chat),
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('Chat con Ara'),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            mapState.points.isEmpty
-                ? 'Ara está consultando el backend para encontrar puntos de interés cercanos.'
-                : 'Ara encontró ${mapState.points.length} puntos de interés desde el backend. Usa el buscador para generar una ruta personalizada.',
-            style: theme.textTheme.bodyLarge,
-          ),
-        ]),
+        ),
       ),
     );
   }

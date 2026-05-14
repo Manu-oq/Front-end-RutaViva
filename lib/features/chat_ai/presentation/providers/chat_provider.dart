@@ -8,7 +8,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     return [
       MessageEntity(
         text:
-            '¡Hola! Soy Ara. ¿En qué rincón de la Araucanía quieres perderte hoy?',
+            '¡Hola! Soy Ara. Cuéntame qué tipo de recorrido quieres hacer hoy.',
         isUser: false,
         timestamp: DateTime.now(),
       ),
@@ -28,7 +28,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     state = [...state, userMessage];
 
     final typingIndicator = MessageEntity(
-      text: 'Ara está conectando con la ruta viva...',
+      text: 'Ara está preparando una ruta para ti...',
       isUser: false,
       timestamp: DateTime.now(),
       isTyping: true,
@@ -61,7 +61,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
 
     final araResponse = MessageEntity(
       text:
-          'Listo. Generé “${itinerary.title}” con ${itinerary.steps.length} paradas usando POIs reales del backend.',
+          'Listo. Generé “${itinerary.title}” con ${itinerary.steps.length} paradas para explorar.',
       isUser: false,
       timestamp: DateTime.now(),
     );

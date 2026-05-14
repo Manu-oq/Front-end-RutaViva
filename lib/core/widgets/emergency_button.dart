@@ -67,7 +67,9 @@ class EmergencyButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton(
-      backgroundColor: Colors.redAccent,
+      mini: true,
+      elevation: 0,
+      backgroundColor: Colors.redAccent.shade200,
       onPressed: () => _showEmergencyDialog(context),
       child: const Icon(Icons.sos, color: Colors.white),
     );

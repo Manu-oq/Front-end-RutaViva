@@ -37,75 +37,99 @@ class _HomePageState extends ConsumerState<HomePage> {
     final secondaryPoints = mapState.points.skip(1).take(4).toList();
 
     return Scaffold(
-      body: Stack(
-        children: [
-          RefreshIndicator(
-            onRefresh: () => ref
-                .read(mapProvider.notifier)
-                .loadNearby(center: mapState.center),
-            child: CustomScrollView(
-              slivers: [
-                const HomeHeader(),
-                if (mapState.isLoading && mapState.points.isEmpty)
-                  const DestinationSkeleton()
-                else if (mapState.points.isEmpty)
-                  SliverToBoxAdapter(
-                    child: _EmptyHomeState(
-                      errorMessage: mapState.errorMessage,
-                      onRetry: () => ref
-                          .read(mapProvider.notifier)
-                          .loadNearby(center: mapState.center),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.surfaceContainerLow,
+              Theme.of(context).colorScheme.surfaceContainerLowest,
+            ],
+          ),
+        ),
+        child: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: () => ref
+                  .read(mapProvider.notifier)
+                  .loadNearby(center: mapState.center),
+              child: CustomScrollView(
+                slivers: [
+                  const HomeHeader(),
+                  if (mapState.isLoading && mapState.points.isEmpty)
+                    const DestinationSkeleton()
+                  else if (mapState.points.isEmpty)
+                    SliverToBoxAdapter(
+                      child: _EmptyHomeState(
+                        errorMessage: mapState.errorMessage,
+                        onRetry: () => ref
+                            .read(mapProvider.notifier)
+                            .loadNearby(center: mapState.center),
+                      ),
+                    )
+                  else ...[
+                    DestinationHeroCard(
+                      title: mapState.points.first.name,
+                      category: mapState.points.first.categoryLabel(names),
+                      description:
+                          mapState.points.first.description ??
+                          'Punto de interés disponible en Ruta Viva.',
+                      imageUrl: mapState.points.first.imageUrl,
+                      distanceLabel: _distanceLabel(mapState.points.first),
+                      onSetRoute: () => context.goNamed(AppRouteNames.map),
+                      onDetails: () => context.pushNamed(
+                        AppRouteNames.poiDetail,
+                        pathParameters: {'id': mapState.points.first.id},
+                      ),
                     ),
-                  )
-                else ...[
-                  DestinationHeroCard(
-                    title: mapState.points.first.name,
-                    category: mapState.points.first.categoryLabel(names),
-                    description:
-                        mapState.points.first.description ??
-                        'Punto de interés disponible en Ruta Viva.',
-                    imageUrl: mapState.points.first.imageUrl,
-                    distanceLabel: _distanceLabel(mapState.points.first),
-                    onSetRoute: () => context.pushNamed(AppRouteNames.map),
-                    onDetails: () => context.pushNamed(
-                      AppRouteNames.poiDetail,
-                      pathParameters: {'id': mapState.points.first.id},
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 160),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final point = secondaryPoints[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 760,
+                                ),
+                                child: _PoiListTile(point: point),
+                              ),
+                            ),
+                          );
+                        }, childCount: secondaryPoints.length),
+                      ),
                     ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 160),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final point = secondaryPoints[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _PoiListTile(point: point),
-                        );
-                      }, childCount: secondaryPoints.length),
-                    ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          const Positioned(
-            top: 16,
-            left: 16,
-            child: SafeArea(
-              top: true,
-              left: true,
-              right: false,
-              bottom: false,
-              child: EmergencyButton(),
+            const Positioned(
+              top: 16,
+              left: 16,
+              child: SafeArea(
+                top: true,
+                left: true,
+                right: false,
+                bottom: false,
+                child: EmergencyButton(),
+              ),
             ),
-          ),
-          const Positioned(
-            bottom: 16,
-            left: 20,
-            right: 20,
-            child: AIInputBar(),
-          ),
-        ],
+            Positioned(
+              bottom: 16,
+              left: 20,
+              right: 20,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 760),
+                  child: const AIInputBar(),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -132,8 +156,6 @@ class _PoiListTile extends ConsumerWidget {
     final theme = Theme.of(context);
     final names = ref.watch(categoriesByIdProvider);
     return Card(
-      elevation: 0,
-      color: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -162,40 +184,45 @@ class _EmptyHomeState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(28),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.travel_explore,
-              color: theme.colorScheme.secondary,
-              size: 40,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(28),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'No hay POIs cargados todavía',
-              style: theme.textTheme.headlineMedium,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.travel_explore,
+                  color: theme.colorScheme.secondary,
+                  size: 40,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No hay POIs cargados todavía',
+                  style: theme.textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  errorMessage ??
+                      'Intenta refrescar para buscar lugares nuevamente.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reintentar'),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              errorMessage ??
-                  'Intenta refrescar para consultar nuevamente el backend.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reintentar'),
-            ),
-          ],
+          ),
         ),
       ),
     );

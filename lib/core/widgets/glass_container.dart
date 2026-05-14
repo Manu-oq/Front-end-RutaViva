@@ -6,13 +6,15 @@ class GlassContainer extends StatelessWidget {
   final double blur;
   final double opacity;
   final BorderRadius? borderRadius;
+  final EdgeInsets? padding;
 
   const GlassContainer({
     super.key,
     required this.child,
     this.blur = 30.0,
-    this.opacity = 0.7,
+    this.opacity = 0.82,
     this.borderRadius,
+    this.padding,
   });
 
   @override
@@ -27,7 +29,13 @@ class GlassContainer extends StatelessWidget {
           decoration: BoxDecoration(
             color: surfaceColor.withValues(alpha: opacity),
             borderRadius: borderRadius,
+            border: Border.all(
+              color: Theme.of(
+                context,
+              ).colorScheme.outlineVariant.withValues(alpha: 0.35),
+            ),
           ),
+          padding: padding,
           child: child,
         ),
       ),

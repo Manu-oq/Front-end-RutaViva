@@ -46,13 +46,13 @@ class AuthNotifier extends Notifier<AuthState> {
       return const AuthState();
     }
 
-    ref.read(authTokenProvider.notifier).setToken(storedToken);
-    Future.microtask(_restoreSession);
+    Future.microtask(() => _restoreSession(storedToken));
     return AuthState(token: storedToken, isLoading: true);
   }
 
-  Future<void> _restoreSession() async {
+  Future<void> _restoreSession(String storedToken) async {
     try {
+      ref.read(authTokenProvider.notifier).setToken(storedToken);
       final user = await ref.read(authRepositoryProvider).getMe();
       final token = ref.read(authTokenProvider);
       if (token == null || token.isEmpty) {

@@ -90,6 +90,13 @@ El frontend ya no es solo una maqueta visual. Actualmente dispone de:
 - detalle persistido por ID conectado a `/api/v1/itineraries/{itinerary_id}`,
 - visualización de itinerarios generados con nombres reales de POIs cuando el backend los entrega,
 - y manejo unificado de errores basado en el formato `{ error, detail }` del backend.
+- navegación inferior con NavigationBar Material 3 envuelta en ShellRoute (B7),
+- categorías 100% data-driven desde backend, eliminando el enum `PointCategory` hardcodeado (A10),
+- skeletons durante carga en Map, Reviews e Itinerary detail/history (B2),
+- overlay de loading global con `GlobalLoadingOverlay` (B1),
+- error states con botón Reintentar en reviews y banner persistente (rojo, con cierre) en login/register (B4),
+- pull-to-refresh en POI detail, Profile e Itinerary detail (B8),
+- persistencia del último itinerario generado en `shared_preferences` (B3).
 
 ## 3.2 Funcionalidades ya implementadas y operativas a nivel código
 ### Infraestructura Flutter
@@ -159,8 +166,9 @@ El frontend ya no es solo una maqueta visual. Actualmente dispone de:
 - Upload de imágenes ya queda asociado al POI; falta galería avanzada y permisos finos.
 - Ya existe listado histórico de itinerarios; aún faltan acciones avanzadas como eliminar, renombrar o filtrar itinerarios.
 - No hay gestión de estado offline.
-- No hay tests automatizados para providers, repositories ni pantallas conectadas.
+- Tests existentes en `test/features/` (auth, map, itinerary) y `test/core/` (router). ~70 tests unitarios y widget tests que cubren serialización de modelos, providers Riverpod y guards de navegación.
 - Home y Profile ya usan estado real de backend/app; Onboarding conserva imágenes decorativas externas, pero sus acciones consultan búsqueda semántica real.
+- UX de carga simple reemplazada por skeletons en Map, Reviews, Itinerary detail/history. Loading global overlay implementado. Error states con retry en reviews y banner persistente en login/register. Pull-to-refresh en POI detail, Profile, Itinerary detail. Aún quedan pantallas sin skeleton (Home, Profile, Bookmarks).
 - No hay manejo fino de roles turista/emprendedor en UI.
 
 ---
@@ -237,17 +245,54 @@ Front-end-TT/
 │   │   ├── theme/
 │   │   ├── utils/
 │   │   └── widgets/
+│   │       └── global_loading_overlay.dart
 │   └── features/
 │       ├── auth/
+│       ├── bookmarks/
+│       │   ├── pages/
+│       │   └── widgets/
+│       ├── categories/
+│       │   ├── data/
+│       │   │   └── category_repository.dart
+│       │   └── presentation/
+│       │       └── providers/
+│       │           └── category_repository.dart
 │       ├── chat_ai/
+│       ├── entrepreneur/
+│       │   └── pages/
 │       ├── home/
 │       ├── itinerary/
 │       ├── map/
 │       ├── media/
+│       │   └── widgets/
 │       ├── onboarding/
 │       ├── reviews/
+│       │   └── widgets/
 │       └── user_profile/
-└── test/
+├── test/
+│   ├── widget_test.dart
+│   └── features/
+│       ├── auth/
+│       │   ├── data/
+│       │   │   └── repositories/
+│       │   │       └── auth_repository_test.dart
+│       │   └── presentation/
+│       │       └── providers/
+│       │           └── auth_provider_test.dart
+│       ├── itinerary/
+│       │   └── data/
+│       │       └── repositories/
+│       │           └── itinerary_repository_test.dart
+│       ├── map/
+│       │   ├── data/
+│       │   │   └── repositories/
+│       │   │       └── poi_repository_test.dart
+│       │   └── presentation/
+│       │       └── providers/
+│       │           └── map_provider_test.dart
+│       └── core/
+│           └── router/
+│               └── app_router_test.dart
 ```
 
 ---
@@ -399,8 +444,9 @@ if (token != null && token.isNotEmpty) {
 
 ---
 
-## 9. Guards de navegación
+## 9. Guards de navegación y navegación inferior
 
+### Router
 Archivo:
 - `lib/core/router/app_router.dart`
 
@@ -414,25 +460,32 @@ Reglas actuales:
 - `/login` es pública.
 - Todas las demás rutas requieren sesión.
 - Si no hay sesión y se intenta entrar a ruta protegida, redirige a `/login`.
-- Si ya hay sesión y se entra a `/login`, redirige a `/`.
+- Si ya hay sesión y se entra a `/login`, redirige a `/home`.
 - Si hay token persistido y se está restaurando sesión, no se fuerza redirect prematuro.
 
+### ShellRoute y NavigationBar
+Las 5 rutas principales — Home, Mapa, Itinerarios, Favoritos, Perfil — están envueltas en un `ShellRoute` que provee el widget `MistNavigation` (ahora un `NavigationBar` Material 3 con 5 destinos). El `NavigationBar` escucha `GoRouterState.of(context).uri` para marcar el tab activo.
+
+El `ShellRoute` renderiza el `NavigationBar` en esas 5 pantallas. Las rutas fuera del shell (login, register, onboarding, edit profile, entrepreneur dashboard, create/edit POI, detalle de POI, chat) **no tienen navegación inferior**.
+
+Ya no existe `MistNavigation` como 4 botones sueltos; fue reescrito como `NavigationBar` Material 3 con 5 destinos.
+
 Rutas actuales:
-- `/login`
-- `/register`
-- `/`
-- `/map`
-- `/onboarding`
-- `/itineraries`
-- `/itineraries/:id`
-- `/chat`
-- `/profile`
-- `/profile/edit`
-- `/entrepreneur`
-- `/pois/create`
-- `/pois/:id/edit`
-- `/bookmarks`
-- `/poi-detail/:id`
+- `/login` — pública, sin shell
+- `/register` — pública, sin shell
+- `/home` — protegida, con shell (antes `/`)
+- `/map` — protegida, con shell
+- `/onboarding` — protegida, sin shell
+- `/itineraries` — protegida, con shell
+- `/itineraries/:id` — protegida, sin shell
+- `/chat` — protegida, sin shell
+- `/profile` — protegida, con shell
+- `/profile/edit` — protegida, sin shell
+- `/entrepreneur` — protegida, sin shell
+- `/pois/create` — protegida, sin shell
+- `/pois/:id/edit` — protegida, sin shell
+- `/bookmarks` — protegida, con shell
+- `/poi-detail/:id` — protegida, sin shell
 
 ---
 
@@ -710,8 +763,7 @@ Entidad UI:
 - `id`
 - `name`
 - `coordinates`
-- `category`
-- `categoryIds`
+- `categoryIds` (única fuente de categoría; el campo `category` fue eliminado junto con el enum `PointCategory`)
 - `description`
 - `imageUrl`
 - `phone`
@@ -720,12 +772,10 @@ Entidad UI:
 - `isLocalAuthentic`
 - `amenities`
 
-Mapeo de categorías base:
-- `1`: Naturaleza
-- `2`: Gastronomía
-- `3`: Turismo
-- `4`: Alojamiento
-- `5`: Cultura
+Resolución de categorías:
+- El label visible se resuelve con la extension `MapPointCategoryX.categoryLabel(Map<int, CategoryModel> names)` que busca el primer ID existente en el mapa. Fallback: `"Sin categoría"`.
+- El styling visual (color, icono) para pins del mapa se resuelve con `categoryStyleFor(int? id, ColorScheme scheme) → CategoryStyle`, que mantiene un mapping local fijo de ID → estilo.
+- Las categorías ya no están hardcodeadas como enum; se cargan desde `GET /api/v1/categories/` y se exponen via `categoriesByIdProvider`.
 
 ## 11.3 Itinerarios
 ### `ItineraryModel`
@@ -821,6 +871,21 @@ Métodos relevantes:
 ## 12.8 Onboarding
 - `interestsProvider`
 
+## 12.9 Categories (data-driven)
+- `categoriesByIdProvider: Provider<Map<int, CategoryModel>>` — proveedor síncrono que colapsa el async provider a un mapa vacío en loading/error. Usado para resolver labels de categoría en POIs.
+
+## 12.10 Global loading
+- `globalLoadingProvider: NotifierProvider<GlobalLoadingNotifier, int>` — contador de loadings activos. Soporta múltiples operaciones simultáneas. El widget `GlobalLoadingOverlay` lo escucha para mostrar/ocultar el overlay semitransparente.
+
+### Tests asociados
+- `test/features/auth/data/repositories/auth_repository_test.dart` — 10 tests
+- `test/features/map/data/repositories/poi_repository_test.dart` — 7 tests
+- `test/features/itinerary/data/repositories/itinerary_repository_test.dart` — 11 tests
+- `test/features/auth/presentation/providers/auth_provider_test.dart` — 11 tests
+- `test/features/map/presentation/providers/map_provider_test.dart` — 10 tests
+- `test/features/itinerary/presentation/providers/itinerary_provider_test.dart` — 6 tests
+- `test/core/router/app_router_test.dart` — 13 tests
+
 ---
 
 ## 13. Flujo de pantallas principales
@@ -834,6 +899,7 @@ Responsabilidad:
 - restaurar usuario con `/users/me`,
 - mostrar errores de auth,
 - navegar a Home si la sesión es válida.
+> El formulario de login ahora muestra un banner de error rojo persistente con botón de cierre (reemplazó el SnackBar anterior).
 
 ## 13.2 Register
 Pantalla:
@@ -843,6 +909,7 @@ Responsabilidad:
 - registrar turista contra `/auth/register`,
 - enviar nombre completo, transporte propio e intereses iniciales en `system_preferences`,
 - hacer login automático si el registro funciona.
+> Al igual que login, los errores de registro se muestran en un banner rojo persistente con cierre.
 
 ## 13.3 Home
 Pantalla:
@@ -855,6 +922,7 @@ Responsabilidad actual:
 - mostrar otros POIs reales como lista,
 - acceso a mapa,
 - input Ara para generar itinerario.
+> La navegación inferior (NavigationBar M3) se provee via ShellRoute. La ruta cambió de `/` a `/home`.
 
 ## 13.4 Chat AI
 Pantalla:
@@ -878,6 +946,7 @@ Responsabilidad:
 - refrescar POIs según centro del mapa,
 - mover a ubicación actual si el usuario da permiso,
 - abrir sheet de detalle.
+> Durante la carga de POIs se muestra un skeleton de 6 chips categoría.
 
 ## 13.6 Detalle de POI
 Pantalla:
@@ -890,6 +959,7 @@ Responsabilidad:
 - mostrar reviews y resumen agregado,
 - crear, editar y eliminar reviews propias,
 - guardar/quitar favoritos.
+> La página soporta pull-to-refresh (RefreshIndicator) para recargar detalle y reviews.
 
 
 ## 13.6.1 Crear POI
@@ -914,6 +984,7 @@ Responsabilidad:
 - mantener fallback al itinerario recién generado en memoria,
 - renderizar pasos narrativos,
 - mostrar nombres reales de POIs enriquecidos por backend.
+> ItineraryHistoryPage muestra skeleton de 4 tarjetas durante carga. ItineraryDetailPage muestra skeleton de 4 pasos. Ambas soportan RefreshIndicator. El último itinerario generado se persiste en `shared_preferences` (clave `ruta_viva.last_itinerary`) y se rehidrata al iniciar la app.
 
 ## 13.8 Profile
 Pantallas:
@@ -926,6 +997,7 @@ Responsabilidad:
 - editar perfil turista y preferencias reales,
 - mostrar métricas reales del estado actual de app: POIs cargados, paradas del itinerario y sesión activa,
 - permitir logout.
+> La pantalla soporta pull-to-refresh (RefreshIndicator) para recargar datos del usuario.
 
 ## 13.9 Emprendedor y POIs propios
 Pantallas:
@@ -984,16 +1056,24 @@ Los repositories transforman `DioException` en `ApiException` para que UI y prov
 - Falta moderación, paginación y recálculo histórico más sofisticado del perfil tras eliminar reviews.
 
 ## 15.5 Tests
-Faltan pruebas de:
-- auth provider,
-- router guards,
-- repositories con Dio mock,
-- parsing de modelos,
-- widgets conectados.
+Existen ~70 tests unitarios y widget tests en:
+- `test/features/auth/data/repositories/auth_repository_test.dart` (10 tests — serialización TokenModel/UserModel)
+- `test/features/map/data/repositories/poi_repository_test.dart` (7 tests — PoiModel, MapPoint, categoryIds)
+- `test/features/itinerary/data/repositories/itinerary_repository_test.dart` (11 tests — ItineraryModel fromJson/toJson, steps, round-trips)
+- `test/features/auth/presentation/providers/auth_provider_test.dart` (11 tests — AuthState, authProvider lifecycle)
+- `test/features/map/presentation/providers/map_provider_test.dart` (10 tests — MapState, mapProvider)
+- `test/features/itinerary/presentation/providers/itinerary_provider_test.dart` (6 tests — ItineraryState, rehidratación desde shared_preferences)
+- `test/core/router/app_router_test.dart` (13 tests — guards de navegación, redirects)
+
+Todos usan serialización pura y `ProviderContainer` con overrides manuales. No hay mocks de Dio todavía.
 
 ## 15.6 UX de carga y errores
-- Algunos estados de loading son simples.
-- Falta skeleton completo para mapa, reviews e itinerario.
+- Loading global overlay implementado (`GlobalLoadingOverlay`) con semitransparencia y spinner, controlado por `globalLoadingProvider` (contador).
+- Skeletons agregados en: Map (6 chips), Reviews (resumen + 3 tarjetas), Itinerary detail (4 pasos), Itinerary history (4 tarjetas).
+- Error states con botón Reintentar en reviews.
+- Banner de error persistente (rojo con botón de cierre) en login y register (reemplaza SnackBar anterior).
+- RefreshIndicator en POI detail, Profile e Itinerary detail.
+- Aún quedan pantallas sin skeleton: Home, Profile y Bookmarks.
 
 ## 15.7 Roles
 - La UI ya distingue turista vs emprendedor mediante `entrepreneur_profile`.
@@ -1124,16 +1204,22 @@ Hoy el frontend puede:
 - generar itinerarios reales,
 - mostrar pasos de itinerario con nombres y descripciones reales de POIs,
 - resolver URLs relativas de media,
-- y manejar errores backend de forma legible.
+- manejar errores backend de forma legible,
+- navegar con NavigationBar Material 3 entre las 5 pantallas principales,
+- cargar categorías dinámicamente desde backend (data-driven, sin enums hardcodeados),
+- persistir el último itinerario en shared_preferences,
+- mostrar skeletons durante carga en Map, Reviews e Itinerarios,
+- overlay global de loading para operaciones async,
+- error states con retry en reviews y banner persistente en login/register,
+- pull-to-refresh en POI detail, Profile e Itinerary detail,
+- y ejecutar ~70 tests unitarios y widget tests (flutter analyze limpio, 73/73 tests pasando).
 
 La siguiente etapa natural sería:
-- asociar imágenes subidas a POIs mediante endpoint de edición,
-- agregar acciones avanzadas al historial de itinerarios,
-- crear UI de emprendedor,
-- añadir tests de providers/repositories,
+- agregar skeletons faltantes (Home, Profile, Bookmarks),
+- agregar tests de widgets conectados y mocks de Dio,
 - endurecer almacenamiento seguro de token,
 - agregar refresh token si el backend lo implementa,
-- y reemplazar secciones mock restantes por datos reales.
+- y moderación/paginación de reviews.
 
 
 ---
@@ -1226,3 +1312,68 @@ La siguiente etapa natural sería:
 - el usuario puede activar modo emprendedor,
 - los POIs propios se listan, editan y eliminan desde frontend,
 - `flutter analyze` queda sin issues y `flutter test` pasa.
+
+
+### [2026-05-03] Refactor de categorías, navegación y UX completa
+
+#### Objetivo
+- eliminar el enum `PointCategory` hardcodeado y migrar a categorías 100% data-driven,
+- reemplazar la navegación inferior artesanal por NavigationBar Material 3 con ShellRoute,
+- mejorar la UX de carga, errores y refresco en múltiples pantallas,
+- agregar persistencia del último itinerario,
+- agregar cobertura de tests (~70 tests).
+
+#### Cambios realizados
+
+**A10 — Categorías data-driven**
+- Enum `PointCategory` eliminado. `MapPoint.category` eliminado. `categoryIds: List<int>` es la única fuente.
+- Nuevo provider `categoriesByIdProvider: Provider<Map<int, CategoryModel>>` (síncrono, colapsa loading/error a vacío).
+- Nueva extension `MapPointCategoryX.categoryLabel(Map<int, CategoryModel> names) → String`.
+- Nuevo helper `categoryStyleFor(int? id, ColorScheme scheme) → CategoryStyle`.
+- 5 consumidores migrados (custom_map_marker, poi_detail_sheet, poi_detail_full_page, home_page, bookmarks_page).
+
+**B7 — Navegación inferior con NavigationBar M3 + ShellRoute**
+- `MistNavigation` reescrito como `NavigationBar` Material 3 con 5 destinos.
+- `app_router.dart` usa `ShellRoute` para envolver las 5 rutas principales.
+- Ruta `/` cambió a `/home`.
+- Instancias manuales de `MistNavigation` removidas de `home_page.dart` y `profile_screen.dart`.
+
+**B1 — Loading global overlay**
+- `globalLoadingProvider: NotifierProvider<GlobalLoadingNotifier, int>` (contador, soporta múltiples operaciones).
+- Widget `GlobalLoadingOverlay` semitransparente con spinner.
+- Integrado en `main.dart` via `MaterialApp.router.builder`.
+
+**B2+B4+B8 — UX feedback**
+- Skeletons en Map (6 chips), Reviews (resumen + 3 tarjetas), Itinerary detail (4 pasos), Itinerary history (4 tarjetas).
+- Botón Reintentar en error de reviews.
+- Banner rojo persistente con cierre en login/register (reemplaza SnackBar).
+- RefreshIndicator en POI detail, Profile, Itinerary detail.
+
+**B3 — Persistencia de itinerario**
+- `ItineraryModel.toJson()` agregado.
+- `ItineraryNotifier.build()` rehidrata desde `shared_preferences` key `ruta_viva.last_itinerary`.
+- `_persist()` guarda después de generar. Si JSON corrupto, arranca vacío.
+
+**B9 — Settings cleanup**
+- Tiles mock "Notificaciones" y "Privacidad y Seguridad" eliminados de `account_settings.dart`.
+
+**C4-C6 — Tests**
+- 28 tests de repositorios: auth, poi, itinerary (serialización pura, sin mocks, sin Dio).
+- 40 tests de providers + guards: auth, map, itinerary + app_router (ProviderContainer con overrides).
+- `flutter analyze`: No issues found. `flutter test`: 73/73 All tests passed.
+
+#### Archivos principales modificados/creados
+- `lib/features/categories/data/category_repository.dart` — nuevo `categoriesByIdProvider`
+- `lib/core/widgets/global_loading_overlay.dart` — nuevo widget
+- `lib/core/router/app_router.dart` — ShellRoute + NavigationBar
+- `lib/core/widgets/mist_navigation.dart` — reescrito como NavigationBar M3
+- `lib/features/map/models/map_point.dart` — eliminado `category` field
+- `lib/features/itinerary/data/repositories/itinerary_repository.dart` — toJson, persist
+- `test/features/` — 7 archivos de test nuevos
+
+#### Estado resultante
+- Categorías 100% data-driven sin código hardcodeado.
+- Navegación inferior moderna con Material 3.
+- UX mejorada con skeletons, loading global, error states y pull-to-refresh.
+- Último itinerario sobrevive a reinicios de app.
+- 73 tests pasando, flutter analyze limpio.

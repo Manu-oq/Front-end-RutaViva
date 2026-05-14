@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/widgets/app_back_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../map/data/models/poi_model.dart';
 import '../../../map/data/repositories/poi_repository.dart';
@@ -17,7 +18,10 @@ class EntrepreneurDashboardPage extends ConsumerWidget {
     final user = authState.user;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Panel emprendedor')),
+      appBar: AppBar(
+        leading: const AppBackButton(fallbackRouteName: AppRouteNames.profile),
+        title: const Text('Panel emprendedor'),
+      ),
       body: user?.isEntrepreneur == true
           ? const _EntrepreneurPoisList()
           : _ActivateEntrepreneurPanel(isLoading: authState.isLoading),

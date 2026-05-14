@@ -46,7 +46,7 @@ class _AIInputBarState extends ConsumerState<AIInputBar> {
     }
 
     _controller.clear();
-    context.goNamed(
+    context.pushNamed(
       AppRouteNames.itineraryDetail,
       pathParameters: {'id': itinerary.id},
     );
@@ -58,43 +58,54 @@ class _AIInputBarState extends ConsumerState<AIInputBar> {
     final itineraryState = ref.watch(itineraryProvider);
 
     return GlassContainer(
-      borderRadius: BorderRadius.circular(100),
+      borderRadius: BorderRadius.circular(28),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
         child: Row(
           children: [
             Icon(Icons.auto_awesome, color: theme.colorScheme.secondary),
             const SizedBox(width: 12),
             Expanded(
-              child: TextField(
-                controller: _controller,
-                enabled: !itineraryState.isLoading,
-                onSubmitted: (_) => _generate(),
-                decoration: InputDecoration(
-                  hintText: '¿A dónde quiere ir tu corazón?',
-                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.5,
+                    ),
                   ),
-                  border: InputBorder.none,
-                  filled: false,
+                ),
+                child: TextField(
+                  controller: _controller,
+                  enabled: !itineraryState.isLoading,
+                  onSubmitted: (_) => _generate(),
+                  decoration: InputDecoration(
+                    hintText: '¿Qué quieres recorrer hoy?',
+                    hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    border: InputBorder.none,
+                    filled: false,
+                  ),
                 ),
               ),
             ),
-            GestureDetector(
-              onTap: itineraryState.isLoading ? null : _generate,
-              child: CircleAvatar(
-                backgroundColor: theme.colorScheme.primary,
-                child: itineraryState.isLoading
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(Icons.arrow_upward, color: Colors.white),
-              ),
+            const SizedBox(width: 12),
+            IconButton.filled(
+              tooltip: 'Generar ruta',
+              onPressed: itineraryState.isLoading ? null : _generate,
+              icon: itineraryState.isLoading
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.arrow_upward),
             ),
           ],
         ),

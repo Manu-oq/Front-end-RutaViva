@@ -74,7 +74,7 @@ class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Cada selección consulta la búsqueda semántica del backend para cargar POIs reales en el mapa.',
+              'Cada selección ayuda a Ara a encontrar lugares que calcen con tu forma de viajar.',
               style: theme.textTheme.bodyLarge,
             ),
             const SizedBox(height: 32),

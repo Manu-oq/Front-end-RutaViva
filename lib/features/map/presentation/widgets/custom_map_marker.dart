@@ -29,33 +29,48 @@ class CustomMapMarker extends ConsumerWidget {
         );
       },
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: style.color,
               shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 10,
+                  color: Colors.black.withValues(alpha: 0.24),
+                  blurRadius: 16,
+                  spreadRadius: -4,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
-            child: Icon(style.icon, color: Colors.white, size: 20),
+            child: Icon(style.icon, color: Colors.white, size: 22),
           ),
+          const SizedBox(height: 3),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            constraints: const BoxConstraints(maxWidth: 78),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(4),
+              color: theme.colorScheme.surface.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 10,
+                  spreadRadius: -6,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: Text(
               point.name,
               style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: 8,
-                fontWeight: FontWeight.bold,
+                fontSize: 9,
+                color: theme.colorScheme.onSurface,
               ),
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),

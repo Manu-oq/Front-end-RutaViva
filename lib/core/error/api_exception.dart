@@ -14,6 +14,13 @@ class ApiException implements Exception {
     String message = exception.message ?? 'No se pudo conectar con Ruta Viva.';
     String? error;
 
+    if (exception.type == DioExceptionType.connectionTimeout) {
+      message =
+          'No se pudo conectar con el servicio. Revisa tu conexión e intenta nuevamente.';
+    } else if (exception.type == DioExceptionType.receiveTimeout) {
+      message = 'El servicio tardó demasiado en responder. Intenta nuevamente.';
+    }
+
     if (data is Map<String, dynamic>) {
       error = data['error']?.toString();
       final detail = data['detail'];

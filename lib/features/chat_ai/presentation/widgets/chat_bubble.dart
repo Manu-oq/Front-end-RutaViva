@@ -3,8 +3,14 @@ import 'package:flutter/material.dart';
 class ChatBubble extends StatelessWidget {
   final String message;
   final bool isUser;
+  final bool isTyping;
 
-  const ChatBubble({super.key, required this.message, required this.isUser});
+  const ChatBubble({
+    super.key,
+    required this.message,
+    required this.isUser,
+    this.isTyping = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,15 +44,42 @@ class ChatBubble extends StatelessWidget {
                   ),
                 ],
         ),
-        child: Text(
-          message,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: isUser
-                ? theme.colorScheme.onPrimary
-                : theme.colorScheme.onSurface,
-            height: 1.4,
-          ),
-        ),
+        child: isTyping
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.secondary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(child: _BubbleText(message: message, isUser: isUser)),
+                ],
+              )
+            : _BubbleText(message: message, isUser: isUser),
+      ),
+    );
+  }
+}
+
+class _BubbleText extends StatelessWidget {
+  final String message;
+  final bool isUser;
+
+  const _BubbleText({required this.message, required this.isUser});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Text(
+      message,
+      style: theme.textTheme.bodyLarge?.copyWith(
+        color: isUser ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
+        height: 1.4,
       ),
     );
   }

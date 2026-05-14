@@ -40,8 +40,8 @@ class _BookmarkButtonState extends ConsumerState<BookmarkButton> {
         SnackBar(
           content: Text(
             isBookmarked
-                ? 'POI eliminado de favoritos.'
-                : 'POI guardado en favoritos.',
+                ? 'Lugar eliminado de favoritos.'
+                : 'Lugar guardado en favoritos.',
           ),
         ),
       );

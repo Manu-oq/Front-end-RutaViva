@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/router/app_routes.dart';
+import '../../../../core/widgets/app_back_button.dart';
 
 class ChatHeader extends StatelessWidget {
   const ChatHeader({super.key});
@@ -9,31 +12,29 @@ class ChatHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Ara Assistant",
-                style: theme.textTheme.headlineMedium?.copyWith(fontSize: 22),
-              ),
-              Row(
-                children: [
-                  Text("SEÑAL 98%", style: theme.textTheme.labelSmall),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.sensors,
-                    size: 12,
-                    color: theme.colorScheme.secondary,
-                  ),
-                ],
-              ),
-            ],
+          const AppBackButton(fallbackRouteName: AppRouteNames.home),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Ara Assistant',
+                  style: theme.textTheme.headlineMedium?.copyWith(fontSize: 22),
+                ),
+                Text(
+                  'Tu guía para rutas e ideas de viaje',
+                  style: theme.textTheme.labelSmall,
+                ),
+              ],
+            ),
           ),
-          const CircleAvatar(
-            radius: 24,
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?u=ara'),
+          const SizedBox(width: 12),
+          IconButton.outlined(
+            tooltip: 'Mis rutas',
+            onPressed: () => context.goNamed(AppRouteNames.itineraryHistory),
+            icon: const Icon(Icons.route_outlined),
           ),
         ],
       ),

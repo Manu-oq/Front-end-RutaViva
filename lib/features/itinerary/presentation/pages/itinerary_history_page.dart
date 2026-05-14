@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/skeleton_container.dart';
 import '../../data/models/itinerary_model.dart';
 import '../../data/repositories/itinerary_repository.dart';
@@ -16,6 +18,10 @@ class ItineraryHistoryPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(
+          fallbackRouteName: AppRouteNames.home,
+          usePop: false,
+        ),
         title: const Text('Mis itinerarios'),
         actions: [
           IconButton(
@@ -24,51 +30,73 @@ class ItineraryHistoryPage extends ConsumerWidget {
           ),
         ],
       ),
-      body: itineraries.when(
-        data: (items) {
-          if (items.isEmpty) {
-            return _EmptyItineraryHistory(
-              onCreate: () => context.goNamed(AppRouteNames.home),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-            itemBuilder: (context, index) {
-              final itinerary = items[index];
-              return _ItineraryCard(itinerary: itinerary);
-            },
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemCount: items.length,
-          );
-        },
-        loading: () => ListView.separated(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          itemBuilder: (context, index) => SkeletonContainer(
-            height: 120,
-            borderRadius: const BorderRadius.all(Radius.circular(22)),
-          ),
-          separatorBuilder: (context, index) => const SizedBox(height: 12),
-          itemCount: 4,
-        ),
-        error: (error, stackTrace) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'No se pudo cargar el historial',
-                style: theme.textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 8),
-              Text('$error', style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => ref.invalidate(itineraryHistoryProvider),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-              ),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              theme.colorScheme.surfaceContainerLow,
+              theme.colorScheme.surfaceContainerLowest,
             ],
+          ),
+        ),
+        child: itineraries.when(
+          data: (items) {
+            if (items.isEmpty) {
+              return _EmptyItineraryHistory(
+                onCreate: () => context.goNamed(AppRouteNames.home),
+              );
+            }
+
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                  itemBuilder: (context, index) {
+                    final itinerary = items[index];
+                    return _ItineraryCard(itinerary: itinerary);
+                  },
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 14),
+                  itemCount: items.length,
+                ),
+              ),
+            );
+          },
+          loading: () => Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                itemBuilder: (context, index) => SkeletonContainer(
+                  height: 142,
+                  borderRadius: const BorderRadius.all(Radius.circular(26)),
+                ),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 14),
+                itemCount: 4,
+              ),
+            ),
+          ),
+          error: (error, stackTrace) => Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: _HistoryStateCard(
+                  icon: Icons.warning_amber_rounded,
+                  title: 'No se pudo cargar el historial',
+                  text: '$error',
+                  action: ElevatedButton.icon(
+                    onPressed: () => ref.invalidate(itineraryHistoryProvider),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reintentar'),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -84,12 +112,15 @@ class _ItineraryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: AppColors.ambientShadow,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(28),
         onTap: () => context.pushNamed(
           AppRouteNames.itineraryDetail,
           pathParameters: {'id': itinerary.id},
@@ -100,34 +131,71 @@ class _ItineraryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      itinerary.title,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontSize: 20,
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.secondary,
+                        ],
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                    child: const Icon(Icons.route, color: Colors.white),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          itinerary.title,
+                          style: theme.textTheme.titleLarge,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${_dateRange(itinerary)} • ${itinerary.steps.length} paradas',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios, size: 16),
+                  Icon(
+                    Icons.arrow_forward,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                '${_dateRange(itinerary)} • ${itinerary.steps.length} paradas • ${itinerary.status}',
-                style: theme.textTheme.bodySmall,
-              ),
               if (itinerary.steps.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: itinerary.steps.take(3).map((step) {
-                    return Chip(
-                      label: Text(step.poiNombre ?? 'Parada ${step.stepOrder}'),
-                      visualDensity: VisualDensity.compact,
+                  children: itinerary.steps.take(4).map((step) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.42,
+                        ),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        step.poiNombre ?? 'Parada ${step.stepOrder}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
                     );
                   }).toList(),
                 ),
@@ -162,33 +230,68 @@ class _EmptyItineraryHistory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: _HistoryStateCard(
+            icon: Icons.route_outlined,
+            title: 'Aún no tienes itinerarios guardados',
+            text:
+                'Genera una ruta desde Inicio o Ara Assistant y aparecerá aquí.',
+            action: ElevatedButton.icon(
+              onPressed: onCreate,
+              icon: const Icon(Icons.auto_awesome),
+              label: const Text('Generar una ruta'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryStateCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String text;
+  final Widget action;
+
+  const _HistoryStateCard({
+    required this.icon,
+    required this.title,
+    required this.text,
+    required this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(26),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: AppColors.ambientShadow,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.route_outlined,
-            size: 52,
-            color: theme.colorScheme.secondary,
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: theme.colorScheme.primaryContainer,
+            foregroundColor: theme.colorScheme.primary,
+            child: Icon(icon),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Aún no tienes itinerarios guardados',
-            style: theme.textTheme.headlineMedium,
-          ),
+          const SizedBox(height: 18),
+          Text(title, style: theme.textTheme.headlineMedium),
           const SizedBox(height: 8),
-          Text(
-            'Genera una ruta desde Inicio o Ara Assistant. El backend la persistirá y aparecerá aquí.',
-            style: theme.textTheme.bodyLarge,
-          ),
+          Text(text, style: theme.textTheme.bodyLarge),
           const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: onCreate,
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('Generar una ruta'),
-          ),
+          action,
         ],
       ),
     );

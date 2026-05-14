@@ -43,6 +43,7 @@ dependencies:
   # Red y API
   dio: ^5.4.1
   shared_preferences: ^2.3.2
+  url_launcher: ^6.3.2
   
   # Mapas y GPS
   flutter_map: ^8.2.2

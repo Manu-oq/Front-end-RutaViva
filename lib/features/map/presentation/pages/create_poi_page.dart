@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../categories/data/models/category_model.dart';
 import '../../../categories/data/repositories/category_repository.dart';
 import '../../data/repositories/poi_repository.dart';
 import '../providers/map_provider.dart';
@@ -88,7 +91,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('POI creado correctamente.')),
+        const SnackBar(content: Text('Lugar creado correctamente.')),
       );
       context.goNamed(AppRouteNames.poiDetail, pathParameters: {'id': poi.id});
     } catch (error) {
@@ -97,7 +100,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
       }
       final message = error is ApiException
           ? error.message
-          : 'No se pudo crear el POI.';
+          : 'No se pudo crear el lugar.';
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
@@ -110,196 +113,138 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final categories = ref.watch(categoriesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Crear POI')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Nuevo punto de interés',
-                style: theme.textTheme.displayLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Este formulario llama a POST /api/v1/pois/ y genera el embedding en backend.',
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _nameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.place_outlined),
-                ),
-                validator: (value) {
-                  if ((value ?? '').trim().length < 3) {
-                    return 'Ingresa un nombre válido.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _descriptionController,
-                minLines: 4,
-                maxLines: 8,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                validator: (value) {
-                  if ((value ?? '').trim().length < 20) {
-                    return 'La descripción debe tener al menos 20 caracteres.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _accessType,
-                decoration: const InputDecoration(
-                  labelText: 'Tipo de acceso',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'publico', child: Text('Público')),
-                  DropdownMenuItem(value: 'privado', child: Text('Privado')),
-                  DropdownMenuItem(
-                    value: 'reserva',
-                    child: Text('Con reserva'),
-                  ),
-                  DropdownMenuItem(value: 'pagado', child: Text('Pagado')),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _accessType = value);
-                  }
-                },
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Categorías',
-                style: theme.textTheme.headlineMedium?.copyWith(fontSize: 20),
-              ),
-              const SizedBox(height: 8),
-              categories.when(
-                data: (items) => Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: items.map((category) {
-                    final selected = _selectedCategoryIds.contains(category.id);
-                    return FilterChip(
-                      label: Text(category.name),
-                      selected: selected,
-                      onSelected: (value) {
-                        setState(() {
-                          if (value) {
-                            _selectedCategoryIds.add(category.id);
-                          } else {
-                            _selectedCategoryIds.remove(category.id);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-                loading: () => const LinearProgressIndicator(),
-                error: (error, stackTrace) => Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'No se pudieron cargar categorías: $error',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.red,
+      body: _PoiFormBackground(
+        child: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 860),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _FormHero(
+                              title: 'Comparte un lugar',
+                              eyebrow: 'Nuevo aporte',
+                              description:
+                                  'Ayuda a otros viajeros a descubrir rincones, servicios o experiencias de La Araucanía.',
+                              fallbackRouteName: AppRouteNames.profile,
+                            ),
+                            const SizedBox(height: 16),
+                            _FormSection(
+                              title: 'Información principal',
+                              icon: Icons.place_rounded,
+                              child: Column(
+                                children: [
+                                  TextFormField(
+                                    controller: _nameController,
+                                    textCapitalization:
+                                        TextCapitalization.words,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Nombre del lugar',
+                                      prefixIcon: Icon(Icons.place_outlined),
+                                    ),
+                                    validator: _nameValidator,
+                                  ),
+                                  const SizedBox(height: 14),
+                                  TextFormField(
+                                    controller: _descriptionController,
+                                    minLines: 4,
+                                    maxLines: 8,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Descripción',
+                                      alignLabelWithHint: true,
+                                      hintText:
+                                          'Cuenta qué lo hace especial, cómo llegar o qué deberían saber los visitantes.',
+                                    ),
+                                    validator: _descriptionValidator,
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _AccessTypeSelector(
+                                    value: _accessType,
+                                    onChanged: (value) =>
+                                        setState(() => _accessType = value),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _FormSection(
+                              title: 'Categorías',
+                              icon: Icons.local_offer_rounded,
+                              child: _CategorySelector(
+                                categories: categories,
+                                selectedCategoryIds: _selectedCategoryIds,
+                                onToggle: _toggleCategory,
+                                onRetry: () =>
+                                    ref.invalidate(categoriesProvider),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _FormSection(
+                              title: 'Ubicación',
+                              icon: Icons.my_location_rounded,
+                              child: _CoordinateFields(
+                                latController: _latController,
+                                lonController: _lonController,
+                                validator: _coordinateValidator,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _FormSection(
+                              title: 'Contacto e imagen',
+                              icon: Icons.contact_phone_rounded,
+                              child: Column(
+                                children: [
+                                  TextFormField(
+                                    controller: _phoneController,
+                                    keyboardType: TextInputType.phone,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Teléfono público opcional',
+                                      prefixIcon: Icon(Icons.phone_outlined),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  TextFormField(
+                                    controller: _emailController,
+                                    keyboardType: TextInputType.emailAddress,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Email público opcional',
+                                      prefixIcon: Icon(Icons.email_outlined),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  TextFormField(
+                                    controller: _imageUrlController,
+                                    keyboardType: TextInputType.url,
+                                    decoration: const InputDecoration(
+                                      labelText: 'URL de imagen opcional',
+                                      prefixIcon: Icon(Icons.image_outlined),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            CustomButton(
+                              text: 'Publicar lugar',
+                              isLoading: _isSubmitting,
+                              onPressed: _submit,
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    TextButton(
-                      onPressed: () => ref.invalidate(categoriesProvider),
-                      child: const Text('Reintentar'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _latController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Latitud',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: _coordinateValidator,
-                    ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _lonController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Longitud',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: _coordinateValidator,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Teléfono público opcional',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.phone_outlined),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email público opcional',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _imageUrlController,
-                keyboardType: TextInputType.url,
-                decoration: const InputDecoration(
-                  labelText: 'URL de imagen opcional',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.image_outlined),
-                ),
-              ),
-              const SizedBox(height: 28),
-              CustomButton(
-                text: 'Crear POI',
-                isLoading: _isSubmitting,
-                onPressed: _submit,
               ),
             ],
           ),
@@ -308,11 +253,367 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
     );
   }
 
+  void _toggleCategory(int id, bool selected) {
+    setState(() {
+      if (selected) {
+        _selectedCategoryIds.add(id);
+      } else {
+        _selectedCategoryIds.remove(id);
+      }
+    });
+  }
+
+  String? _nameValidator(String? value) {
+    if ((value ?? '').trim().length < 3) {
+      return 'Ingresa un nombre válido.';
+    }
+    return null;
+  }
+
+  String? _descriptionValidator(String? value) {
+    if ((value ?? '').trim().length < 20) {
+      return 'La descripción debe tener al menos 20 caracteres.';
+    }
+    return null;
+  }
+
   String? _coordinateValidator(String? value) {
     final parsed = double.tryParse((value ?? '').trim());
     if (parsed == null) {
       return 'Coordenada inválida.';
     }
     return null;
+  }
+}
+
+class _PoiFormBackground extends StatelessWidget {
+  final Widget child;
+
+  const _PoiFormBackground({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Theme.of(context).colorScheme.surface,
+            AppColors.mint.withValues(alpha: 0.42),
+            Theme.of(context).colorScheme.surface,
+          ],
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _FormHero extends StatelessWidget {
+  final String title;
+  final String eyebrow;
+  final String description;
+  final String fallbackRouteName;
+  const _FormHero({
+    required this.title,
+    required this.eyebrow,
+    required this.description,
+    required this.fallbackRouteName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(34),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.deepForest, AppColors.forest, AppColors.moss],
+        ),
+        boxShadow: AppColors.liftedShadow,
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -34,
+            top: -40,
+            child: Container(
+              width: 142,
+              height: 142,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppBackButton(
+                fallbackRouteName: fallbackRouteName,
+                color: Colors.white,
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: Text(
+                  eyebrow,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: theme.textTheme.displaySmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  height: 1.05,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                description,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FormSection extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  const _FormSection({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        boxShadow: AppColors.ambientShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: theme.colorScheme.primary, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _AccessTypeSelector extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const _AccessTypeSelector({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      decoration: const InputDecoration(
+        labelText: 'Tipo de acceso',
+        prefixIcon: Icon(Icons.door_front_door_outlined),
+      ),
+      items: const [
+        DropdownMenuItem(value: 'publico', child: Text('Público')),
+        DropdownMenuItem(value: 'privado', child: Text('Privado')),
+        DropdownMenuItem(value: 'reserva', child: Text('Con reserva')),
+        DropdownMenuItem(value: 'pagado', child: Text('Pagado')),
+      ],
+      onChanged: (value) {
+        if (value != null) {
+          onChanged(value);
+        }
+      },
+    );
+  }
+}
+
+class _CategorySelector extends StatelessWidget {
+  final AsyncValue<List<CategoryModel>> categories;
+  final Set<int> selectedCategoryIds;
+  final void Function(int id, bool selected) onToggle;
+  final VoidCallback onRetry;
+
+  const _CategorySelector({
+    required this.categories,
+    required this.selectedCategoryIds,
+    required this.onToggle,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return categories.when(
+      data: (items) => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: items.map((category) {
+          final selected = selectedCategoryIds.contains(category.id);
+          return FilterChip(
+            label: Text(category.name),
+            selected: selected,
+            onSelected: (value) => onToggle(category.id, value),
+          );
+        }).toList(),
+      ),
+      loading: () => const LinearProgressIndicator(minHeight: 3),
+      error: (error, stackTrace) => _InlineFormError(
+        message: 'No se pudieron cargar las categorías.',
+        onRetry: onRetry,
+      ),
+    );
+  }
+}
+
+class _InlineFormError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _InlineFormError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.error.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: theme.colorScheme.error.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, color: theme.colorScheme.error),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message)),
+          TextButton(onPressed: onRetry, child: const Text('Reintentar')),
+        ],
+      ),
+    );
+  }
+}
+
+class _CoordinateFields extends StatelessWidget {
+  final TextEditingController latController;
+  final TextEditingController lonController;
+  final String? Function(String?) validator;
+
+  const _CoordinateFields({
+    required this.latController,
+    required this.lonController,
+    required this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fields = [
+      TextFormField(
+        controller: latController,
+        keyboardType: const TextInputType.numberWithOptions(
+          decimal: true,
+          signed: true,
+        ),
+        decoration: const InputDecoration(
+          labelText: 'Latitud',
+          prefixIcon: Icon(Icons.north_rounded),
+        ),
+        validator: validator,
+      ),
+      TextFormField(
+        controller: lonController,
+        keyboardType: const TextInputType.numberWithOptions(
+          decimal: true,
+          signed: true,
+        ),
+        decoration: const InputDecoration(
+          labelText: 'Longitud',
+          prefixIcon: Icon(Icons.east_rounded),
+        ),
+        validator: validator,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 520) {
+          return Column(
+            children: [fields[0], const SizedBox(height: 14), fields[1]],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: fields[0]),
+            const SizedBox(width: 12),
+            Expanded(child: fields[1]),
+          ],
+        );
+      },
+    );
   }
 }

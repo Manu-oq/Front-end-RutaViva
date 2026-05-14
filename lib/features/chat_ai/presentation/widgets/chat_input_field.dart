@@ -50,7 +50,7 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
         return;
       }
 
-      context.goNamed(
+      context.pushNamed(
         AppRouteNames.itineraryDetail,
         pathParameters: {'id': itinerary.id},
       );
