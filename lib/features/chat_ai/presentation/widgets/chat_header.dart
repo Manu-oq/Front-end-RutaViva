@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/widgets/app_back_button.dart';
 
 class ChatHeader extends StatelessWidget {
@@ -33,7 +33,8 @@ class ChatHeader extends StatelessWidget {
           const SizedBox(width: 12),
           IconButton.outlined(
             tooltip: 'Mis rutas',
-            onPressed: () => context.goNamed(AppRouteNames.itineraryHistory),
+            onPressed: () =>
+                context.pushNamedSafe(AppRouteNames.itineraryHistory),
             icon: const Icon(Icons.route_outlined),
           ),
         ],

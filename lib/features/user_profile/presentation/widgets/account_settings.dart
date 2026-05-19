@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_mode_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class AccountSettings extends ConsumerWidget {
@@ -21,19 +23,20 @@ class AccountSettings extends ConsumerWidget {
               icon: Icons.route_rounded,
               title: 'Mis itinerarios',
               description: 'Revisa tus rutas guardadas y últimas ideas.',
-              onTap: () => context.goNamed(AppRouteNames.itineraryHistory),
+              onTap: () =>
+                  context.pushNamedSafe(AppRouteNames.itineraryHistory),
             ),
             _SettingTile(
               icon: Icons.bookmark_rounded,
               title: 'Favoritos',
               description: 'Lugares que marcaste para visitar después.',
-              onTap: () => context.goNamed(AppRouteNames.bookmarks),
+              onTap: () => context.pushNamedSafe(AppRouteNames.bookmarks),
             ),
             _SettingTile(
               icon: Icons.chat_bubble_rounded,
               title: 'Chat con Ara',
               description: 'Pide recomendaciones y arma una nueva ruta.',
-              onTap: () => context.pushNamed(AppRouteNames.chat),
+              onTap: () => context.pushNamedSafe(AppRouteNames.chat),
             ),
           ],
         ),
@@ -42,23 +45,24 @@ class AccountSettings extends ConsumerWidget {
           title: 'Cuenta y comunidad',
           subtitle: 'Configura tu perfil o comparte lugares de la zona.',
           children: [
+            const _ThemeModeTile(),
             _SettingTile(
               icon: Icons.person_rounded,
               title: 'Editar perfil',
               description: 'Actualiza tus datos e intereses de viaje.',
-              onTap: () => context.pushNamed(AppRouteNames.editProfile),
+              onTap: () => context.pushNamedSafe(AppRouteNames.editProfile),
             ),
             _SettingTile(
               icon: Icons.add_location_alt_rounded,
               title: 'Compartir lugar',
               description: 'Sugiere un punto de interés para otros viajeros.',
-              onTap: () => context.pushNamed(AppRouteNames.createPoi),
+              onTap: () => context.pushNamedSafe(AppRouteNames.createPoi),
             ),
             _SettingTile(
               icon: Icons.storefront_rounded,
               title: 'Panel emprendedor',
               description: 'Administra tu presencia dentro de Ruta Viva.',
-              onTap: () => context.pushNamed(AppRouteNames.entrepreneur),
+              onTap: () => context.pushNamedSafe(AppRouteNames.entrepreneur),
             ),
           ],
         ),
@@ -73,6 +77,85 @@ class AccountSettings extends ConsumerWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+class _ThemeModeTile extends ConsumerWidget {
+  const _ThemeModeTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final mode = ref.watch(themeModeProvider);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(
+              mode == ThemeMode.dark
+                  ? Icons.dark_mode_rounded
+                  : mode == ThemeMode.light
+                  ? Icons.light_mode_rounded
+                  : Icons.brightness_auto_rounded,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Apariencia',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Elige tema claro, oscuro o automático.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SegmentedButton<ThemeMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      label: Text('Auto'),
+                      icon: Icon(Icons.brightness_auto_rounded),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      label: Text('Claro'),
+                      icon: Icon(Icons.light_mode_rounded),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      label: Text('Oscuro'),
+                      icon: Icon(Icons.dark_mode_rounded),
+                    ),
+                  ],
+                  selected: {mode},
+                  onSelectionChanged: (values) => ref
+                      .read(themeModeProvider.notifier)
+                      .setThemeMode(values.first),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

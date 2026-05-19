@@ -6,11 +6,13 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/custom_button.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/data/repositories/category_repository.dart';
 import '../../data/models/poi_model.dart';
 import '../../data/repositories/poi_repository.dart';
 import '../providers/map_provider.dart';
+import '../widgets/location_picker_sheet.dart';
 
 class EditPoiPage extends ConsumerWidget {
   final String poiId;
@@ -244,6 +246,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
                           latController: _latController,
                           lonController: _lonController,
                           validator: _coordinateValidator,
+                          onPick: _pickLocation,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -287,6 +290,26 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
         ),
       ],
     );
+  }
+
+  Future<void> _pickLocation() async {
+    final current = LatLng(
+      double.tryParse(_latController.text.trim()) ??
+          araucaniaDefaultCenter.latitude,
+      double.tryParse(_lonController.text.trim()) ??
+          araucaniaDefaultCenter.longitude,
+    );
+    final picked = await showLocationPickerSheet(
+      context,
+      initialLocation: current,
+    );
+    if (picked == null) {
+      return;
+    }
+    setState(() {
+      _latController.text = picked.coordinates.latitude.toStringAsFixed(6);
+      _lonController.text = picked.coordinates.longitude.toStringAsFixed(6);
+    });
   }
 
   void _toggleCategory(int id, bool selected) {
@@ -393,7 +416,6 @@ class _EditPoiError extends StatelessWidget {
                 AppBackButton(
                   fallbackRouteName: AppRouteNames.poiDetail,
                   fallbackPathParameters: {'id': fallbackPoiId},
-                  usePop: false,
                 ),
                 const SizedBox(height: 12),
                 Icon(
@@ -438,15 +460,23 @@ class _PoiFormBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Theme.of(context).colorScheme.surface,
-            AppColors.mint.withValues(alpha: 0.42),
-            Theme.of(context).colorScheme.surface,
+            isDark
+                ? theme.colorScheme.surfaceContainerLowest
+                : theme.colorScheme.surface,
+            isDark
+                ? AppColors.deepForest
+                : AppColors.mint.withValues(alpha: 0.42),
+            isDark
+                ? theme.colorScheme.surfaceContainerLowest
+                : theme.colorScheme.surface,
           ],
         ),
       ),
@@ -644,57 +674,57 @@ class _CoordinateFields extends StatelessWidget {
   final TextEditingController latController;
   final TextEditingController lonController;
   final String? Function(String?) validator;
+  final VoidCallback onPick;
 
   const _CoordinateFields({
     required this.latController,
     required this.lonController,
     required this.validator,
+    required this.onPick,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fields = [
-      TextFormField(
-        controller: latController,
-        keyboardType: const TextInputType.numberWithOptions(
-          decimal: true,
-          signed: true,
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.12),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.location_pin, color: theme.colorScheme.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${latController.text}, ${lonController.text}',
+                  style: theme.textTheme.labelLarge,
+                ),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: onPick,
+                icon: const Icon(Icons.map_rounded),
+                label: const Text('Elegir en mapa'),
+              ),
+            ],
+          ),
         ),
-        decoration: const InputDecoration(
-          labelText: 'Latitud',
-          prefixIcon: Icon(Icons.north_rounded),
+        Offstage(
+          child: Column(
+            children: [
+              TextFormField(controller: latController, validator: validator),
+              TextFormField(controller: lonController, validator: validator),
+            ],
+          ),
         ),
-        validator: validator,
-      ),
-      TextFormField(
-        controller: lonController,
-        keyboardType: const TextInputType.numberWithOptions(
-          decimal: true,
-          signed: true,
-        ),
-        decoration: const InputDecoration(
-          labelText: 'Longitud',
-          prefixIcon: Icon(Icons.east_rounded),
-        ),
-        validator: validator,
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 520) {
-          return Column(
-            children: [fields[0], const SizedBox(height: 14), fields[1]],
-          );
-        }
-        return Row(
-          children: [
-            Expanded(child: fields[0]),
-            const SizedBox(width: 12),
-            Expanded(child: fields[1]),
-          ],
-        );
-      },
+      ],
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../providers/auth_provider.dart';
 
@@ -57,7 +58,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final authState = ref.watch(authProvider);
+    final backgroundColors = isDark
+        ? [
+            theme.colorScheme.surfaceContainerLowest,
+            AppColors.deepForest,
+            AppColors.forest,
+          ]
+        : [theme.colorScheme.secondary, theme.colorScheme.primary];
 
     return Scaffold(
       body: Container(
@@ -66,7 +75,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [theme.colorScheme.secondary, theme.colorScheme.primary],
+            colors: backgroundColors,
           ),
         ),
         child: SafeArea(
@@ -134,9 +143,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                     Card(
                       elevation: 0,
-                      color: Colors.white.withValues(alpha: 0.96),
+                      color: isDark
+                          ? theme.colorScheme.surfaceContainerLow.withValues(
+                              alpha: 0.96,
+                            )
+                          : Colors.white.withValues(alpha: 0.96),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
+                        side: BorderSide(
+                          color: isDark
+                              ? theme.colorScheme.outlineVariant
+                              : Colors.transparent,
+                        ),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(24),

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../map/presentation/providers/map_provider.dart';
 
-class MistNavigation extends StatelessWidget {
+class MistNavigation extends ConsumerWidget {
   final Widget child;
   const MistNavigation({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final uri = GoRouterState.of(context).uri;
     final selectedIndex = _calculateSelectedIndex(uri);
     final theme = Theme.of(context);
@@ -34,7 +36,8 @@ class MistNavigation extends StatelessWidget {
               borderRadius: BorderRadius.circular(28),
               child: NavigationBar(
                 selectedIndex: selectedIndex,
-                onDestinationSelected: (index) => _onItemTapped(index, context),
+                onDestinationSelected: (index) =>
+                    _onItemTapped(index, context, ref),
                 destinations: const [
                   NavigationDestination(
                     icon: Icon(Icons.home_outlined),
@@ -80,11 +83,15 @@ class MistNavigation extends StatelessWidget {
     return 0;
   }
 
-  void _onItemTapped(int index, BuildContext context) {
+  void _onItemTapped(int index, BuildContext context, WidgetRef ref) {
     switch (index) {
       case 0:
         context.goNamed(AppRouteNames.home);
       case 1:
+        final mapState = ref.read(mapProvider);
+        if (!mapState.isGlobalMode) {
+          ref.read(mapProvider.notifier).loadNearby(center: mapState.center);
+        }
         context.goNamed(AppRouteNames.map);
       case 2:
         context.goNamed(AppRouteNames.itineraryHistory);

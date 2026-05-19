@@ -7,8 +7,17 @@ import 'poi_detail_sheet.dart';
 
 class CustomMapMarker extends ConsumerWidget {
   final MapPoint point;
+  final bool compact;
+  final bool showLabel;
+  final bool highlighted;
 
-  const CustomMapMarker({super.key, required this.point});
+  const CustomMapMarker({
+    super.key,
+    required this.point,
+    this.compact = false,
+    this.showLabel = true,
+    this.highlighted = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,48 +41,59 @@ class CustomMapMarker extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(compact ? 7 : 9),
             decoration: BoxDecoration(
               color: style.color,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
+              border: Border.all(
+                color: highlighted
+                    ? theme.colorScheme.primaryContainer
+                    : Colors.white,
+                width: highlighted ? 4 : 2.5,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.24),
-                  blurRadius: 16,
+                  blurRadius: highlighted ? 22 : 14,
                   spreadRadius: -4,
                   offset: const Offset(0, 8),
                 ),
               ],
             ),
-            child: Icon(style.icon, color: Colors.white, size: 22),
-          ),
-          const SizedBox(height: 3),
-          Container(
-            constraints: const BoxConstraints(maxWidth: 78),
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(999),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 10,
-                  spreadRadius: -6,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+            child: Icon(
+              style.icon,
+              color: Colors.white,
+              size: compact ? 16 : 21,
             ),
-            child: Text(
-              point.name,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: 9,
-                color: theme.colorScheme.onSurface,
+          ),
+          if (showLabel) ...[
+            const SizedBox(height: 3),
+            Container(
+              constraints: const BoxConstraints(maxWidth: 86),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 10,
+                    spreadRadius: -6,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              child: Text(
+                point.name,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 9,
+                  color: theme.colorScheme.onSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

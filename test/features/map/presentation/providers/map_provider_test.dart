@@ -8,24 +8,21 @@ import 'package:ruta_viva/features/map/presentation/providers/map_provider.dart'
 void main() {
   group('MapState', () {
     test('default state is empty', () {
-      final state = MapState(
-        points: const [],
-        routePolyline: const [],
-        center: araucaniaDefaultCenter,
-      );
+      final state = MapState(points: const [], center: araucaniaDefaultCenter);
 
       expect(state.points, isEmpty);
-      expect(state.routePolyline, isEmpty);
       expect(state.center, equals(araucaniaDefaultCenter));
       expect(state.selectedPoint, isNull);
       expect(state.isLoading, isFalse);
       expect(state.errorMessage, isNull);
+      expect(state.selectedCategoryIds, isEmpty);
+      expect(state.focusedPoiId, isNull);
+      expect(state.isGlobalMode, isTrue);
     });
 
     test('copyWith updates isLoading', () {
       final initialState = MapState(
         points: const [],
-        routePolyline: const [],
         center: araucaniaDefaultCenter,
       );
       final updated = initialState.copyWith(isLoading: true);
@@ -43,7 +40,6 @@ void main() {
       );
       final state = MapState(
         points: [point],
-        routePolyline: [],
         center: araucaniaDefaultCenter,
         selectedPoint: point,
       );
@@ -55,7 +51,6 @@ void main() {
     test('copyWith clearError removes errorMessage', () {
       final state = MapState(
         points: [],
-        routePolyline: [],
         center: araucaniaDefaultCenter,
         errorMessage: 'error',
       );
@@ -65,15 +60,44 @@ void main() {
     });
 
     test('copyWith updates center', () {
-      final state = MapState(
-        points: [],
-        routePolyline: [],
-        center: araucaniaDefaultCenter,
-      );
+      final state = MapState(points: [], center: araucaniaDefaultCenter);
       final newCenter = const LatLng(-38.0, -72.0);
       final updated = state.copyWith(center: newCenter);
 
       expect(updated.center, equals(newCenter));
+    });
+
+    test('copyWith clearFilteredItinerary returns to global map mode', () {
+      final state = MapState(
+        points: const [],
+        center: araucaniaDefaultCenter,
+        filteredItineraryId: 'itinerary-1',
+      );
+
+      final updated = state.copyWith(clearFilteredItinerary: true);
+
+      expect(updated.filteredItineraryId, isNull);
+    });
+
+    test('copyWith clearFocusedPoi returns to global map mode', () {
+      final state = MapState(
+        points: const [],
+        center: araucaniaDefaultCenter,
+        focusedPoiId: 'poi-1',
+      );
+
+      final updated = state.copyWith(clearFocusedPoi: true);
+
+      expect(updated.focusedPoiId, isNull);
+      expect(updated.isGlobalMode, isTrue);
+    });
+
+    test('copyWith updates selectedCategoryIds', () {
+      final state = MapState(points: const [], center: araucaniaDefaultCenter);
+
+      final updated = state.copyWith(selectedCategoryIds: {2, 4});
+
+      expect(updated.selectedCategoryIds, equals({2, 4}));
     });
   });
 
@@ -85,13 +109,14 @@ void main() {
       final state = container.read(mapProvider);
 
       expect(state.points, isEmpty);
-      expect(state.routePolyline, isEmpty);
       expect(state.center, equals(araucaniaDefaultCenter));
       expect(state.center.latitude, equals(-39.35));
       expect(state.center.longitude, equals(-71.70));
       expect(state.isLoading, isFalse);
       expect(state.selectedPoint, isNull);
       expect(state.errorMessage, isNull);
+      expect(state.selectedCategoryIds, isEmpty);
+      expect(state.focusedPoiId, isNull);
     });
 
     test('selectPoint sets selected point', () {
@@ -129,20 +154,27 @@ void main() {
       expect(container.read(mapProvider).selectedPoint, isNull);
     });
 
-    test('updateRoute replaces route polyline', () {
+    test('showSinglePoi isolates the selected point', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final route = [
-        const LatLng(-39.0, -71.0),
-        const LatLng(-39.5, -71.5),
-        const LatLng(-40.0, -72.0),
-      ];
-      container.read(mapProvider.notifier).updateRoute(route);
+      final point = MapPoint(
+        id: 'focused',
+        name: 'Focused',
+        coordinates: const LatLng(-38.7, -72.6),
+        categoryIds: const [2],
+      );
+
+      container.read(mapProvider.notifier).showSinglePoi(point);
 
       final state = container.read(mapProvider);
-      expect(state.routePolyline.length, equals(3));
-      expect(state.routePolyline, equals(route));
+      expect(state.points, equals([point]));
+      expect(state.selectedPoint, equals(point));
+      expect(state.center, equals(point.coordinates));
+      expect(state.focusedPoiId, equals('focused'));
+      expect(state.filteredItineraryId, isNull);
+      expect(state.selectedCategoryIds, isEmpty);
+      expect(state.isGlobalMode, isFalse);
     });
   });
 }

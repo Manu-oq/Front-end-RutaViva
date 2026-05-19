@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/router/safe_navigation.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../map/presentation/providers/map_provider.dart';
 
@@ -13,7 +13,7 @@ class HomeHeader extends ConsumerWidget {
     final theme = Theme.of(context);
     final user = ref.watch(authProvider).user;
     final mapState = ref.watch(mapProvider);
-    final displayName = user?.email.split('@').first ?? 'viajero';
+    final displayName = _firstName(user?.displayName ?? user?.email);
 
     return SliverToBoxAdapter(
       child: Center(
@@ -60,7 +60,7 @@ class HomeHeader extends ConsumerWidget {
                 Text(
                   mapState.points.isEmpty
                       ? 'Ara está buscando lugares para inspirar tu próxima ruta.'
-                      : 'Ara encontró ${mapState.points.length} lugares para explorar. Escribe una idea y arma tu ruta personalizada.',
+                      : 'Ara encontró ${mapState.points.length} lugares para explorar. Abre el chat para armar tu ruta personalizada.',
                   style: theme.textTheme.bodyLarge,
                 ),
                 const SizedBox(height: 20),
@@ -70,12 +70,13 @@ class HomeHeader extends ConsumerWidget {
                   children: [
                     OutlinedButton.icon(
                       onPressed: () =>
-                          context.goNamed(AppRouteNames.itineraryHistory),
+                          context.pushNamedSafe(AppRouteNames.itineraryHistory),
                       icon: const Icon(Icons.route_outlined),
                       label: const Text('Mis rutas'),
                     ),
                     OutlinedButton.icon(
-                      onPressed: () => context.pushNamed(AppRouteNames.chat),
+                      onPressed: () =>
+                          context.pushNamedSafe(AppRouteNames.chat),
                       icon: const Icon(Icons.chat_bubble_outline),
                       label: const Text('Chat con Ara'),
                     ),
@@ -87,5 +88,13 @@ class HomeHeader extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _firstName(String? value) {
+    final normalized = value?.trim().replaceAll(RegExp(r'\s+'), ' ') ?? '';
+    if (normalized.isEmpty) {
+      return 'viajero';
+    }
+    return normalized.split(' ').first;
   }
 }

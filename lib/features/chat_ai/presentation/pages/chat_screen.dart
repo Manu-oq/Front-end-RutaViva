@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/router/safe_navigation.dart';
 import '../../../itinerary/presentation/providers/itinerary_provider.dart';
+import '../../../map/domain/entities/map_point.dart';
+import '../../../map/presentation/providers/map_provider.dart';
+import '../../domain/entities/message_entity.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/chat_header.dart';
@@ -17,6 +21,16 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scrollController = ScrollController();
+  bool _isNavigatingFromCandidate = false;
+  bool _isOpeningCandidateMap = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+      () => ref.read(itineraryProvider.notifier).refreshCurrent(),
+    );
+  }
 
   @override
   void dispose() {
@@ -40,8 +54,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final messages = ref.watch(chatProvider);
+    final chatUiState = ref.watch(chatUiStateProvider);
     final itineraryState = ref.watch(itineraryProvider);
     final theme = Theme.of(context);
+    final actionsLocked =
+        chatUiState == AraChatUiState.sendingMessage ||
+        chatUiState == AraChatUiState.araTyping ||
+        chatUiState == AraChatUiState.generatingItinerary ||
+        chatUiState == AraChatUiState.pollingGeneration;
 
     _scrollToBottom();
 
@@ -70,7 +90,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: _LastItineraryBanner(
                         title: itineraryState.current!.title,
                         isLoading: itineraryState.isLoading,
-                        onOpen: () => context.pushNamed(
+                        onOpen: () => context.pushNamedSafe(
                           AppRouteNames.itineraryDetail,
                           pathParameters: {'id': itineraryState.current!.id},
                         ),
@@ -87,6 +107,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           message: msg.text,
                           isUser: msg.isUser,
                           isTyping: msg.isTyping,
+                          evidenceLevel: msg.evidenceLevel,
+                          actions: msg.actions,
+                          itineraryCard: msg.itineraryCard,
+                          candidatePois: msg.candidatePois,
+                          selectedActionId: msg.selectedActionId,
+                          actionsLocked: msg.actionsLocked,
+                          onAction: actionsLocked
+                              ? null
+                              : (action) => _handleAction(context, ref, action),
+                          onOpenItinerary: (id) => context.pushNamedSafe(
+                            AppRouteNames.itineraryDetail,
+                            pathParameters: {'id': id},
+                          ),
+                          onOpenPoi: (candidate) =>
+                              _openCandidateDetail(context, candidate),
+                          onShowPoiOnMap: (candidate) =>
+                              _showCandidateOnMap(context, ref, candidate),
+                          onUseCandidate: actionsLocked
+                              ? null
+                              : (candidate) => _useCandidate(ref, candidate),
                         );
                       },
                     ),
@@ -102,6 +142,111 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openCandidateDetail(
+    BuildContext context,
+    MessageCandidatePoi candidate,
+  ) async {
+    if (_isNavigatingFromCandidate || candidate.id.trim().isEmpty) {
+      return;
+    }
+    _isNavigatingFromCandidate = true;
+    try {
+      await context.pushNamedSafe(
+        AppRouteNames.poiDetail,
+        pathParameters: {'id': candidate.id},
+      );
+    } finally {
+      if (mounted) {
+        _isNavigatingFromCandidate = false;
+      }
+    }
+  }
+
+  Future<void> _showCandidateOnMap(
+    BuildContext context,
+    WidgetRef ref,
+    MessageCandidatePoi candidate,
+  ) async {
+    if (_isOpeningCandidateMap || !candidate.hasCoordinates) {
+      return;
+    }
+    _isOpeningCandidateMap = true;
+    ref
+        .read(mapProvider.notifier)
+        .showSinglePoi(
+          MapPoint(
+            id: candidate.id,
+            name: candidate.name,
+            description: candidate.description,
+            categoryIds: candidate.categoryIds,
+            coordinates: LatLng(candidate.latitude!, candidate.longitude!),
+            imageUrl: candidate.imageUrl,
+            distanceMeters: candidate.distanceMeters,
+          ),
+        );
+    try {
+      await context.pushNamedSafe(
+        AppRouteNames.focusedMap,
+        extra: AppRouteNames.chat,
+      );
+    } finally {
+      if (mounted) {
+        _isOpeningCandidateMap = false;
+      }
+    }
+  }
+
+  Future<void> _useCandidate(
+    WidgetRef ref,
+    MessageCandidatePoi candidate,
+  ) async {
+    final value = candidate.actionValue?.trim().isNotEmpty == true
+        ? candidate.actionValue!.trim()
+        : 'Quiero ir a ${candidate.name}';
+    await ref
+        .read(chatProvider.notifier)
+        .sendMessage(value, visibleText: 'Quiero ir a ${candidate.name}');
+  }
+
+  Future<void> _handleAction(
+    BuildContext context,
+    WidgetRef ref,
+    MessageAction action,
+  ) async {
+    if (action.type == 'navigation') {
+      final itineraryId = _readItineraryId(action.prompt);
+      if (itineraryId != null) {
+        context.pushNamedSafe(
+          AppRouteNames.itineraryDetail,
+          pathParameters: {'id': itineraryId},
+        );
+        return;
+      }
+    }
+    final completed = await ref
+        .read(chatProvider.notifier)
+        .handleAction(action);
+    if (!context.mounted) {
+      return;
+    }
+    if (completed && action.isGenerate) {
+      final itinerary = ref.read(itineraryProvider).current;
+      if (itinerary != null) {
+        context.pushNamedSafe(
+          AppRouteNames.itineraryDetail,
+          pathParameters: {'id': itinerary.id},
+        );
+      }
+    }
+  }
+
+  String? _readItineraryId(String value) {
+    final match = RegExp(
+      r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
+    ).firstMatch(value);
+    return match?.group(0);
   }
 }
 

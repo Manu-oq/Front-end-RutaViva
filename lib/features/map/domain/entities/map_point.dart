@@ -2,6 +2,24 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../categories/data/models/category_model.dart';
 
+class MapPointVisitRules {
+  final bool? isPrimaryExperience;
+  final bool? requiresDaylight;
+  final bool? nightSuitable;
+  final String? latestRecommendedStartTime;
+  final String? accessNotes;
+  final String? confidence;
+
+  const MapPointVisitRules({
+    this.isPrimaryExperience,
+    this.requiresDaylight,
+    this.nightSuitable,
+    this.latestRecommendedStartTime,
+    this.accessNotes,
+    this.confidence,
+  });
+}
+
 class MapPoint {
   final String id;
   final String name;
@@ -12,6 +30,8 @@ class MapPoint {
   final String? phone;
   final String? email;
   final double? distanceMeters;
+  final String? openingHoursText;
+  final MapPointVisitRules? visitRules;
   final bool isLocalAuthentic;
   final List<String>? amenities;
 
@@ -25,18 +45,14 @@ class MapPoint {
     this.phone,
     this.email,
     this.distanceMeters,
+    this.openingHoursText,
+    this.visitRules,
     this.isLocalAuthentic = true,
     this.amenities,
   });
 }
 
 extension MapPointCategoryX on MapPoint {
-  /// Resolves a single user-facing label for this point's primary category.
-  ///
-  /// Looks up [categoryIds] `.first` against the provided [names] map (built
-  /// from `categoriesByIdProvider`). Returns the unified fallback string when
-  /// the point has no categories or the id isn't present in the map (loading,
-  /// error, or unknown backend id).
   String categoryLabel(Map<int, CategoryModel> names) {
     if (categoryIds.isEmpty) return 'Sin categoría';
     return names[categoryIds.first]?.name ?? 'Sin categoría';

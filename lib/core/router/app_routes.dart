@@ -3,6 +3,7 @@ class AppRoutes {
   static const register = '/register';
   static const home = '/home';
   static const map = '/map';
+  static const focusedMap = '/map/focused';
   static const onboarding = '/onboarding';
   static const itineraryHistory = '/itineraries';
   static const itineraryDetail = '/itineraries/:id';
@@ -21,6 +22,7 @@ class AppRouteNames {
   static const register = 'register';
   static const home = 'home';
   static const map = 'map';
+  static const focusedMap = 'focused_map';
   static const onboarding = 'onboarding';
   static const itineraryHistory = 'itinerary_history';
   static const itineraryDetail = 'itinerary_detail';

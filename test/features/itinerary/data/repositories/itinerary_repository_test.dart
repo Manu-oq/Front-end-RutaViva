@@ -19,6 +19,9 @@ const _itineraryJson = <String, dynamic>{
       'step_order': 1,
       'arrival_time': '2025-03-01T10:00:00Z',
       'departure_time': '2025-03-01T14:00:00Z',
+      'day_index': 1,
+      'day_date': '2025-03-01',
+      'day_label': 'Sábado 1',
       'ai_context': <String, dynamic>{
         'title': 'Ascenso al Volcán',
         'reason': 'Experiencia única en la región',
@@ -35,6 +38,9 @@ const _itineraryJson = <String, dynamic>{
       'step_order': 2,
       'arrival_time': null,
       'departure_time': null,
+      'day_index': null,
+      'day_date': null,
+      'day_label': null,
       'ai_context': null,
     },
   ],
@@ -64,8 +70,11 @@ void main() {
       expect(step.poiNombre, equals('Volcán Villarrica'));
       expect(step.poiDescripcion, equals('Volcán activo'));
       expect(step.stepOrder, equals(1));
-      expect(step.arrivalTime, equals(DateTime.utc(2025, 3, 1, 10, 0, 0)));
-      expect(step.departureTime, equals(DateTime.utc(2025, 3, 1, 14, 0, 0)));
+      expect(step.arrivalTime, equals(DateTime(2025, 3, 1, 10, 0, 0)));
+      expect(step.departureTime, equals(DateTime(2025, 3, 1, 14, 0, 0)));
+      expect(step.dayIndex, equals(1));
+      expect(step.dayDate, equals(DateTime(2025, 3, 1)));
+      expect(step.dayLabel, equals('Sábado 1'));
       expect(step.aiContext, isNotNull);
 
       expect(step.title, equals('Ascenso al Volcán'));
@@ -101,6 +110,9 @@ void main() {
           'step_order': 3,
           'arrival_time': null,
           'departure_time': null,
+          'day_index': null,
+          'day_date': null,
+          'day_label': null,
           'ai_context': null,
         },
       ];
@@ -138,8 +150,7 @@ void main() {
     });
 
     test('handles missing steps key', () {
-      final json = Map<String, dynamic>.from(_itineraryJson)
-        ..remove('steps');
+      final json = Map<String, dynamic>.from(_itineraryJson)..remove('steps');
       final itinerary = ItineraryModel.fromJson(json);
 
       expect(itinerary.steps, isEmpty);
@@ -163,6 +174,7 @@ void main() {
       expect(steps.length, equals(2));
       final step1 = steps[0] as Map<String, dynamic>;
       expect(step1['id'], equals('step-1'));
+      expect(step1['day_label'], equals('Sábado 1'));
       expect(step1['ai_context']['title'], equals('Ascenso al Volcán'));
     });
 
@@ -174,7 +186,40 @@ void main() {
       expect(stepJson['itinerary_id'], equals('itin-xyz-789'));
       expect(stepJson['poi_id'], equals('poi-abc-123'));
       expect(stepJson['step_order'], equals(1));
+      expect(stepJson['day_index'], equals(1));
+      expect(stepJson['day_date'], equals('2025-03-01'));
+      expect(stepJson['day_label'], equals('Sábado 1'));
       expect(stepJson['ai_context']['tips'], equals('Llevar ropa térmica'));
     });
+
+    test(
+      'parses backend Chile timezone fields as local itinerary wall time',
+      () {
+        final json = Map<String, dynamic>.from(_itineraryJson);
+        json['steps'] = <dynamic>[
+          <String, dynamic>{
+            'id': 'step-tz',
+            'itinerary_id': 'itin-xyz-789',
+            'poi_id': 'poi-tz',
+            'poi_nombre': 'Termas',
+            'poi_descripcion': 'Relajo nocturno',
+            'step_order': 1,
+            'arrival_time': '2026-05-18T09:00:00-04:00',
+            'departure_time': '2026-05-18T11:00:00-04:00',
+            'day_index': 1,
+            'day_date': '2026-05-18',
+            'day_label': 'Lunes 18',
+            'ai_context': null,
+          },
+        ];
+
+        final step = ItineraryModel.fromJson(json).steps.single;
+
+        expect(step.arrivalTime, equals(DateTime(2026, 5, 18, 9)));
+        expect(step.departureTime, equals(DateTime(2026, 5, 18, 11)));
+        expect(step.dayDate, equals(DateTime(2026, 5, 18)));
+        expect(step.dayLabel, equals('Lunes 18'));
+      },
+    );
   });
 }

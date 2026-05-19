@@ -84,6 +84,33 @@ class AuthRepository {
     }
   }
 
+  Future<UserModel> patchCurrentUser({String? email, String? avatarUrl}) async {
+    final data = <String, dynamic>{};
+    if (email != null && email.trim().isNotEmpty) {
+      data['email'] = email.trim();
+    }
+    if (avatarUrl != null) {
+      data['avatar_url'] = avatarUrl.trim().isEmpty ? null : avatarUrl.trim();
+    }
+
+    if (data.isEmpty) {
+      return getMe();
+    }
+
+    try {
+      final response = await _client.patch<Map<String, dynamic>>(
+        '/users/me',
+        data: data,
+      );
+      if (response.data == null || response.data!.isEmpty) {
+        return getMe();
+      }
+      return UserModel.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
   Future<UserModel> activateEntrepreneurProfile() async {
     try {
       await _client.post<Map<String, dynamic>>(

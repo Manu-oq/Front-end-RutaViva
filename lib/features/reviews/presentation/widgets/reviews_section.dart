@@ -29,7 +29,7 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
 
   Future<void> _submitReview() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _isSubmitting) {
+    if (_isSubmitting) {
       return;
     }
 
@@ -183,30 +183,50 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
           ),
         ),
         const SizedBox(height: 14),
-        _ReviewForm(
-          controller: _controller,
-          rating: _rating,
-          isSubmitting: _isSubmitting,
-          onRatingChanged: (value) => setState(() => _rating = value),
-          onSubmit: _submitReview,
-        ),
-        const SizedBox(height: 18),
         reviews.when(
           data: (items) {
+            final ownReview = _findOwnReview(items, currentUserId);
             if (items.isEmpty) {
-              return const _EmptyReviewsCard();
+              return Column(
+                children: [
+                  _ReviewForm(
+                    controller: _controller,
+                    rating: _rating,
+                    isSubmitting: _isSubmitting,
+                    onRatingChanged: (value) => setState(() => _rating = value),
+                    onSubmit: _submitReview,
+                  ),
+                  const SizedBox(height: 18),
+                  const _EmptyReviewsCard(),
+                ],
+              );
             }
 
             return Column(
-              children: items.map((review) {
-                final canManage = review.touristId == currentUserId;
-                return _ReviewTile(
-                  review: review,
-                  canManage: canManage,
-                  onEdit: () => _editReview(review),
-                  onDelete: () => _deleteReview(review),
-                );
-              }).toList(),
+              children: [
+                if (ownReview == null) ...[
+                  _ReviewForm(
+                    controller: _controller,
+                    rating: _rating,
+                    isSubmitting: _isSubmitting,
+                    onRatingChanged: (value) => setState(() => _rating = value),
+                    onSubmit: _submitReview,
+                  ),
+                  const SizedBox(height: 18),
+                ] else ...[
+                  _OwnReviewNotice(onEdit: () => _editReview(ownReview)),
+                  const SizedBox(height: 14),
+                ],
+                ...items.map((review) {
+                  final canManage = review.touristId == currentUserId;
+                  return _ReviewTile(
+                    review: review,
+                    canManage: canManage,
+                    onEdit: () => _editReview(review),
+                    onDelete: () => _deleteReview(review),
+                  );
+                }),
+              ],
             );
           },
           loading: () => Column(
@@ -225,6 +245,14 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
         ),
       ],
     );
+  }
+
+  ReviewModel? _findOwnReview(List<ReviewModel> items, String? currentUserId) {
+    if (currentUserId == null) return null;
+    for (final review in items) {
+      if (review.touristId == currentUserId) return review;
+    }
+    return null;
   }
 }
 
@@ -430,6 +458,7 @@ class _ReviewForm extends StatelessWidget {
           Text(
             'Deja tu opinión',
             style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -455,7 +484,7 @@ class _ReviewForm extends StatelessWidget {
             textInputAction: TextInputAction.newline,
             decoration: const InputDecoration(
               hintText:
-                  'Cuenta qué te gustó, qué recomendarías o qué deberían saber antes de ir...',
+                  'Comentario opcional: cuenta qué te gustó o qué deberían saber antes de ir...',
             ),
           ),
           const SizedBox(height: 14),
@@ -479,6 +508,43 @@ class _ReviewForm extends StatelessWidget {
   }
 }
 
+class _OwnReviewNotice extends StatelessWidget {
+  final VoidCallback onEdit;
+
+  const _OwnReviewNotice({required this.onEdit});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.verified_rounded, color: theme.colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Ya dejaste una opinión para este lugar. Si cambiaste de idea, puedes editarla.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+          TextButton(onPressed: onEdit, child: const Text('Editar')),
+        ],
+      ),
+    );
+  }
+}
+
 class _RatingPicker extends StatelessWidget {
   final int rating;
   final bool enabled;
@@ -492,6 +558,11 @@ class _RatingPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selectedColor = theme.brightness == Brightness.dark
+        ? const Color(0xFFFFC857)
+        : AppColors.sun;
+    final unselectedColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);
     return Wrap(
       spacing: 4,
       children: List.generate(5, (index) {
@@ -500,7 +571,7 @@ class _RatingPicker extends StatelessWidget {
           onPressed: enabled ? () => onChanged(value) : null,
           icon: Icon(
             value <= rating ? Icons.star_rounded : Icons.star_border_rounded,
-            color: value <= rating ? AppColors.sun : null,
+            color: value <= rating ? selectedColor : unselectedColor,
           ),
           tooltip: '$value estrellas',
         );
@@ -558,8 +629,19 @@ class _ReviewTile extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        _Stars(value: review.ratingStars),
-                        const Spacer(),
+                        Expanded(
+                          child: Text(
+                            canManage
+                                ? 'Tu opinión'
+                                : review.authorName ?? 'Viajero Ruta Viva',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Text(
                           _shortDate(review.createdAt),
                           style: theme.textTheme.labelSmall?.copyWith(
@@ -568,11 +650,17 @@ class _ReviewTile extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      review.textContent,
-                      style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
-                    ),
+                    const SizedBox(height: 6),
+                    Row(children: [_Stars(value: review.ratingStars)]),
+                    if (review.textContent.trim().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        review.textContent,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          height: 1.45,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -623,13 +711,21 @@ class _Stars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selectedColor = theme.brightness == Brightness.dark
+        ? const Color(0xFFFFC857)
+        : AppColors.sun;
+    final unselectedColor = theme.colorScheme.onSurface.withValues(alpha: 0.5);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (index) {
         return Icon(
           index < value ? Icons.star_rounded : Icons.star_border_rounded,
           size: 17,
-          color: AppColors.sun,
+          color: index < value ? selectedColor : unselectedColor,
+          shadows: const [
+            Shadow(blurRadius: 4, color: Colors.black26, offset: Offset(0, 1)),
+          ],
         );
       }),
     );
@@ -780,9 +876,6 @@ class _ReviewEditDialogState extends State<_ReviewEditDialog> {
         FilledButton(
           onPressed: () {
             final text = _controller.text.trim();
-            if (text.isEmpty) {
-              return;
-            }
             Navigator.of(
               context,
             ).pop(_ReviewDraft(ratingStars: _rating, textContent: text));

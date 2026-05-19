@@ -6,6 +6,7 @@ class ProfileHeader extends StatelessWidget {
   final String subtitle;
   final String supportingText;
   final List<String> interests;
+  final String accountStatus;
 
   const ProfileHeader({
     super.key,
@@ -13,6 +14,7 @@ class ProfileHeader extends StatelessWidget {
     required this.subtitle,
     required this.supportingText,
     this.interests = const [],
+    this.accountStatus = 'Cuenta activa',
   });
 
   @override
@@ -97,7 +99,7 @@ class ProfileHeader extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          subtitle,
+                          accountStatus,
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
@@ -119,7 +121,7 @@ class ProfileHeader extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                supportingText,
+                '$subtitle · $supportingText',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: Colors.white.withValues(alpha: 0.78),
                   height: 1.45,

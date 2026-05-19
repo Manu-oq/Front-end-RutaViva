@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/url_launcher_helper.dart';
 import '../../../categories/data/repositories/category_repository.dart';
@@ -114,11 +115,20 @@ class PoiDetailSheet extends ConsumerWidget {
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: () {
+                        final rootContext = Navigator.of(
+                          context,
+                          rootNavigator: true,
+                        ).context;
                         context.pop();
-                        context.pushNamed(
-                          AppRouteNames.poiDetail,
-                          pathParameters: {'id': point.id},
-                        );
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!rootContext.mounted) {
+                            return;
+                          }
+                          rootContext.pushNamedSafe(
+                            AppRouteNames.poiDetail,
+                            pathParameters: {'id': point.id},
+                          );
+                        });
                       },
                       icon: const Icon(Icons.info_outline),
                       label: const Text('Ver detalle'),

@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../itinerary/presentation/providers/itinerary_provider.dart';
-import '../../../map/presentation/providers/map_provider.dart';
 import '../widgets/account_settings.dart';
-import '../widgets/impact_section.dart';
 import '../widgets/profile_header.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -15,11 +12,11 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
-    final mapState = ref.watch(mapProvider);
-    final itinerary = ref.watch(itineraryProvider).current;
     final displayName = user?.displayName ?? 'Viajero Ruta Viva';
     final profile = user?.touristProfile;
     final interests = profile?.interests ?? const <String>[];
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       body: DecoratedBox(
@@ -28,9 +25,15 @@ class ProfileScreen extends ConsumerWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).colorScheme.surface,
-              AppColors.mint.withValues(alpha: 0.45),
-              Theme.of(context).colorScheme.surface,
+              isDark
+                  ? theme.colorScheme.surfaceContainerLowest
+                  : theme.colorScheme.surface,
+              isDark
+                  ? AppColors.deepForest
+                  : AppColors.mint.withValues(alpha: 0.45),
+              isDark
+                  ? theme.colorScheme.surfaceContainerLowest
+                  : theme.colorScheme.surface,
             ],
           ),
         ),
@@ -62,12 +65,9 @@ class ProfileScreen extends ConsumerWidget {
                                   ? 'Inicia sesión para consultar rutas, reseñas y lugares guardados.'
                                   : _profileSummary(user.email, user.createdAt),
                               interests: interests,
-                            ),
-                            const SizedBox(height: 18),
-                            ImpactSection(
-                              loadedPois: mapState.points.length,
-                              itinerarySteps: itinerary?.steps.length ?? 0,
-                              hasActiveSession: authState.isAuthenticated,
+                              accountStatus: authState.isAuthenticated
+                                  ? 'Cuenta activa'
+                                  : 'Sesión pendiente',
                             ),
                             const SizedBox(height: 18),
                             const AccountSettings(),

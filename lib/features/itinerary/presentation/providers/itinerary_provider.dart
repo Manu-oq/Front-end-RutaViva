@@ -24,9 +24,10 @@ class ItineraryState {
     bool? isLoading,
     String? errorMessage,
     bool clearError = false,
+    bool clearCurrent = false,
   }) {
     return ItineraryState(
-      current: current ?? this.current,
+      current: clearCurrent ? null : (current ?? this.current),
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -50,6 +51,38 @@ class ItineraryNotifier extends Notifier<ItineraryState> {
 
   void setCurrent(ItineraryModel itinerary) {
     state = ItineraryState(current: itinerary);
+    ref.invalidate(itineraryHistoryProvider);
+    _persist(itinerary);
+  }
+
+  void clearCurrent() {
+    state = const ItineraryState();
+    ref.read(sharedPreferencesProvider).remove(_storageKey);
+  }
+
+  void clearCurrentIfMatches(String itineraryId) {
+    if (state.current?.id == itineraryId) {
+      clearCurrent();
+    }
+  }
+
+  Future<void> refreshCurrent() async {
+    final current = state.current;
+    if (current == null) {
+      return;
+    }
+
+    try {
+      final fresh = await ref
+          .read(itineraryRepositoryProvider)
+          .getItineraryById(current.id);
+      state = state.copyWith(current: fresh, clearError: true);
+      _persist(fresh);
+    } catch (error) {
+      if (error is ApiException && error.statusCode == 404) {
+        clearCurrent();
+      }
+    }
   }
 
   Future<ItineraryModel?> generate({
@@ -65,6 +98,23 @@ class ItineraryNotifier extends Notifier<ItineraryState> {
         startDate ??
         DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
     final end = endDate ?? start.add(const Duration(days: 1));
+
+    if (end.isBefore(start)) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage:
+            'La fecha de término no puede ser anterior a la fecha de inicio.',
+      );
+      return null;
+    }
+
+    if (end.difference(start).inDays > 6) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'El viaje puede tener como máximo 7 días.',
+      );
+      return null;
+    }
 
     try {
       final itinerary = await ref

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/skeleton_container.dart';
 import '../../data/models/itinerary_model.dart';
 import '../../data/repositories/itinerary_repository.dart';
+import '../providers/itinerary_provider.dart';
 
 class ItineraryHistoryPage extends ConsumerWidget {
   const ItineraryHistoryPage({super.key});
@@ -18,10 +20,7 @@ class ItineraryHistoryPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const AppBackButton(
-          fallbackRouteName: AppRouteNames.home,
-          usePop: false,
-        ),
+        leading: const AppBackButton(fallbackRouteName: AppRouteNames.home),
         title: const Text('Mis itinerarios'),
         actions: [
           IconButton(
@@ -56,7 +55,10 @@ class ItineraryHistoryPage extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
                   itemBuilder: (context, index) {
                     final itinerary = items[index];
-                    return _ItineraryCard(itinerary: itinerary);
+                    return _ItineraryCard(
+                      itinerary: itinerary,
+                      onDelete: () => _deleteItinerary(context, ref, itinerary),
+                    );
                   },
                   separatorBuilder: (context, index) =>
                       const SizedBox(height: 14),
@@ -102,12 +104,56 @@ class ItineraryHistoryPage extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _deleteItinerary(
+    BuildContext context,
+    WidgetRef ref,
+    ItineraryModel itinerary,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar itinerario'),
+        content: Text(
+          '¿Quieres eliminar "${itinerary.title}"? Esta ruta dejará de aparecer en tu historial.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(itineraryRepositoryProvider).deleteItinerary(itinerary.id);
+      ref.read(itineraryProvider.notifier).clearCurrentIfMatches(itinerary.id);
+      ref.invalidate(itineraryHistoryProvider);
+      ref.invalidate(itineraryDetailProvider(itinerary.id));
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Itinerario eliminado.')));
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos eliminar el itinerario.')),
+      );
+    }
+  }
 }
 
 class _ItineraryCard extends StatelessWidget {
   final ItineraryModel itinerary;
+  final VoidCallback onDelete;
 
-  const _ItineraryCard({required this.itinerary});
+  const _ItineraryCard({required this.itinerary, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +167,7 @@ class _ItineraryCard extends StatelessWidget {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(28),
-        onTap: () => context.pushNamed(
+        onTap: () => context.pushNamedSafe(
           AppRouteNames.itineraryDetail,
           pathParameters: {'id': itinerary.id},
         ),
@@ -166,10 +212,23 @@ class _ItineraryCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(
-                    Icons.arrow_forward,
-                    size: 20,
-                    color: theme.colorScheme.primary,
+                  PopupMenuButton<String>(
+                    tooltip: 'Opciones de itinerario',
+                    onSelected: (value) {
+                      if (value == 'delete') onDelete();
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline_rounded),
+                            SizedBox(width: 8),
+                            Text('Eliminar'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

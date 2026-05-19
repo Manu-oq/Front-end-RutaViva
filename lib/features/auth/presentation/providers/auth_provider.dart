@@ -127,16 +127,20 @@ class AuthNotifier extends Notifier<AuthState> {
     required String fullName,
     required bool hasOwnTransport,
     required List<String> interests,
+    String? email,
+    String? avatarUrl,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final user = await ref
-          .read(authRepositoryProvider)
-          .updateTouristProfile(
-            fullName: fullName,
-            hasOwnTransport: hasOwnTransport,
-            interests: interests,
-          );
+      final repository = ref.read(authRepositoryProvider);
+      if (email != null || avatarUrl != null) {
+        await repository.patchCurrentUser(email: email, avatarUrl: avatarUrl);
+      }
+      final user = await repository.updateTouristProfile(
+        fullName: fullName,
+        hasOwnTransport: hasOwnTransport,
+        interests: interests,
+      );
       state = AuthState(user: user, token: state.token);
       return true;
     } catch (error) {

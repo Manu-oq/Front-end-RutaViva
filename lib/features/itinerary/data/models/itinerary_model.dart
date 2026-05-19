@@ -38,8 +38,8 @@ class ItineraryModel {
       'id': id,
       'tourist_id': touristId,
       'title': title,
-      'start_date': startDate?.toIso8601String(),
-      'end_date': endDate?.toIso8601String(),
+      'start_date': startDate == null ? null : _dateOnly(startDate!),
+      'end_date': endDate == null ? null : _dateOnly(endDate!),
       'status': status,
       'steps': steps.map((s) => s.toJson()).toList(),
     };
@@ -49,7 +49,19 @@ class ItineraryModel {
     if (value == null) {
       return null;
     }
-    return DateTime.tryParse(value);
+    final dateOnlyMatch = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(value);
+    if (dateOnlyMatch != null) {
+      return DateTime(
+        int.parse(dateOnlyMatch.group(1)!),
+        int.parse(dateOnlyMatch.group(2)!),
+        int.parse(dateOnlyMatch.group(3)!),
+      );
+    }
+    return DateTime.tryParse(value)?.toLocal();
+  }
+
+  static String _dateOnly(DateTime value) {
+    return '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
   }
 }
 
@@ -62,6 +74,9 @@ class ItineraryStepModel {
   final int stepOrder;
   final DateTime? arrivalTime;
   final DateTime? departureTime;
+  final int? dayIndex;
+  final DateTime? dayDate;
+  final String? dayLabel;
   final Map<String, dynamic>? aiContext;
 
   const ItineraryStepModel({
@@ -73,6 +88,9 @@ class ItineraryStepModel {
     required this.stepOrder,
     this.arrivalTime,
     this.departureTime,
+    this.dayIndex,
+    this.dayDate,
+    this.dayLabel,
     this.aiContext,
   });
 
@@ -86,6 +104,9 @@ class ItineraryStepModel {
       stepOrder: (json['step_order'] as num).toInt(),
       arrivalTime: _parseDateTime(json['arrival_time'] as String?),
       departureTime: _parseDateTime(json['departure_time'] as String?),
+      dayIndex: (json['day_index'] as num?)?.toInt(),
+      dayDate: ItineraryModel._parseDate(json['day_date'] as String?),
+      dayLabel: json['day_label'] as String?,
       aiContext: json['ai_context'] as Map<String, dynamic>?,
     );
   }
@@ -111,8 +132,11 @@ class ItineraryStepModel {
       'poi_nombre': poiNombre,
       'poi_descripcion': poiDescripcion,
       'step_order': stepOrder,
-      'arrival_time': arrivalTime?.toIso8601String(),
-      'departure_time': departureTime?.toIso8601String(),
+      'arrival_time': arrivalTime?.toLocal().toIso8601String(),
+      'departure_time': departureTime?.toLocal().toIso8601String(),
+      'day_index': dayIndex,
+      'day_date': dayDate == null ? null : ItineraryModel._dateOnly(dayDate!),
+      'day_label': dayLabel,
       'ai_context': aiContext,
     };
   }
@@ -121,6 +145,19 @@ class ItineraryStepModel {
     if (value == null) {
       return null;
     }
-    return DateTime.tryParse(value);
+    final match = RegExp(
+      r'^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?',
+    ).firstMatch(value);
+    if (match != null) {
+      return DateTime(
+        int.parse(match.group(1)!),
+        int.parse(match.group(2)!),
+        int.parse(match.group(3)!),
+        int.parse(match.group(4)!),
+        int.parse(match.group(5)!),
+        int.parse(match.group(6) ?? '0'),
+      );
+    }
+    return DateTime.tryParse(value)?.toLocal();
   }
 }

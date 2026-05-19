@@ -29,10 +29,33 @@ final myPoisProvider = FutureProvider<List<PoiModel>>((ref) async {
   return ref.watch(poiRepositoryProvider).getMyPois();
 });
 
+final itineraryPoisProvider = FutureProvider.family<List<MapPoint>, String>((
+  ref,
+  itineraryId,
+) async {
+  final pois = await ref
+      .watch(poiRepositoryProvider)
+      .getPoisForItinerary(itineraryId);
+  return pois.map((poi) => poi.toMapPoint()).toList(growable: false);
+});
+
 class PoiRepository {
   final DioClient _client;
 
   const PoiRepository(this._client);
+
+  Future<List<PoiModel>> getPoisForItinerary(String itineraryId) async {
+    try {
+      final response = await _client.get<List<dynamic>>(
+        '/itineraries/$itineraryId/pois',
+      );
+      return (response.data ?? [])
+          .map((item) => PoiModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
 
   Future<PoiModel> createPoi({
     required String nombre,
@@ -137,15 +160,29 @@ class PoiRepository {
     }
   }
 
+  Future<void> recordVisit(String poiId, {String source = 'frontend'}) async {
+    try {
+      await _client.post<void>('/pois/$poiId/visit', data: {'source': source});
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
   Future<List<PoiModel>> searchNearby({
     required double lat,
     required double lon,
     double radius = 30000,
+    List<int> categoryIds = const [],
   }) async {
     try {
       final response = await _client.get<List<dynamic>>(
         '/pois/search',
-        queryParameters: {'lat': lat, 'lon': lon, 'radius': radius},
+        queryParameters: _searchNearbyQueryParameters(
+          lat: lat,
+          lon: lon,
+          radius: radius,
+          categoryIds: categoryIds,
+        ),
       );
       return (response.data ?? [])
           .map((item) => PoiModel.fromJson(item as Map<String, dynamic>))
@@ -153,6 +190,34 @@ class PoiRepository {
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
+  }
+
+  static Map<String, dynamic> searchNearbyQueryParametersForTesting({
+    required double lat,
+    required double lon,
+    required double radius,
+    List<int> categoryIds = const [],
+  }) {
+    return _searchNearbyQueryParameters(
+      lat: lat,
+      lon: lon,
+      radius: radius,
+      categoryIds: categoryIds,
+    );
+  }
+
+  static Map<String, dynamic> _searchNearbyQueryParameters({
+    required double lat,
+    required double lon,
+    required double radius,
+    required List<int> categoryIds,
+  }) {
+    return {
+      'lat': lat,
+      'lon': lon,
+      'radius': radius,
+      if (categoryIds.isNotEmpty) 'category_ids': categoryIds.join(','),
+    };
   }
 
   Future<List<PoiModel>> semanticSearch({

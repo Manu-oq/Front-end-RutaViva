@@ -1,16 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/skeleton_container.dart';
+import '../../../chat_ai/presentation/providers/chat_provider.dart';
+import '../../../map/data/repositories/poi_repository.dart';
+import '../../../map/presentation/providers/map_provider.dart';
+import '../../../weather/data/models/weather_forecast_model.dart';
+import '../../../weather/data/repositories/weather_repository.dart';
 import '../../data/models/itinerary_model.dart';
 import '../../data/repositories/itinerary_repository.dart';
 import '../providers/itinerary_provider.dart';
 import '../widgets/cultural_insight_card.dart';
 import '../widgets/itinerary_step_widget.dart';
-import '../widgets/trail_intelligence_box.dart';
 
 class ItineraryDetailPage extends ConsumerWidget {
   final String? itineraryId;
@@ -42,14 +48,51 @@ class ItineraryDetailPage extends ConsumerWidget {
   }
 }
 
-class _ItineraryDetailBody extends ConsumerWidget {
+class _ItineraryDetailBody extends ConsumerStatefulWidget {
   final ItineraryModel itinerary;
 
   const _ItineraryDetailBody({required this.itinerary});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ItineraryDetailBody> createState() =>
+      _ItineraryDetailBodyState();
+}
+
+class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
+  late List<ItineraryStepModel> _steps;
+  bool _showWeather = false;
+  bool _isStartingStepReplacement = false;
+  int _selectedDayIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _steps = [...widget.itinerary.steps];
+  }
+
+  @override
+  void didUpdateWidget(covariant _ItineraryDetailBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.itinerary.id != widget.itinerary.id ||
+        oldWidget.itinerary.steps != widget.itinerary.steps) {
+      _steps = [...widget.itinerary.steps];
+      _selectedDayIndex = 0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final days = _tripDays();
+    final safeSelectedIndex = days.isEmpty
+        ? 0
+        : _selectedDayIndex.clamp(0, days.length - 1);
+    final selectedDay = days.isEmpty ? null : days[safeSelectedIndex];
+    final selectedSteps = selectedDay == null
+        ? _steps
+        : _stepsForDate(selectedDay);
+    final outsideRangeSteps = _outsideRangeSteps(days);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -58,13 +101,13 @@ class _ItineraryDetailBody extends ConsumerWidget {
           fallbackRouteName: AppRouteNames.itineraryHistory,
         ),
         title: Text(
-          _dateRangeLabel(itinerary),
+          _dateRangeLabel(widget.itinerary),
           style: theme.textTheme.labelLarge,
         ),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(itineraryDetailProvider(itinerary.id));
+          ref.invalidate(itineraryDetailProvider(widget.itinerary.id));
         },
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
@@ -75,19 +118,91 @@ class _ItineraryDetailBody extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _ItineraryHero(
-                    itinerary: itinerary,
-                    dateLabel: _dateRangeLabel(itinerary),
+                    itinerary: widget.itinerary,
+                    stepsCount: _steps.length,
+                    dateLabel: _dateRangeLabel(widget.itinerary),
                     onHistory: () =>
-                        context.goNamed(AppRouteNames.itineraryHistory),
-                    onMap: () => context.goNamed(AppRouteNames.map),
+                        context.pushNamedSafe(AppRouteNames.itineraryHistory),
+                    onMap: () async {
+                      try {
+                        final points = await ref.read(
+                          itineraryPoisProvider(widget.itinerary.id).future,
+                        );
+                        ref
+                            .read(mapProvider.notifier)
+                            .showItineraryPois(
+                              itineraryId: widget.itinerary.id,
+                              points: points,
+                            );
+                        if (!context.mounted) return;
+                        context.pushNamedSafe(
+                          AppRouteNames.focusedMap,
+                          extra: AppRouteNames.itineraryHistory,
+                        );
+                      } catch (_) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'No pudimos cargar los lugares de esta ruta en el mapa.',
+                            ),
+                          ),
+                        );
+                      }
+                    },
                   ),
                   const SizedBox(height: 28),
                   Text('Recorrido sugerido', style: theme.textTheme.titleLarge),
                   const SizedBox(height: 14),
-                  for (final step in itinerary.steps)
-                    _GeneratedStep(step: step),
-                  const SizedBox(height: 6),
-                  const TrailIntelligenceBox(),
+                  _WeatherToggle(
+                    isOpen: _showWeather,
+                    onTap: () => setState(() => _showWeather = !_showWeather),
+                  ),
+                  if (_showWeather) ...[
+                    const SizedBox(height: 12),
+                    _WeatherDashboard(itinerary: widget.itinerary),
+                  ],
+                  const SizedBox(height: 22),
+                  _DaySelector(
+                    days: days,
+                    labels: days.map(_dayChipLabel).toList(growable: false),
+                    selectedIndex: safeSelectedIndex,
+                    onSelected: (index) =>
+                        setState(() => _selectedDayIndex = index),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DayHeader(
+                          label: selectedDay == null
+                              ? 'Recorrido'
+                              : _fullDayLabel(selectedDay),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: selectedSteps.isEmpty
+                            ? null
+                            : () => _openSelectedDayOnMap(selectedSteps),
+                        icon: const Icon(Icons.map_outlined),
+                        label: const Text('Ver día en mapa'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (selectedSteps.isEmpty)
+                    const _EmptyDayCard()
+                  else
+                    for (final step in selectedSteps)
+                      _GeneratedStep(
+                        step: step,
+                        onDelete: () => _deleteStep(step),
+                        onChange: () => _changeStep(step),
+                      ),
+                  if (outsideRangeSteps.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _OutOfRangeWarning(count: outsideRangeSteps.length),
+                  ],
                   const SizedBox(height: 80),
                 ],
               ),
@@ -98,11 +213,208 @@ class _ItineraryDetailBody extends ConsumerWidget {
     );
   }
 
+  List<DateTime> _tripDays() {
+    final start = widget.itinerary.startDate;
+    final end = widget.itinerary.endDate;
+    if (start != null && end != null && !end.isBefore(start)) {
+      final startDay = _dateOnly(start);
+      final endDay = _dateOnly(end);
+      return List.generate(
+        endDay.difference(startDay).inDays + 1,
+        (index) => startDay.add(Duration(days: index)),
+      );
+    }
+
+    final stepDays = _steps.map(_stepDay).whereType<DateTime>().toSet().toList()
+      ..sort();
+    return stepDays.isEmpty ? [_dateOnly(DateTime.now())] : stepDays;
+  }
+
+  List<ItineraryStepModel> _stepsForDate(DateTime day) {
+    return _steps.where((step) {
+      final stepDay = _stepDay(step);
+      if (stepDay == null) return false;
+      return _isSameDay(stepDay, day);
+    }).toList()..sort((a, b) => a.stepOrder.compareTo(b.stepOrder));
+  }
+
+  List<ItineraryStepModel> _outsideRangeSteps(List<DateTime> days) {
+    if (days.isEmpty) return const [];
+    final first = days.first;
+    final last = days.last;
+    return _steps.where((step) {
+      final day = _stepDay(step);
+      if (day == null) return false;
+      return day.isBefore(first) || day.isAfter(last);
+    }).toList();
+  }
+
+  Future<void> _openSelectedDayOnMap(List<ItineraryStepModel> steps) async {
+    try {
+      final selectedIds = steps.map((step) => step.poiId).toSet();
+      final points = await ref.read(
+        itineraryPoisProvider(widget.itinerary.id).future,
+      );
+      final filtered = points
+          .where((point) => selectedIds.contains(point.id))
+          .toList(growable: false);
+      ref
+          .read(mapProvider.notifier)
+          .showItineraryPois(
+            itineraryId: widget.itinerary.id,
+            points: filtered,
+          );
+      if (!mounted) return;
+      context.pushNamedSafe(
+        AppRouteNames.focusedMap,
+        extra: AppRouteNames.itineraryHistory,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos cargar este día en el mapa.')),
+      );
+    }
+  }
+
+  Future<void> _deleteStep(ItineraryStepModel step) async {
+    try {
+      final updated = await ref
+          .read(itineraryRepositoryProvider)
+          .deleteStep(itineraryId: widget.itinerary.id, stepId: step.id);
+      if (!mounted) return;
+      setState(() => _steps = [...updated.steps]);
+      _invalidateItineraryData();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Parada eliminada.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos eliminar la parada.')),
+      );
+    }
+  }
+
+  Future<void> _changeStep(ItineraryStepModel step) async {
+    if (_isStartingStepReplacement) {
+      return;
+    }
+    setState(() => _isStartingStepReplacement = true);
+
+    final center = ref.read(mapProvider).center;
+    final start = widget.itinerary.startDate;
+    final end = widget.itinerary.endDate;
+    final prompt = 'Quiero cambiar la parada de ${step.title}.';
+
+    unawaited(context.pushNamedSafe(AppRouteNames.chat));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      unawaited(
+        ref
+            .read(chatProvider.notifier)
+            .startSessionFromHome(
+              initialMessage: prompt,
+              center: center,
+              radius: 10000,
+              startDate: start,
+              endDate: end,
+              metadata: {
+                'intent': 'change_itinerary_step',
+                'itinerary_id': widget.itinerary.id,
+                'step_id': step.id,
+                'poi_id': step.poiId,
+                'poi_name': step.title,
+              },
+            )
+            .whenComplete(() {
+              if (mounted) {
+                setState(() => _isStartingStepReplacement = false);
+              }
+            }),
+      );
+    });
+  }
+
+  void _invalidateItineraryData() {
+    ref.invalidate(itineraryDetailProvider(widget.itinerary.id));
+    ref.invalidate(itineraryPoisProvider(widget.itinerary.id));
+    ref.invalidate(itineraryHistoryProvider);
+  }
+
   String _dateRangeLabel(ItineraryModel itinerary) {
     if (itinerary.startDate == null || itinerary.endDate == null) {
       return 'ITINERARIO';
     }
     return '${_shortDate(itinerary.startDate!)} — ${_shortDate(itinerary.endDate!)}';
+  }
+
+  DateTime _dateOnly(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _fullDayLabel(DateTime date) {
+    final backendLabel = _backendDayLabel(date);
+    if (backendLabel != null) {
+      return backendLabel;
+    }
+    return '${_weekdayName(date)} ${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
+  }
+
+  String _dayChipLabel(DateTime date) {
+    final backendLabel = _backendDayLabel(date);
+    if (backendLabel != null) {
+      return backendLabel;
+    }
+    return '${_shortWeekdayName(date)} ${date.day}';
+  }
+
+  String? _backendDayLabel(DateTime date) {
+    for (final step in _steps) {
+      final label = step.dayLabel?.trim();
+      if (label == null || label.isEmpty) continue;
+      final stepDay = _stepDay(step);
+      if (stepDay != null && _isSameDay(stepDay, date)) {
+        return label;
+      }
+    }
+    return null;
+  }
+
+  DateTime? _stepDay(ItineraryStepModel step) {
+    final explicitDay = step.dayDate;
+    if (explicitDay != null) {
+      return _dateOnly(explicitDay);
+    }
+    final arrival = step.arrivalTime;
+    if (arrival != null) {
+      return _dateOnly(arrival);
+    }
+    return null;
+  }
+
+  String _weekdayName(DateTime date) {
+    const names = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo',
+    ];
+    return names[date.weekday - 1];
+  }
+
+  String _shortWeekdayName(DateTime date) {
+    const names = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    return names[date.weekday - 1];
   }
 
   String _shortDate(DateTime date) {
@@ -115,12 +427,14 @@ class _ItineraryDetailBody extends ConsumerWidget {
 class _ItineraryHero extends StatelessWidget {
   final ItineraryModel itinerary;
   final String dateLabel;
+  final int? stepsCount;
   final VoidCallback onHistory;
   final VoidCallback onMap;
 
   const _ItineraryHero({
     required this.itinerary,
     required this.dateLabel,
+    this.stepsCount,
     required this.onHistory,
     required this.onMap,
   });
@@ -154,7 +468,7 @@ class _ItineraryHero extends StatelessWidget {
               _HeroPill(icon: Icons.calendar_today_outlined, label: dateLabel),
               _HeroPill(
                 icon: Icons.place_outlined,
-                label: '${itinerary.steps.length} paradas',
+                label: '${stepsCount ?? itinerary.steps.length} paradas',
               ),
             ],
           ),
@@ -240,10 +554,315 @@ class _HeroPill extends StatelessWidget {
   }
 }
 
+class _WeatherToggle extends StatelessWidget {
+  final bool isOpen;
+  final VoidCallback onTap;
+
+  const _WeatherToggle({required this.isOpen, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonalIcon(
+      onPressed: onTap,
+      icon: Icon(isOpen ? Icons.expand_less_rounded : Icons.cloud_outlined),
+      label: Text(isOpen ? 'Ocultar clima' : 'Revisar clima'),
+    );
+  }
+}
+
+class _WeatherDashboard extends ConsumerWidget {
+  final ItineraryModel itinerary;
+
+  const _WeatherDashboard({required this.itinerary});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final start = itinerary.startDate ?? DateTime.now();
+    final end = itinerary.endDate ?? start.add(const Duration(days: 2));
+    final points = ref.watch(itineraryPoisProvider(itinerary.id));
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        boxShadow: AppColors.ambientShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Clima del viaje',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Pronóstico según las coordenadas principales de esta ruta.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 14),
+          points.when(
+            data: (items) {
+              if (items.isEmpty) {
+                return const Text('No hay coordenadas para consultar clima.');
+              }
+              final first = items.first.coordinates;
+              final forecast = ref.watch(
+                weatherForecastProvider(
+                  WeatherForecastRequest(
+                    lat: first.latitude,
+                    lon: first.longitude,
+                    startDate: start,
+                    endDate: end,
+                  ),
+                ),
+              );
+              return forecast.when(
+                data: (days) {
+                  if (days.isEmpty) {
+                    return const Text('No hay pronóstico disponible.');
+                  }
+                  return Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      for (var i = 0; i < days.length; i++)
+                        _WeatherDayCard(day: days[i], index: i),
+                    ],
+                  );
+                },
+                loading: () => const LinearProgressIndicator(minHeight: 3),
+                error: (error, stackTrace) =>
+                    const Text('No pudimos cargar el clima para estos días.'),
+              );
+            },
+            loading: () => const LinearProgressIndicator(minHeight: 3),
+            error: (error, stackTrace) =>
+                const Text('No pudimos leer los lugares de esta ruta.'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeatherDayCard extends StatelessWidget {
+  final WeatherForecastDay day;
+  final int index;
+
+  const _WeatherDayCard({required this.day, required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final maxTemp = day.maxTempC?.round();
+    final minTemp = day.minTempC?.round();
+    final rain = day.precipitationProbability;
+    return Container(
+      width: 164,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.wb_cloudy_outlined, color: theme.colorScheme.primary),
+          const SizedBox(height: 8),
+          Text(
+            day.label ?? 'Día ${index + 1}',
+            style: theme.textTheme.labelLarge,
+          ),
+          Text(
+            '${day.date.day.toString().padLeft(2, '0')}/${day.date.month.toString().padLeft(2, '0')}',
+          ),
+          const SizedBox(height: 8),
+          Text(
+            maxTemp == null
+                ? 'Temperatura no disp.'
+                : '${minTemp ?? maxTemp}° / $maxTemp°C',
+          ),
+          Text(
+            rain == null
+                ? '${day.precipitationMm?.toStringAsFixed(1) ?? '—'} mm lluvia'
+                : '$rain% precipitaciones',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DaySelector extends StatelessWidget {
+  final List<DateTime> days;
+  final List<String> labels;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  const _DaySelector({
+    required this.days,
+    required this.labels,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: 54,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: days.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final selected = index == selectedIndex;
+          return ChoiceChip(
+            selected: selected,
+            onSelected: (_) => onSelected(index),
+            label: Text(labels[index]),
+            avatar: Icon(
+              Icons.calendar_today_rounded,
+              size: 16,
+              color: selected
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.primary,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _EmptyDayCard extends StatelessWidget {
+  const _EmptyDayCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.free_breakfast_rounded, color: theme.colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Ara dejó este día libre para descanso, traslado o exploración espontánea.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OutOfRangeWarning extends StatelessWidget {
+  final int count;
+
+  const _OutOfRangeWarning({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.error.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              count == 1
+                  ? 'Hay una parada con fecha fuera del rango del viaje.'
+                  : 'Hay $count paradas con fecha fuera del rango del viaje.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayHeader extends StatelessWidget {
+  final String label;
+
+  const _DayHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 14),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
+        ],
+      ),
+    );
+  }
+}
+
 class _GeneratedStep extends StatelessWidget {
   final ItineraryStepModel step;
+  final VoidCallback onDelete;
+  final VoidCallback onChange;
 
-  const _GeneratedStep({required this.step});
+  const _GeneratedStep({
+    required this.step,
+    required this.onDelete,
+    required this.onChange,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -260,13 +879,28 @@ class _GeneratedStep extends StatelessWidget {
         text: step.tips.isNotEmpty
             ? '${step.reason}\n\nConsejo: ${step.tips}'
             : step.reason,
-        action: TextButton.icon(
-          onPressed: () => context.pushNamed(
-            AppRouteNames.poiDetail,
-            pathParameters: {'id': step.poiId},
-          ),
-          icon: const Icon(Icons.place_outlined),
-          label: const Text('Ver lugar'),
+        action: Wrap(
+          spacing: 8,
+          children: [
+            TextButton.icon(
+              onPressed: () => context.pushNamedSafe(
+                AppRouteNames.poiDetail,
+                pathParameters: {'id': step.poiId},
+              ),
+              icon: const Icon(Icons.place_outlined),
+              label: const Text('Ver lugar'),
+            ),
+            TextButton.icon(
+              onPressed: onChange,
+              icon: const Icon(Icons.swap_horiz_rounded),
+              label: const Text('Cambiar lugar'),
+            ),
+            TextButton.icon(
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: const Text('Eliminar'),
+            ),
+          ],
         ),
       ),
     );

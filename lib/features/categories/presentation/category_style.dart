@@ -32,6 +32,16 @@ const CategoryStyle _fallbackStyle = CategoryStyle(
 /// - 3 → Turismo
 /// - 4 → Alojamiento
 /// - 5 → Cultura
+/// - 6 → Trekking/Senderismo
+/// - 7 → Lagos/Ríos/Playas
+/// - 8 → Montañas/Volcanes/Miradores
+/// - 9 → Termas/Bienestar
+/// - 10 → Parques/Reservas
+/// - 11 → Museos/Patrimonio
+/// - 12 → Aventura/Deportes
+/// - 13 → Servicios turísticos/Información
+/// - 14 → Transporte/Accesos
+/// - 15 → Artesanía/Compras locales
 ///
 /// Any other id (or `null`) returns the fallback style.
 CategoryStyle categoryStyleFor(int? id, ColorScheme scheme) {
@@ -48,6 +58,56 @@ CategoryStyle categoryStyleFor(int? id, ColorScheme scheme) {
       return CategoryStyle(icon: Icons.hotel, color: scheme.tertiary);
     case 5:
       return CategoryStyle(icon: Icons.museum, color: scheme.primary);
+    case 6:
+      return const CategoryStyle(
+        icon: Icons.hiking_rounded,
+        color: Color(0xFF2E7D32),
+      );
+    case 7:
+      return const CategoryStyle(
+        icon: Icons.water_rounded,
+        color: Color(0xFF0277BD),
+      );
+    case 8:
+      return const CategoryStyle(
+        icon: Icons.terrain_rounded,
+        color: Color(0xFF6D4C41),
+      );
+    case 9:
+      return const CategoryStyle(
+        icon: Icons.spa_rounded,
+        color: Color(0xFF00897B),
+      );
+    case 10:
+      return const CategoryStyle(
+        icon: Icons.forest_rounded,
+        color: Color(0xFF1B5E20),
+      );
+    case 11:
+      return const CategoryStyle(
+        icon: Icons.account_balance_rounded,
+        color: Color(0xFF5E35B1),
+      );
+    case 12:
+      return const CategoryStyle(
+        icon: Icons.kayaking_rounded,
+        color: Color(0xFFE65100),
+      );
+    case 13:
+      return const CategoryStyle(
+        icon: Icons.info_outline_rounded,
+        color: Color(0xFF455A64),
+      );
+    case 14:
+      return const CategoryStyle(
+        icon: Icons.directions_bus_rounded,
+        color: Color(0xFF546E7A),
+      );
+    case 15:
+      return const CategoryStyle(
+        icon: Icons.storefront_rounded,
+        color: Color(0xFFAD1457),
+      );
     default:
       return _fallbackStyle;
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../categories/data/models/category_model.dart';
@@ -16,6 +16,8 @@ class BookmarksPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bookmarks = ref.watch(bookmarkedPoisProvider);
     final categories = ref.watch(categoriesByIdProvider);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       body: DecoratedBox(
@@ -24,9 +26,15 @@ class BookmarksPage extends ConsumerWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).colorScheme.surface,
-              AppColors.mint.withValues(alpha: 0.42),
-              Theme.of(context).colorScheme.surface,
+              isDark
+                  ? theme.colorScheme.surfaceContainerLowest
+                  : theme.colorScheme.surface,
+              isDark
+                  ? AppColors.deepForest
+                  : AppColors.mint.withValues(alpha: 0.42),
+              isDark
+                  ? theme.colorScheme.surfaceContainerLowest
+                  : theme.colorScheme.surface,
             ],
           ),
         ),
@@ -87,7 +95,7 @@ class _BookmarksContent extends StatelessWidget {
               'Guarda lugares desde el detalle de cada punto de interés para tenerlos siempre a mano.',
           actionLabel: 'Explorar mapa',
           actionIcon: Icons.map_rounded,
-          onAction: () => context.goNamed(AppRouteNames.map),
+          onAction: () => context.pushNamedSafe(AppRouteNames.map),
         ),
       );
     }
@@ -203,7 +211,6 @@ class _BookmarksHeader extends StatelessWidget {
                 children: [
                   const AppBackButton(
                     fallbackRouteName: AppRouteNames.home,
-                    usePop: false,
                     color: Colors.white,
                   ),
                   const Spacer(),
@@ -286,7 +293,7 @@ class _BookmarkCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(30),
-        onTap: () => context.pushNamed(
+        onTap: () => context.pushNamedSafe(
           AppRouteNames.poiDetail,
           pathParameters: {'id': poi.id},
         ),

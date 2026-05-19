@@ -105,6 +105,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return PoiDetailFullPage(poiId: id);
         },
       ),
+      GoRoute(
+        path: AppRoutes.focusedMap,
+        name: AppRouteNames.focusedMap,
+        builder: (context, state) {
+          final fallbackRouteName = state.extra is String
+              ? state.extra! as String
+              : AppRouteNames.chat;
+          return MapScreen(backFallbackRouteName: fallbackRouteName);
+        },
+      ),
       ShellRoute(
         builder: (context, state, child) => MistNavigation(child: child),
         routes: [

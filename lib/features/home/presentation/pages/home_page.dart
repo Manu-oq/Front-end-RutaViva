@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/widgets/emergency_button.dart';
 import '../../../categories/data/repositories/category_repository.dart';
 import '../../../map/domain/entities/map_point.dart';
 import '../../../map/presentation/providers/map_provider.dart';
-import '../widgets/ai_input_bar.dart';
 import '../widgets/destination_hero_card.dart';
 import '../widgets/destination_skeleton.dart';
 import '../widgets/home_header.dart';
@@ -24,7 +23,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     super.initState();
     Future.microtask(() {
       final state = ref.read(mapProvider);
-      if (state.points.isEmpty && !state.isLoading) {
+      if (!state.isGlobalMode || (state.points.isEmpty && !state.isLoading)) {
         ref.read(mapProvider.notifier).loadNearby();
       }
     });
@@ -74,11 +73,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                       category: mapState.points.first.categoryLabel(names),
                       description:
                           mapState.points.first.description ??
-                          'Punto de interés disponible en Ruta Viva.',
+                          'Lugar disponible en Ruta Viva.',
                       imageUrl: mapState.points.first.imageUrl,
                       distanceLabel: _distanceLabel(mapState.points.first),
-                      onSetRoute: () => context.goNamed(AppRouteNames.map),
-                      onDetails: () => context.pushNamed(
+                      onSetRoute: () =>
+                          context.pushNamedSafe(AppRouteNames.map),
+                      onDetails: () => context.pushNamedSafe(
                         AppRouteNames.poiDetail,
                         pathParameters: {'id': mapState.points.first.id},
                       ),
@@ -115,17 +115,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                 right: false,
                 bottom: false,
                 child: EmergencyButton(),
-              ),
-            ),
-            Positioned(
-              bottom: 16,
-              left: 20,
-              right: 20,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: const AIInputBar(),
-                ),
               ),
             ),
           ],
@@ -166,7 +155,7 @@ class _PoiListTile extends ConsumerWidget {
         title: Text(point.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(point.categoryLabel(names)),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-        onTap: () => context.pushNamed(
+        onTap: () => context.pushNamedSafe(
           AppRouteNames.poiDetail,
           pathParameters: {'id': point.id},
         ),
@@ -205,7 +194,7 @@ class _EmptyHomeState extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'No hay POIs cargados todavía',
+                  'No hay lugares cargados todavía',
                   style: theme.textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 8),

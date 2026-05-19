@@ -75,6 +75,69 @@ class ItineraryRepository {
     }
   }
 
+  Future<ItineraryModel> updateStep({
+    required String itineraryId,
+    required String stepId,
+    required String poiId,
+  }) async {
+    try {
+      final response = await _client.patch<dynamic>(
+        '/itineraries/$itineraryId/steps/$stepId',
+        data: {'poi_id': poiId},
+      );
+      return _parseItineraryOrFetch(response.data, itineraryId);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<ItineraryModel> deleteStep({
+    required String itineraryId,
+    required String stepId,
+  }) async {
+    try {
+      final response = await _client.delete<dynamic>(
+        '/itineraries/$itineraryId/steps/$stepId',
+      );
+      return _parseItineraryOrFetch(response.data, itineraryId);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<void> deleteItinerary(String itineraryId) async {
+    try {
+      await _client.delete<void>('/itineraries/$itineraryId');
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<ItineraryModel> reorderSteps({
+    required String itineraryId,
+    required List<String> stepIds,
+  }) async {
+    try {
+      final response = await _client.patch<dynamic>(
+        '/itineraries/$itineraryId/steps/reorder',
+        data: {'step_ids': stepIds},
+      );
+      return _parseItineraryOrFetch(response.data, itineraryId);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<ItineraryModel> _parseItineraryOrFetch(
+    dynamic data,
+    String itineraryId,
+  ) {
+    if (data is Map<String, dynamic> && data.containsKey('steps')) {
+      return Future.value(ItineraryModel.fromJson(data));
+    }
+    return getItineraryById(itineraryId);
+  }
+
   String _dateOnly(DateTime value) {
     final year = value.year.toString().padLeft(4, '0');
     final month = value.month.toString().padLeft(2, '0');

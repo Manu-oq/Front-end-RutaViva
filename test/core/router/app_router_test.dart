@@ -37,6 +37,11 @@ void main() {
         expect(result, equals(AppRoutes.login));
       });
 
+      test('redirects to /login from protected route /map/focused', () {
+        final result = _appRedirect(const AuthState(), AppRoutes.focusedMap);
+        expect(result, equals(AppRoutes.login));
+      });
+
       test('redirects to /login from protected route /profile', () {
         final result = _appRedirect(const AuthState(), AppRoutes.profile);
         expect(result, equals(AppRoutes.login));
@@ -73,6 +78,11 @@ void main() {
 
       test('stays on protected route /map without redirect', () {
         final result = _appRedirect(authed, AppRoutes.map);
+        expect(result, isNull);
+      });
+
+      test('stays on protected route /map/focused without redirect', () {
+        final result = _appRedirect(authed, AppRoutes.focusedMap);
         expect(result, isNull);
       });
 

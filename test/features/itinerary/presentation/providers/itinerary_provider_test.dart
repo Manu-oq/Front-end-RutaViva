@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:ruta_viva/core/storage/local_storage_provider.dart';
+import 'package:ruta_viva/features/itinerary/data/models/itinerary_model.dart';
 import 'package:ruta_viva/features/itinerary/presentation/providers/itinerary_provider.dart';
 
 void main() {
@@ -31,6 +32,18 @@ void main() {
 
       expect(updated.errorMessage, isNull);
     });
+
+    test('copyWith clearCurrent removes current itinerary', () {
+      final state = ItineraryState(
+        current: _storedItinerary(),
+        errorMessage: 'err',
+      );
+
+      final updated = state.copyWith(clearCurrent: true);
+
+      expect(updated.current, isNull);
+      expect(updated.errorMessage, equals('err'));
+    });
   });
 
   group('itineraryProvider', () {
@@ -52,13 +65,7 @@ void main() {
     });
 
     test('initial state loads from stored itinerary', () async {
-      final storedJson = jsonEncode({
-        'id': 'stored-1',
-        'tourist_id': 'u1',
-        'title': 'Stored Tour',
-        'status': 'draft',
-        'steps': <dynamic>[],
-      });
+      final storedJson = jsonEncode(_storedItineraryJson());
       SharedPreferences.setMockInitialValues({
         'ruta_viva.last_itinerary': storedJson,
       });
@@ -96,4 +103,18 @@ void main() {
       expect(state.current, isNull);
     });
   });
+}
+
+Map<String, dynamic> _storedItineraryJson() {
+  return {
+    'id': 'stored-1',
+    'tourist_id': 'u1',
+    'title': 'Stored Tour',
+    'status': 'draft',
+    'steps': <dynamic>[],
+  };
+}
+
+ItineraryModel _storedItinerary() {
+  return ItineraryModel.fromJson(_storedItineraryJson());
 }

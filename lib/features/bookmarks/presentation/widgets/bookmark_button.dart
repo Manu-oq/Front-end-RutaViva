@@ -15,13 +15,17 @@ class BookmarkButton extends ConsumerStatefulWidget {
 
 class _BookmarkButtonState extends ConsumerState<BookmarkButton> {
   bool _isToggling = false;
+  bool? _optimisticValue;
 
   Future<void> _toggle(bool isBookmarked) async {
     if (_isToggling) {
       return;
     }
 
-    setState(() => _isToggling = true);
+    setState(() {
+      _isToggling = true;
+      _optimisticValue = !isBookmarked;
+    });
     try {
       final repository = ref.read(bookmarkRepositoryProvider);
       if (isBookmarked) {
@@ -46,6 +50,9 @@ class _BookmarkButtonState extends ConsumerState<BookmarkButton> {
         ),
       );
     } catch (error) {
+      if (mounted) {
+        setState(() => _optimisticValue = isBookmarked);
+      }
       if (!mounted) {
         return;
       }
@@ -57,7 +64,10 @@ class _BookmarkButtonState extends ConsumerState<BookmarkButton> {
       ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
-        setState(() => _isToggling = false);
+        setState(() {
+          _isToggling = false;
+          _optimisticValue = null;
+        });
       }
     }
   }
@@ -68,18 +78,19 @@ class _BookmarkButtonState extends ConsumerState<BookmarkButton> {
 
     return status.when(
       data: (isBookmarked) {
-        final icon = isBookmarked ? Icons.bookmark : Icons.bookmark_border;
-        final label = isBookmarked ? 'Guardado' : 'Guardar';
+        final effectiveValue = _optimisticValue ?? isBookmarked;
+        final icon = effectiveValue ? Icons.bookmark : Icons.bookmark_border;
+        final label = effectiveValue ? 'Guardado' : 'Guardar';
         if (widget.compact) {
           return IconButton(
-            onPressed: _isToggling ? null : () => _toggle(isBookmarked),
+            onPressed: _isToggling ? null : () => _toggle(effectiveValue),
             icon: Icon(icon),
             tooltip: label,
           );
         }
 
         return OutlinedButton.icon(
-          onPressed: _isToggling ? null : () => _toggle(isBookmarked),
+          onPressed: _isToggling ? null : () => _toggle(effectiveValue),
           icon: _isToggling
               ? const SizedBox(
                   width: 16,

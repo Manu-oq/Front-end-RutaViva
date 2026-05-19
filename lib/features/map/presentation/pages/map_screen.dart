@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,25 +8,43 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/glass_container.dart';
-import '../../../../core/widgets/skeleton_container.dart';
 import '../../../../core/utils/location_handler.dart';
+import '../../../categories/data/models/category_model.dart';
+import '../../../categories/data/repositories/category_repository.dart';
+import '../../../categories/presentation/category_style.dart';
+import '../../data/repositories/geocoding_repository.dart';
+import '../../domain/entities/map_point.dart';
 import '../providers/map_provider.dart';
 import '../widgets/custom_map_marker.dart';
 
 class MapScreen extends ConsumerStatefulWidget {
-  const MapScreen({super.key});
+  final String backFallbackRouteName;
+
+  const MapScreen({super.key, this.backFallbackRouteName = AppRouteNames.home});
 
   @override
   ConsumerState<MapScreen> createState() => _MapScreenState();
 }
 
 class _MapScreenState extends ConsumerState<MapScreen> {
+  static const _autoRefreshDebounce = Duration(milliseconds: 800);
+  static const _autoRefreshDistanceThresholdMeters = 8000.0;
+
   late final MapController _mapController;
+  final _searchController = TextEditingController();
+  LatLng _cameraCenter = araucaniaDefaultCenter;
+  double _cameraZoom = 11.0;
+  Timer? _autoRefreshTimer;
+  String? _activeMapSearchQuery;
+  bool _isResolvingSearch = false;
 
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
+    final current = ref.read(mapProvider);
+    _cameraCenter = current.center;
+    _cameraZoom = current.focusedPoiId != null ? 15.0 : 11.0;
     Future.microtask(() {
       final current = ref.read(mapProvider);
       if (current.points.isEmpty && !current.isLoading) {
@@ -35,12 +55,158 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   void dispose() {
+    _autoRefreshTimer?.cancel();
+    _searchController.dispose();
     _mapController.dispose();
     super.dispose();
   }
 
+  List<_VisibleMapMarker> _visibleMarkers(
+    List<MapPoint> points,
+    MapState mapState,
+  ) {
+    if (points.isEmpty) {
+      return const [];
+    }
+
+    if (!mapState.isGlobalMode) {
+      return [
+        for (final point in points)
+          _VisibleMapMarker(
+            point: point,
+            size: mapState.focusedPoiId == point.id ? 82 : 64,
+            showLabel: true,
+            highlighted: mapState.focusedPoiId == point.id,
+          ),
+      ];
+    }
+
+    final isSearchMode = _activeMapSearchQuery?.trim().isNotEmpty == true;
+    final density = _MarkerDensity.fromZoom(_cameraZoom);
+    final hasCategoryFilters = mapState.selectedCategoryIds.isNotEmpty;
+    final distance = const Distance();
+    final radiusMeters = density.radiusMeters(isSearchMode: isSearchMode);
+    final maxMarkers = density.maxMarkers(
+      hasCategoryFilters: hasCategoryFilters,
+      isSearchMode: isSearchMode,
+    );
+    final cellSize = density.cellSize(
+      hasCategoryFilters: hasCategoryFilters,
+      isSearchMode: isSearchMode,
+    );
+
+    final candidates =
+        <({MapPoint point, double meters})>[
+          for (final point in points)
+            if (isSearchMode ||
+                hasCategoryFilters ||
+                density.allows(point.categoryIds))
+              (
+                point: point,
+                meters: distance.as(
+                  LengthUnit.Meter,
+                  _cameraCenter,
+                  point.coordinates,
+                ),
+              ),
+        ].where((item) => item.meters <= radiusMeters).toList()..sort((a, b) {
+          final scoreA = _visualScore(
+            a.point,
+            a.meters,
+            density: density,
+            isSearchMode: isSearchMode,
+          );
+          final scoreB = _visualScore(
+            b.point,
+            b.meters,
+            density: density,
+            isSearchMode: isSearchMode,
+          );
+          final byScore = scoreB.compareTo(scoreA);
+          return byScore == 0 ? a.meters.compareTo(b.meters) : byScore;
+        });
+
+    final occupiedCells = <String>{};
+    final visible = <_VisibleMapMarker>[];
+    for (final item in candidates) {
+      final cell = _screenCellKey(item.point, cellSize);
+      if (!occupiedCells.add(cell)) {
+        continue;
+      }
+      visible.add(
+        _VisibleMapMarker(
+          point: item.point,
+          size: density.markerSize(isSearchMode: isSearchMode),
+          showLabel:
+              isSearchMode ||
+              density == _MarkerDensity.near ||
+              item.point.id == mapState.selectedPoint?.id,
+          highlighted: item.point.id == mapState.selectedPoint?.id,
+        ),
+      );
+      if (visible.length >= maxMarkers) {
+        break;
+      }
+    }
+    return visible;
+  }
+
+  String _screenCellKey(MapPoint point, double cellSize) {
+    try {
+      final offset = _mapController.camera.getOffsetFromOrigin(
+        point.coordinates,
+      );
+      return '${(offset.dx / cellSize).floor()}:${(offset.dy / cellSize).floor()}';
+    } catch (_) {
+      final scale = _cameraZoom >= 14
+          ? 0.002
+          : _cameraZoom >= 12
+          ? 0.006
+          : 0.016;
+      return '${(point.coordinates.latitude / scale).floor()}:${(point.coordinates.longitude / scale).floor()}';
+    }
+  }
+
+  double _visualScore(
+    MapPoint point,
+    double distanceMeters, {
+    required _MarkerDensity density,
+    required bool isSearchMode,
+  }) {
+    final categoryScore = point.categoryIds.isEmpty
+        ? 4.0
+        : point.categoryIds
+              .map((id) => _categoryVisualPriority(id, density))
+              .reduce((a, b) => a > b ? a : b);
+    final imageBoost = point.imageUrl?.isNotEmpty == true ? 8.0 : 0.0;
+    final primaryBoost = point.visitRules?.isPrimaryExperience == true
+        ? 18.0
+        : 0.0;
+    final distancePenalty = distanceMeters / (isSearchMode ? 2200 : 3000);
+    return categoryScore + imageBoost + primaryBoost - distancePenalty;
+  }
+
+  double _categoryVisualPriority(int id, _MarkerDensity density) {
+    final landmark = switch (id) {
+      1 || 3 || 7 || 8 || 9 || 10 || 11 => 100.0,
+      5 || 6 || 12 => 82.0,
+      2 || 4 || 15 => 66.0,
+      13 || 14 => 38.0,
+      _ => 44.0,
+    };
+    if (density == _MarkerDensity.near) {
+      return landmark + (id == 13 || id == 14 ? 18.0 : 0.0);
+    }
+    return landmark;
+  }
+
   Future<void> _locateUser() async {
-    final hasPermission = await LocationHandler.handleLocationPermission();
+    bool hasPermission;
+    try {
+      hasPermission = await LocationHandler.handleLocationPermission();
+    } catch (_) {
+      hasPermission = false;
+    }
 
     if (!mounted) {
       return;
@@ -53,27 +219,163 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       return;
     }
 
-    final position = await Geolocator.getCurrentPosition();
-    final center = LatLng(position.latitude, position.longitude);
+    Position position;
+    try {
+      position = await Geolocator.getCurrentPosition();
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No pudimos obtener tu ubicación en este dispositivo.'),
+        ),
+      );
+      return;
+    }
 
     if (!mounted) {
       return;
     }
 
+    final center = LatLng(position.latitude, position.longitude);
+    setState(() {
+      _cameraCenter = center;
+      _cameraZoom = 14.0;
+    });
     _mapController.move(center, 14.0);
     await ref.read(mapProvider.notifier).loadNearby(center: center);
   }
 
   void _refreshNearby() {
+    _autoRefreshTimer?.cancel();
+    _activeMapSearchQuery = null;
+    _searchController.clear();
     ref
         .read(mapProvider.notifier)
         .loadNearby(center: _mapController.camera.center);
+  }
+
+  Future<void> _searchMap() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty || _isResolvingSearch) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _activeMapSearchQuery = query;
+      _isResolvingSearch = true;
+    });
+
+    final notifier = ref.read(mapProvider.notifier);
+    final center = _mapController.camera.center;
+    await notifier.semanticSearch(query: query, center: center);
+
+    if (!mounted) return;
+    var stateAfterSearch = ref.read(mapProvider);
+    if (stateAfterSearch.points.isEmpty) {
+      try {
+        final locations = await ref
+            .read(geocodingRepositoryProvider)
+            .search(query: query, lat: center.latitude, lon: center.longitude);
+        if (locations.isNotEmpty) {
+          final nextCenter = locations.first.coordinates;
+          _mapController.move(nextCenter, 13.0);
+          setState(() {
+            _cameraCenter = nextCenter;
+            _cameraZoom = 13.0;
+          });
+          await notifier.semanticSearch(query: query, center: nextCenter);
+          stateAfterSearch = ref.read(mapProvider);
+          if (stateAfterSearch.points.isEmpty) {
+            await notifier.loadNearby(center: nextCenter, radius: 16000);
+          }
+        }
+      } catch (_) {
+        // Keep the semantic-search result/error already reflected by MapState.
+      }
+    }
+
+    if (!mounted) return;
+    final finalState = ref.read(mapProvider);
+    if (finalState.points.isNotEmpty) {
+      final first = finalState.points.first.coordinates;
+      final targetZoom = _cameraZoom < 13 ? 13.0 : _cameraZoom;
+      _mapController.move(first, targetZoom);
+      setState(() {
+        _cameraCenter = first;
+        _cameraZoom = targetZoom;
+      });
+    }
+    setState(() => _isResolvingSearch = false);
+  }
+
+  void _clearSearch() {
+    setState(() {
+      _activeMapSearchQuery = null;
+      _isResolvingSearch = false;
+    });
+    _searchController.clear();
+    ref
+        .read(mapProvider.notifier)
+        .loadNearby(center: _mapController.camera.center);
+  }
+
+  void _focusSearchResult(MapPoint point) {
+    ref.read(mapProvider.notifier).selectPoint(point);
+    setState(() {
+      _cameraCenter = point.coordinates;
+      _cameraZoom = _cameraZoom < 14 ? 14.0 : _cameraZoom;
+    });
+    _mapController.move(point.coordinates, _cameraZoom);
+  }
+
+  void _scheduleViewportRefresh(LatLng center) {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer(_autoRefreshDebounce, () {
+      if (!mounted) {
+        return;
+      }
+      final mapState = ref.read(mapProvider);
+      if (mapState.isLoading || !mapState.isGlobalMode) {
+        return;
+      }
+
+      final metersFromLoadedCenter = const Distance().as(
+        LengthUnit.Meter,
+        mapState.center,
+        center,
+      );
+      if (metersFromLoadedCenter < _autoRefreshDistanceThresholdMeters) {
+        return;
+      }
+
+      ref.read(mapProvider.notifier).loadNearby(center: center);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mapState = ref.watch(mapProvider);
+    final visibleMarkers = _visibleMarkers(mapState.points, mapState);
+
+    ref.listen<MapState>(mapProvider, (previous, next) {
+      if (next.isGlobalMode || previous?.center == next.center) {
+        return;
+      }
+      final zoom = next.focusedPoiId != null ? 15.0 : 13.0;
+      _autoRefreshTimer?.cancel();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _cameraCenter = next.center;
+          _cameraZoom = zoom;
+        });
+        _mapController.move(next.center, zoom);
+      });
+    });
 
     return Scaffold(
       body: Stack(
@@ -81,42 +383,48 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: araucaniaDefaultCenter,
-              initialZoom: 11.0,
+              initialCenter: mapState.center,
+              initialZoom: mapState.focusedPoiId != null ? 15.0 : 11.0,
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all,
               ),
+              onPositionChanged: (position, hasGesture) {
+                final center = position.center;
+                final zoom = position.zoom;
+                if (hasGesture) {
+                  setState(() {
+                    _cameraCenter = center;
+                    _cameraZoom = zoom;
+                  });
+                  if (ref.read(mapProvider).isGlobalMode) {
+                    _scheduleViewportRefresh(center);
+                  }
+                }
+              },
             ),
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.rutaviva.app',
               ),
-              if (mapState.routePolyline.length > 1)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: mapState.routePolyline,
-                      strokeWidth: 5.5,
-                      color: theme.colorScheme.tertiary,
-                      borderStrokeWidth: 3,
-                      borderColor: theme.colorScheme.primary.withValues(
-                        alpha: 0.35,
-                      ),
-                      strokeCap: StrokeCap.round,
-                      strokeJoin: StrokeJoin.round,
-                    ),
-                  ],
-                ),
               MarkerLayer(
-                markers: mapState.points.map((point) {
-                  return Marker(
-                    point: point.coordinates,
-                    width: 92,
-                    height: 92,
-                    child: CustomMapMarker(point: point),
-                  );
-                }).toList(),
+                markers: visibleMarkers
+                    .map((marker) {
+                      return Marker(
+                        point: marker.point.coordinates,
+                        width: marker.size,
+                        height: marker.showLabel
+                            ? marker.size + 24
+                            : marker.size,
+                        child: CustomMapMarker(
+                          point: marker.point,
+                          compact: !marker.showLabel,
+                          showLabel: marker.showLabel,
+                          highlighted: marker.highlighted,
+                        ),
+                      );
+                    })
+                    .toList(growable: false),
               ),
             ],
           ),
@@ -142,13 +450,50 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             right: 16,
             child: SafeArea(
               child: _MapHeader(
-                isLoading: mapState.isLoading,
-                count: mapState.points.length,
+                controller: _searchController,
+                backFallbackRouteName: widget.backFallbackRouteName,
+                isLoading: _isResolvingSearch || mapState.isLoading,
+                activeSearchQuery: _activeMapSearchQuery,
+                hasActiveSearch: _activeMapSearchQuery != null,
+                onSearch: _searchMap,
+                onClearSearch: _clearSearch,
                 onRefresh: mapState.isLoading ? null : _refreshNearby,
                 onLocate: _locateUser,
               ),
             ),
           ),
+          if (mapState.isGlobalMode)
+            Positioned(
+              top: 88,
+              left: 16,
+              right: 16,
+              child: SafeArea(
+                child: _MapCategoryFilters(
+                  categories: ref.watch(categoriesProvider),
+                  selectedCategoryIds: mapState.selectedCategoryIds,
+                  isLoading: mapState.isLoading,
+                  onClear: () {
+                    setState(() => _activeMapSearchQuery = null);
+                    _searchController.clear();
+                    ref
+                        .read(mapProvider.notifier)
+                        .clearCategoryFilters(
+                          center: _mapController.camera.center,
+                        );
+                  },
+                  onToggle: (id) {
+                    setState(() => _activeMapSearchQuery = null);
+                    _searchController.clear();
+                    ref
+                        .read(mapProvider.notifier)
+                        .toggleCategoryFilter(
+                          id,
+                          center: _mapController.camera.center,
+                        );
+                  },
+                ),
+              ),
+            ),
           if (mapState.errorMessage != null)
             Positioned(
               left: 20,
@@ -176,12 +521,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 onAction: _refreshNearby,
               ),
             ),
-          if (mapState.isLoading)
+          if (mapState.isGlobalMode &&
+              _activeMapSearchQuery != null &&
+              mapState.points.isNotEmpty)
             Positioned(
-              left: 20,
-              right: 20,
-              bottom: 136,
-              child: _LoadingChips(),
+              left: 16,
+              right: 92,
+              bottom: 112,
+              child: SafeArea(
+                child: _MapSearchResultsPanel(
+                  points: mapState.points,
+                  selectedPointId: mapState.selectedPoint?.id,
+                  onSelect: _focusSearchResult,
+                ),
+              ),
             ),
           Positioned(
             bottom: 34,
@@ -194,10 +547,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     tooltip: 'Acercar',
                     onTap: () {
                       final newZoom = _mapController.camera.zoom + 1;
-                      _mapController.move(
-                        _mapController.camera.center,
-                        newZoom,
-                      );
+                      final center = _mapController.camera.center;
+                      setState(() {
+                        _cameraCenter = center;
+                        _cameraZoom = newZoom;
+                      });
+                      _mapController.move(center, newZoom);
                     },
                   ),
                   const SizedBox(height: 12),
@@ -206,10 +561,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     tooltip: 'Alejar',
                     onTap: () {
                       final newZoom = _mapController.camera.zoom - 1;
-                      _mapController.move(
-                        _mapController.camera.center,
-                        newZoom,
-                      );
+                      final center = _mapController.camera.center;
+                      setState(() {
+                        _cameraCenter = center;
+                        _cameraZoom = newZoom;
+                      });
+                      _mapController.move(center, newZoom);
                     },
                   ),
                 ],
@@ -223,14 +580,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 }
 
 class _MapHeader extends StatelessWidget {
+  final TextEditingController controller;
+  final String backFallbackRouteName;
   final bool isLoading;
-  final int count;
+  final String? activeSearchQuery;
+  final bool hasActiveSearch;
+  final VoidCallback onSearch;
+  final VoidCallback onClearSearch;
   final VoidCallback? onRefresh;
   final VoidCallback onLocate;
 
   const _MapHeader({
+    required this.controller,
+    required this.backFallbackRouteName,
     required this.isLoading,
-    required this.count,
+    required this.activeSearchQuery,
+    required this.hasActiveSearch,
+    required this.onSearch,
+    required this.onClearSearch,
     required this.onRefresh,
     required this.onLocate,
   });
@@ -239,39 +606,65 @@ class _MapHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return GlassContainer(
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(26),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
         child: Row(
           children: [
-            const AppBackButton(
-              fallbackRouteName: AppRouteNames.home,
-              usePop: false,
-            ),
-            const SizedBox(width: 4),
+            AppBackButton(fallbackRouteName: backFallbackRouteName),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Mapa vivo',
-                    style: theme.textTheme.titleLarge,
-                    overflow: TextOverflow.ellipsis,
+              child: TextField(
+                controller: controller,
+                enabled: !isLoading,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => onSearch(),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'Buscar minimarket, comisaría...',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (hasActiveSearch)
+                              IconButton(
+                                tooltip: 'Limpiar búsqueda',
+                                onPressed: onClearSearch,
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                            IconButton.filled(
+                              tooltip: 'Buscar',
+                              onPressed: onSearch,
+                              icon: const Icon(Icons.arrow_forward_rounded),
+                            ),
+                          ],
+                        ),
+                  filled: true,
+                  fillColor: theme.colorScheme.surface.withValues(alpha: 0.92),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 12,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isLoading
-                        ? 'Buscando lugares cercanos...'
-                        : '$count lugares para explorar',
-                    style: theme.textTheme.bodySmall,
-                    overflow: TextOverflow.ellipsis,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide.none,
                   ),
-                ],
+                ),
               ),
             ),
+            const SizedBox(width: 4),
             IconButton(
-              tooltip: 'Refrescar',
+              tooltip: activeSearchQuery == null
+                  ? 'Resetear mapa'
+                  : 'Resetear búsqueda y mapa',
               onPressed: onRefresh,
               icon: isLoading
                   ? const SizedBox(
@@ -293,19 +686,265 @@ class _MapHeader extends StatelessWidget {
   }
 }
 
-class _LoadingChips extends StatelessWidget {
+class _MapCategoryFilters extends StatelessWidget {
+  final AsyncValue<List<CategoryModel>> categories;
+  final Set<int> selectedCategoryIds;
+  final bool isLoading;
+  final VoidCallback onClear;
+  final ValueChanged<int> onToggle;
+
+  const _MapCategoryFilters({
+    required this.categories,
+    required this.selectedCategoryIds,
+    required this.isLoading,
+    required this.onClear,
+    required this.onToggle,
+  });
+
   @override
   Widget build(BuildContext context) {
+    final items = categories.maybeWhen(
+      data: (value) => value,
+      orElse: () => const <CategoryModel>[],
+    );
+    if (items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
+    final allSelected = selectedCategoryIds.isEmpty;
     return SizedBox(
-      height: 44,
+      height: 46,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: 6,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (_, _) => const SkeletonContainer(
-          width: 112,
-          height: 40,
-          borderRadius: BorderRadius.all(Radius.circular(999)),
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        itemCount: items.length + 1,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _MapFilterChip(
+              label: 'Todos',
+              icon: Icons.public_rounded,
+              color: theme.colorScheme.primary,
+              selected: allSelected,
+              enabled: !isLoading,
+              onTap: onClear,
+            );
+          }
+
+          final category = items[index - 1];
+          final style = categoryStyleFor(category.id, theme.colorScheme);
+          return _MapFilterChip(
+            label: category.name,
+            icon: style.icon,
+            color: style.color,
+            selected: selectedCategoryIds.contains(category.id),
+            enabled: !isLoading,
+            onTap: () => onToggle(category.id),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MapSearchResultsPanel extends StatelessWidget {
+  final List<MapPoint> points;
+  final String? selectedPointId;
+  final ValueChanged<MapPoint> onSelect;
+
+  const _MapSearchResultsPanel({
+    required this.points,
+    required this.selectedPointId,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = points.take(10).toList(growable: false);
+    return SizedBox(
+      height: 126,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: visible.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final point = visible[index];
+          return _MapSearchResultCard(
+            point: point,
+            selected: point.id == selectedPointId,
+            onTap: () => onSelect(point),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MapSearchResultCard extends StatelessWidget {
+  final MapPoint point;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _MapSearchResultCard({
+    required this.point,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = categoryStyleFor(
+      point.categoryIds.isEmpty ? null : point.categoryIds.first,
+      theme.colorScheme,
+    );
+    return SizedBox(
+      width: 218,
+      child: Material(
+        color: selected
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.96)
+            : theme.colorScheme.surface.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(22),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: selected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.outlineVariant,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.colorScheme.shadow.withValues(alpha: 0.12),
+                  blurRadius: 22,
+                  spreadRadius: -12,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: style.color.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(style.icon, color: style.color, size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          point.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        if (point.distanceMeters != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            _distanceLabel(point.distanceMeters!),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _distanceLabel(double meters) {
+    if (meters >= 1000) {
+      return '${(meters / 1000).toStringAsFixed(1)} km';
+    }
+    return '${meters.round()} m';
+  }
+}
+
+class _MapFilterChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _MapFilterChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final background = selected
+        ? color.withValues(alpha: 0.96)
+        : theme.colorScheme.surface.withValues(alpha: 0.94);
+    final foreground = selected ? Colors.white : theme.colorScheme.onSurface;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(999),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected
+                  ? color.withValues(alpha: 0.25)
+                  : theme.colorScheme.outlineVariant,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.shadow.withValues(alpha: 0.10),
+                blurRadius: 18,
+                spreadRadius: -12,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 17, color: foreground),
+              const SizedBox(width: 7),
+              Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -400,4 +1039,117 @@ class _MapNotice extends StatelessWidget {
       ),
     );
   }
+}
+
+enum _MarkerDensity {
+  far,
+  medium,
+  near;
+
+  static _MarkerDensity fromZoom(double zoom) {
+    if (zoom >= 14) return _MarkerDensity.near;
+    if (zoom >= 12) return _MarkerDensity.medium;
+    return _MarkerDensity.far;
+  }
+
+  bool allows(List<int> categoryIds) {
+    if (this == _MarkerDensity.near || categoryIds.isEmpty) {
+      return true;
+    }
+    final allowed = switch (this) {
+      _MarkerDensity.far => const {1, 3, 7, 8, 9, 10, 11},
+      _MarkerDensity.medium => const {
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        15,
+      },
+      _MarkerDensity.near => const <int>{},
+    };
+    return categoryIds.any(allowed.contains);
+  }
+
+  double radiusMeters({required bool isSearchMode}) {
+    if (isSearchMode) return 50000;
+    return switch (this) {
+      _MarkerDensity.far => 36000,
+      _MarkerDensity.medium => 22000,
+      _MarkerDensity.near => 10000,
+    };
+  }
+
+  int maxMarkers({
+    required bool hasCategoryFilters,
+    required bool isSearchMode,
+  }) {
+    if (isSearchMode) {
+      return switch (this) {
+        _MarkerDensity.far => 48,
+        _MarkerDensity.medium => 80,
+        _MarkerDensity.near => 140,
+      };
+    }
+    if (hasCategoryFilters) {
+      return switch (this) {
+        _MarkerDensity.far => 56,
+        _MarkerDensity.medium => 96,
+        _MarkerDensity.near => 170,
+      };
+    }
+    return switch (this) {
+      _MarkerDensity.far => 28,
+      _MarkerDensity.medium => 64,
+      _MarkerDensity.near => 145,
+    };
+  }
+
+  double cellSize({
+    required bool hasCategoryFilters,
+    required bool isSearchMode,
+  }) {
+    final base = switch (this) {
+      _MarkerDensity.far => 68.0,
+      _MarkerDensity.medium => 56.0,
+      _MarkerDensity.near => 44.0,
+    };
+    return hasCategoryFilters || isSearchMode ? base * 0.82 : base;
+  }
+
+  double markerSize({required bool isSearchMode}) {
+    if (isSearchMode) {
+      return switch (this) {
+        _MarkerDensity.far => 48,
+        _MarkerDensity.medium => 56,
+        _MarkerDensity.near => 68,
+      };
+    }
+    return switch (this) {
+      _MarkerDensity.far => 38,
+      _MarkerDensity.medium => 48,
+      _MarkerDensity.near => 64,
+    };
+  }
+}
+
+class _VisibleMapMarker {
+  final MapPoint point;
+  final double size;
+  final bool showLabel;
+  final bool highlighted;
+
+  const _VisibleMapMarker({
+    required this.point,
+    required this.size,
+    required this.showLabel,
+    required this.highlighted,
+  });
 }

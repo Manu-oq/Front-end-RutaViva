@@ -20,6 +20,15 @@ void main() {
       'latitude': -39.27,
       'longitude': -71.97,
       'distancia_metros': null,
+      'opening_hours_text': 'Mo-Su 09:00-18:00',
+      'visit_rules': {
+        'is_primary_experience': true,
+        'requires_daylight': true,
+        'night_suitable': false,
+        'latest_recommended_start_time': '15:30',
+        'access_notes': 'Recomendado durante el día.',
+        'confidence': 'inferred',
+      },
     };
   }
 
@@ -35,6 +44,13 @@ void main() {
       expect(point.categoryIds, equals([2, 4]));
       // Nothing collapses categoryIds into a single value: R3 invariant.
       expect(point.categoryIds.length, equals(2));
+      expect(poi.openingHoursText, equals('Mo-Su 09:00-18:00'));
+      expect(poi.visitRules?.requiresDaylight, isTrue);
+      expect(point.openingHoursText, equals('Mo-Su 09:00-18:00'));
+      expect(
+        point.visitRules?.accessNotes,
+        equals('Recomendado durante el día.'),
+      );
     });
 
     test('handles empty category_ids without crashing', () {

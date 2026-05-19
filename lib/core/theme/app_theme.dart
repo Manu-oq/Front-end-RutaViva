@@ -66,6 +66,20 @@ class AppTheme {
           letterSpacing: -1.4,
           color: scheme.onSurface,
         ),
+        displayMedium: GoogleFonts.manrope(
+          fontSize: 38,
+          fontWeight: FontWeight.w800,
+          height: 1.02,
+          letterSpacing: -1.1,
+          color: scheme.onSurface,
+        ),
+        displaySmall: GoogleFonts.manrope(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          height: 1.06,
+          letterSpacing: -0.7,
+          color: scheme.onSurface,
+        ),
         headlineLarge: GoogleFonts.manrope(
           fontSize: 34,
           fontWeight: FontWeight.w800,
@@ -78,6 +92,12 @@ class AppTheme {
           letterSpacing: -0.35,
           color: scheme.onSurface,
         ),
+        headlineSmall: GoogleFonts.manrope(
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.25,
+          color: scheme.onSurface,
+        ),
         titleLarge: GoogleFonts.manrope(
           fontSize: 20,
           fontWeight: FontWeight.w800,
@@ -86,6 +106,11 @@ class AppTheme {
         titleMedium: GoogleFonts.inter(
           fontSize: 16,
           fontWeight: FontWeight.w700,
+          color: scheme.onSurface,
+        ),
+        titleSmall: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
           color: scheme.onSurface,
         ),
         bodyLarge: GoogleFonts.inter(
@@ -108,6 +133,12 @@ class AppTheme {
           fontWeight: FontWeight.w800,
           letterSpacing: 0.9,
           color: scheme.primary,
+        ),
+        labelMedium: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.35,
+          color: scheme.onSurface,
         ),
         labelSmall: GoogleFonts.inter(
           fontSize: 11,

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ruta_viva/features/map/data/models/poi_model.dart';
+import 'package:ruta_viva/features/map/data/repositories/poi_repository.dart';
 import 'package:ruta_viva/features/map/domain/entities/map_point.dart';
 
 const _poiJson = <String, dynamic>{
@@ -10,9 +11,7 @@ const _poiJson = <String, dynamic>{
   'tipo_acceso': 'publico',
   'telefono_publico': '+56912345678',
   'email_publico': 'info@villarrica.cl',
-  'multimedia_urls': <String, dynamic>{
-    'cover': '/media/covers/villarrica.jpg',
-  },
+  'multimedia_urls': <String, dynamic>{'cover': '/media/covers/villarrica.jpg'},
   'category_ids': <int>[1, 2],
   'latitude': -39.4208,
   'longitude': -71.9392,
@@ -97,11 +96,36 @@ void main() {
     });
 
     test('missing category_ids key defaults to empty list', () {
-      final json = Map<String, dynamic>.from(_poiJson)
-        ..remove('category_ids');
+      final json = Map<String, dynamic>.from(_poiJson)..remove('category_ids');
       final poi = PoiModel.fromJson(json);
 
       expect(poi.categoryIds, isEmpty);
+    });
+  });
+
+  group('PoiRepository.searchNearby query', () {
+    test('omits category_ids when filters are empty', () {
+      final query = PoiRepository.searchNearbyQueryParametersForTesting(
+        lat: -38.7359,
+        lon: -72.5904,
+        radius: 30000,
+      );
+
+      expect(query['lat'], equals(-38.7359));
+      expect(query['lon'], equals(-72.5904));
+      expect(query['radius'], equals(30000));
+      expect(query.containsKey('category_ids'), isFalse);
+    });
+
+    test('serializes category filters as comma separated ids', () {
+      final query = PoiRepository.searchNearbyQueryParametersForTesting(
+        lat: -38.7359,
+        lon: -72.5904,
+        radius: 30000,
+        categoryIds: const [2, 4, 9],
+      );
+
+      expect(query['category_ids'], equals('2,4,9'));
     });
   });
 }

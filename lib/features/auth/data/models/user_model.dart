@@ -2,6 +2,7 @@ class UserModel {
   final String id;
   final String email;
   final bool isActive;
+  final String? avatarUrl;
   final DateTime createdAt;
   final TouristProfileModel? touristProfile;
   final EntrepreneurProfileModel? entrepreneurProfile;
@@ -10,6 +11,7 @@ class UserModel {
     required this.id,
     required this.email,
     required this.isActive,
+    this.avatarUrl,
     required this.createdAt,
     this.touristProfile,
     this.entrepreneurProfile,
@@ -24,6 +26,9 @@ class UserModel {
       id: json['id'] as String,
       email: json['email'] as String,
       isActive: json['is_active'] as bool? ?? true,
+      avatarUrl:
+          (json['avatar_url'] ?? json['avatar'] ?? json['profile_image_url'])
+              ?.toString(),
       createdAt: DateTime.parse(json['created_at'] as String),
       touristProfile: json['tourist_profile'] == null
           ? null

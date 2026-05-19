@@ -22,7 +22,6 @@ class PoiGalleryHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
-    final theme = Theme.of(context);
 
     return SliverAppBar(
       expandedHeight: 390,
@@ -50,34 +49,10 @@ class PoiGalleryHeader extends StatelessWidget {
       ],
       flexibleSpace: FlexibleSpaceBar(
         stretchModes: const [StretchMode.zoomBackground],
-        titlePadding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+        titlePadding: const EdgeInsets.fromLTRB(72, 0, 20, 12),
         title: title == null
             ? null
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.82),
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  Text(
-                    title!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
+            : _PoiHeaderCollapsedTitle(title: title!, subtitle: subtitle),
         background: Stack(
           fit: StackFit.expand,
           children: [
@@ -102,6 +77,56 @@ class PoiGalleryHeader extends StatelessWidget {
                     Colors.black.withValues(alpha: 0.05),
                     AppColors.deepForest.withValues(alpha: 0.82),
                   ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PoiHeaderCollapsedTitle extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+
+  const _PoiHeaderCollapsedTitle({required this.title, this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ClipRect(
+      child: SizedBox(
+        height: subtitle == null ? 22 : 38,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (subtitle != null)
+              Flexible(
+                child: Text(
+                  subtitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.84),
+                    fontSize: 9.5,
+                    height: 1,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontSize: 13.5,
+                  height: 1.05,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),

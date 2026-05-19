@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/url_launcher_helper.dart';
 import '../../../../core/widgets/app_back_button.dart';
@@ -18,6 +18,8 @@ import '../widgets/poi_gallery_header.dart';
 
 class PoiDetailFullPage extends ConsumerWidget {
   final String poiId;
+  static final Set<String> _recordedVisits = <String>{};
+
   const PoiDetailFullPage({super.key, required this.poiId});
 
   @override
@@ -46,6 +48,17 @@ class PoiDetailFullPage extends ConsumerWidget {
     }
     return null;
   }
+
+  static void recordVisitOnce(WidgetRef ref, String poiId) {
+    if (!_recordedVisits.add(poiId)) return;
+    Future.microtask(() async {
+      try {
+        await ref.read(poiRepositoryProvider).recordVisit(poiId);
+      } catch (_) {
+        _recordedVisits.remove(poiId);
+      }
+    });
+  }
 }
 
 class _PoiDetailBody extends ConsumerWidget {
@@ -56,6 +69,7 @@ class _PoiDetailBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    PoiDetailFullPage.recordVisitOnce(ref, poi.id);
     final theme = Theme.of(context);
     final names = ref.watch(categoriesByIdProvider);
     final category = poi.categoryLabel(names);
@@ -90,20 +104,46 @@ class _PoiDetailBody extends ConsumerWidget {
                         _TitleCard(
                           poi: poi,
                           category: category,
-                          onOpenMap: () => context.goNamed(AppRouteNames.map),
+                          onOpenMap: () {
+                            ref.read(mapProvider.notifier).showSinglePoi(poi);
+                            context.pushNamedSafe(
+                              AppRouteNames.focusedMap,
+                              extra: AppRouteNames.map,
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
                         _SectionCard(
                           title: 'Sobre este lugar',
                           icon: Icons.travel_explore_rounded,
-                          child: Text(
-                            poi.description?.trim().isNotEmpty == true
-                                ? poi.description!.trim()
-                                : 'Aún no hay una descripción completa para este lugar. Puedes visitarlo, subir una foto o dejar tu opinión para ayudar a otros viajeros.',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              height: 1.55,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                poi.description?.trim().isNotEmpty == true
+                                    ? poi.description!.trim()
+                                    : 'Aún no hay una descripción completa para este lugar. Puedes visitarlo, subir una foto o dejar tu opinión para ayudar a otros viajeros.',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  height: 1.55,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              if (poi.openingHoursText != null &&
+                                  poi.openingHoursText!.trim().isNotEmpty) ...[
+                                const SizedBox(height: 14),
+                                _InfoPill(
+                                  icon: Icons.schedule_rounded,
+                                  label: 'Horario: ${poi.openingHoursText}',
+                                ),
+                              ],
+                              if (poi.visitRules?.accessNotes != null &&
+                                  poi.visitRules!.accessNotes!
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                _AccessNote(text: poi.visitRules!.accessNotes!),
+                              ],
+                            ],
                           ),
                         ),
                         if (poi.amenities != null &&
@@ -188,6 +228,11 @@ class _TitleCard extends StatelessWidget {
                   label: _formatDistance(poi.distanceMeters!),
                 ),
               if (poi.isLocalAuthentic) const AuthenticitySeal(),
+              if (poi.visitRules?.requiresDaylight == true)
+                const _DetailPill(
+                  icon: Icons.wb_sunny_rounded,
+                  label: 'Mejor con luz de día',
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -220,6 +265,80 @@ class _TitleCard extends StatelessWidget {
   String _formatDistance(double meters) {
     if (meters < 1000) return '${meters.round()} m de distancia';
     return '${(meters / 1000).toStringAsFixed(1)} km de distancia';
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccessNote extends StatelessWidget {
+  final String text;
+
+  const _AccessNote({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.sun.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.sun.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, color: AppColors.earth),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -338,25 +457,29 @@ class _DetailPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final pillForeground = isDark
+        ? const Color(0xFF8EF0A7)
+        : theme.colorScheme.primary;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.09),
+        color: pillForeground.withValues(alpha: isDark ? 0.14 : 0.09),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.12),
+          color: pillForeground.withValues(alpha: isDark ? 0.32 : 0.12),
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: theme.colorScheme.primary),
+          Icon(icon, size: 15, color: pillForeground),
           const SizedBox(width: 6),
           Text(
             label,
             style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.primary,
+              color: pillForeground,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -403,10 +526,7 @@ class _PoiErrorPage extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const AppBackButton(
-                      fallbackRouteName: AppRouteNames.map,
-                      usePop: false,
-                    ),
+                    const AppBackButton(fallbackRouteName: AppRouteNames.map),
                     const SizedBox(height: 12),
                     Icon(
                       Icons.place_outlined,
