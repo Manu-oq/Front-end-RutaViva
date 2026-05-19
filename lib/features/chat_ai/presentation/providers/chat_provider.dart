@@ -395,14 +395,17 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     final assistantMessage = session.assistantMessage;
     final assistantText = assistantMessage?.content.trim() ?? '';
     final turnType = assistantMessage?.turnType?.trim().toLowerCase();
+    final normalizedStatus = session.status.trim().toLowerCase();
+    final isStepReplacementCompleted = normalizedStatus == 'step_replaced';
     _syncSearchCenterIfNeeded(session);
     final updatedItinerary = session.updatedItinerary;
     if (updatedItinerary != null) {
       ref.read(itineraryProvider.notifier).setCurrent(updatedItinerary);
+      ref.invalidate(itineraryHistoryProvider);
       ref.invalidate(itineraryDetailProvider(updatedItinerary.id));
       ref.invalidate(itineraryPoisProvider(updatedItinerary.id));
       _refreshFilteredMapIfNeeded(updatedItinerary.id);
-    } else if (session.status == 'step_replaced') {
+    } else if (isStepReplacementCompleted) {
       final itineraryId = session.assistantMessage?.metadata?['itinerary_id']
           ?.toString();
       if (itineraryId != null && itineraryId.isNotEmpty) {
@@ -429,8 +432,17 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
           timestamp: DateTime.now(),
           turnType: turnType,
           evidenceLevel: assistantMessage?.evidenceLevel,
-          actions: _buildActions(session.quickReplies),
-          candidatePois: _buildCandidatePois(session.candidatePois),
+          actions: isStepReplacementCompleted
+              ? const []
+              : _buildActions(session.quickReplies),
+          itineraryCard: _buildUpdatedItineraryCard(
+            updatedItinerary,
+            fallbackItineraryId: assistantMessage?.metadata?['itinerary_id']
+                ?.toString(),
+          ),
+          candidatePois: isStepReplacementCompleted
+              ? const []
+              : _buildCandidatePois(session.candidatePois),
         ),
     ];
 
@@ -530,6 +542,34 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
             actionValue: candidate.actionValue,
           ),
     ];
+  }
+
+  MessageItineraryCard? _buildUpdatedItineraryCard(
+    ItineraryModel? updatedItinerary, {
+    String? fallbackItineraryId,
+  }) {
+    if (updatedItinerary != null) {
+      return MessageItineraryCard(
+        id: updatedItinerary.id,
+        title: updatedItinerary.title,
+        stepsCount: updatedItinerary.steps.length,
+      );
+    }
+
+    final current = ref.read(itineraryProvider).current;
+    final itineraryId = fallbackItineraryId?.trim();
+    if (current != null &&
+        itineraryId != null &&
+        itineraryId.isNotEmpty &&
+        current.id == itineraryId) {
+      return MessageItineraryCard(
+        id: current.id,
+        title: current.title,
+        stepsCount: current.steps.length,
+      );
+    }
+
+    return null;
   }
 
   void _replaceThinkingWithError(String message) {
