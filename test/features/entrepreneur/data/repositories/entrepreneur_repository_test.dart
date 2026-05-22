@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ruta_viva/features/entrepreneur/data/models/entrepreneur_models.dart';
+import 'package:ruta_viva/features/entrepreneur/data/repositories/entrepreneur_repository.dart';
 
 void main() {
   group('EntrepreneurPostModel.fromJson', () {
@@ -109,6 +110,19 @@ void main() {
       expect(post.isPinned, isTrue);
     });
 
+    test('lee display_order para representar orden de posts', () {
+      final json = <String, dynamic>{
+        'id': 'post-orden',
+        'title': 'Ordenado',
+        'content': 'test',
+        'display_order': 3,
+      };
+
+      final post = EntrepreneurPostModel.fromJson(json);
+
+      expect(post.displayOrder, equals(3));
+    });
+
     test('convierte id no string a string', () {
       final json = <String, dynamic>{
         'id': 42,
@@ -207,5 +221,72 @@ void main() {
 
       expect(metrics.placesCount, equals(0));
     });
+  });
+
+  group('EntrepreneurRepository post helpers', () {
+    test('sortPostsForDisplay ordena fijados y luego displayOrder', () {
+      const normalFirst = EntrepreneurPostModel(
+        id: 'normal-1',
+        title: 'Normal 1',
+        content: '',
+        isPublished: true,
+        displayOrder: 1,
+      );
+      const pinnedSecond = EntrepreneurPostModel(
+        id: 'pinned-2',
+        title: 'Pinned 2',
+        content: '',
+        isPublished: true,
+        isPinned: true,
+        displayOrder: 2,
+      );
+      const pinnedFirst = EntrepreneurPostModel(
+        id: 'pinned-1',
+        title: 'Pinned 1',
+        content: '',
+        isPublished: true,
+        isPinned: true,
+        displayOrder: 1,
+      );
+
+      final sorted = EntrepreneurRepository.sortPostsForDisplay([
+        normalFirst,
+        pinnedSecond,
+        pinnedFirst,
+      ]);
+
+      expect(sorted.map((post) => post.id), [
+        'pinned-1',
+        'pinned-2',
+        'normal-1',
+      ]);
+    });
+
+    test(
+      'buildPostReorderPayload sends post ids with zero-based positions',
+      () {
+        const posts = [
+          EntrepreneurPostModel(
+            id: 'post-b',
+            title: 'B',
+            content: '',
+            isPublished: true,
+          ),
+          EntrepreneurPostModel(
+            id: 'post-a',
+            title: 'A',
+            content: '',
+            isPublished: true,
+          ),
+        ];
+
+        final payload = EntrepreneurRepository.buildPostReorderPayload(posts);
+
+        expect(payload, [
+          {'post_id': 'post-b', 'position': 0},
+          {'post_id': 'post-a', 'position': 1},
+        ]);
+      },
+    );
   });
 }

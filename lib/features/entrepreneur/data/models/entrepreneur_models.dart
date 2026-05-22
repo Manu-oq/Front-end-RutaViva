@@ -54,6 +54,7 @@ class EntrepreneurPostModel {
   final String? imageUrl;
   final bool isPublished;
   final bool isPinned;
+  final int? displayOrder;
   final DateTime? scheduledAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -68,6 +69,7 @@ class EntrepreneurPostModel {
     this.imageUrl,
     required this.isPublished,
     this.isPinned = false,
+    this.displayOrder,
     this.scheduledAt,
     this.createdAt,
     this.updatedAt,
@@ -84,6 +86,13 @@ class EntrepreneurPostModel {
       imageUrl: json['image_url']?.toString(),
       isPublished: json['is_published'] as bool? ?? true,
       isPinned: json['is_pinned'] as bool? ?? false,
+      displayOrder: _readNullableInt(json, const [
+        'display_order',
+        'post_order',
+        'sort_order',
+        'position',
+        'order',
+      ]),
       scheduledAt: DateTime.tryParse((json['scheduled_at'] ?? '').toString()),
       createdAt: DateTime.tryParse((json['created_at'] ?? '').toString()),
       updatedAt: DateTime.tryParse((json['updated_at'] ?? '').toString()),
@@ -155,6 +164,18 @@ int _readInt(Map<String, dynamic> json, List<String> keys) {
     if (value is String) return int.tryParse(value) ?? 0;
   }
   return 0;
+}
+
+int? _readNullableInt(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is num) return value.round();
+    if (value is String) {
+      final parsed = int.tryParse(value);
+      if (parsed != null) return parsed;
+    }
+  }
+  return null;
 }
 
 double? _readDouble(Map<String, dynamic> json, List<String> keys) {

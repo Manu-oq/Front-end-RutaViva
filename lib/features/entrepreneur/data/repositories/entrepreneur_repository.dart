@@ -47,6 +47,11 @@ final poiPostsProvider =
       return ref.watch(entrepreneurRepositoryProvider).getPoiPosts(poiId);
     });
 
+final poiPublicPostsProvider = FutureProvider.autoDispose
+    .family<List<EntrepreneurPostModel>, String>((ref, poiId) async {
+      return ref.watch(entrepreneurRepositoryProvider).getPublicPoiPosts(poiId);
+    });
+
 class EntrepreneurRepository {
   final DioClient _client;
 
@@ -76,15 +81,8 @@ class EntrepreneurRepository {
 
   Future<List<EntrepreneurPostModel>> getMyPosts() async {
     try {
-      final response = await _client.get<List<dynamic>>(
-        '/entrepreneur/me/posts',
-      );
-      return (response.data ?? [])
-          .map(
-            (item) =>
-                EntrepreneurPostModel.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(growable: false);
+      final response = await _client.get<dynamic>('/entrepreneur/me/posts');
+      return _postListFromResponse(response.data);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
@@ -177,15 +175,10 @@ class EntrepreneurRepository {
 
   Future<List<EntrepreneurPostModel>> getPoiPosts(String poiId) async {
     try {
-      final response = await _client.get<List<dynamic>>(
+      final response = await _client.get<dynamic>(
         '/entrepreneur/pois/$poiId/posts',
       );
-      return (response.data ?? [])
-          .map(
-            (item) =>
-                EntrepreneurPostModel.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(growable: false);
+      return _postListFromResponse(response.data);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
@@ -268,14 +261,10 @@ class EntrepreneurRepository {
 
   Future<List<EntrepreneurPostModel>> getPublicPoiPosts(String poiId) async {
     try {
-      final response = await _client.get<List<dynamic>>('/pois/$poiId/posts');
-      return (response.data ?? [])
-          .map(
-            (item) =>
-                EntrepreneurPostModel.fromJson(item as Map<String, dynamic>),
-          )
-          .where((p) => p.isPublished)
-          .toList(growable: false);
+      final response = await _client.get<dynamic>('/pois/$poiId/posts');
+      return _postListFromResponse(
+        response.data,
+      ).where((p) => p.isPublished).toList(growable: false);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
@@ -293,5 +282,57 @@ class EntrepreneurRepository {
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
+  }
+
+  static List<Map<String, dynamic>> buildPostReorderPayload(
+    List<EntrepreneurPostModel> posts,
+  ) {
+    return posts
+        .asMap()
+        .entries
+        .map((entry) {
+          return {'post_id': entry.value.id, 'position': entry.key};
+        })
+        .toList(growable: false);
+  }
+
+  static List<EntrepreneurPostModel> sortPostsForDisplay(
+    List<EntrepreneurPostModel> posts,
+  ) {
+    final sorted = [...posts];
+    sorted.sort((a, b) {
+      if (a.isPinned != b.isPinned) {
+        return a.isPinned ? -1 : 1;
+      }
+      final aOrder = a.displayOrder;
+      final bOrder = b.displayOrder;
+      if (aOrder != null && bOrder != null && aOrder != bOrder) {
+        return aOrder.compareTo(bOrder);
+      }
+      if (aOrder != null && bOrder == null) return -1;
+      if (aOrder == null && bOrder != null) return 1;
+      final aDate = a.createdAt;
+      final bDate = b.createdAt;
+      if (aDate != null && bDate != null) {
+        return bDate.compareTo(aDate);
+      }
+      return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+    });
+    return sorted;
+  }
+
+  static List<EntrepreneurPostModel> _postListFromResponse(dynamic data) {
+    final list = switch (data) {
+      final List<dynamic> value => value,
+      {'items': final List<dynamic> value} => value,
+      {'posts': final List<dynamic> value} => value,
+      {'data': final List<dynamic> value} => value,
+      _ => const <dynamic>[],
+    };
+    final posts = list
+        .whereType<Map<String, dynamic>>()
+        .map(EntrepreneurPostModel.fromJson)
+        .toList(growable: false);
+    return sortPostsForDisplay(posts);
   }
 }

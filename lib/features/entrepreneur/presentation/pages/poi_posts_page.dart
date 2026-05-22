@@ -51,6 +51,9 @@ class _PoiPostsBody extends ConsumerStatefulWidget {
 
 class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
   static const maxPosts = 6;
+  List<EntrepreneurPostModel>? _optimisticPosts;
+  List<EntrepreneurPostModel> _lastRenderedPosts = const [];
+  bool _isReordering = false;
 
   Future<void> _openPostDialog({EntrepreneurPostModel? post}) async {
     final titleController = TextEditingController(text: post?.title ?? '');
@@ -94,7 +97,9 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
         }
       }
       ref.invalidate(poiPostsProvider(widget.poiId));
+      ref.invalidate(poiPublicPostsProvider(widget.poiId));
       if (!mounted) return;
+      setState(() => _optimisticPosts = null);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Post guardado.')));
@@ -112,7 +117,9 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
           .read(entrepreneurRepositoryProvider)
           .deletePoiPost(poiId: widget.poiId, postId: post.id);
       ref.invalidate(poiPostsProvider(widget.poiId));
+      ref.invalidate(poiPublicPostsProvider(widget.poiId));
       if (!mounted) return;
+      setState(() => _optimisticPosts = null);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Post eliminado.')));
@@ -134,6 +141,9 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
             pinned: !post.isPinned,
           );
       ref.invalidate(poiPostsProvider(widget.poiId));
+      ref.invalidate(poiPublicPostsProvider(widget.poiId));
+      if (!mounted) return;
+      setState(() => _optimisticPosts = null);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -143,28 +153,83 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
   }
 
   void _onReorder(int oldIndex, int newIndex) {
-    final postsAsync = ref.read(poiPostsProvider(widget.poiId));
-    final items = postsAsync.asData?.value;
-    if (items == null || items.length <= 1) return;
+    final items = _lastRenderedPosts;
+    if (_isReordering || items.length <= 1) return;
 
     final actualNew = newIndex > oldIndex ? newIndex - 1 : newIndex;
     final reordered = [...items];
     final item = reordered.removeAt(oldIndex);
     reordered.insert(actualNew, item);
 
-    final payload = {
-      'posts': reordered.asMap().entries.map((entry) {
-        return {'post_id': entry.value.id, 'position': entry.key};
-      }).toList(),
-    };
-    unawaited(
-      ref
+    setState(() {
+      _optimisticPosts = reordered;
+      _isReordering = true;
+    });
+
+    unawaited(_persistReorder(reordered, previous: items));
+  }
+
+  Future<void> _persistReorder(
+    List<EntrepreneurPostModel> reordered, {
+    required List<EntrepreneurPostModel> previous,
+  }) async {
+    final payload = EntrepreneurRepository.buildPostReorderPayload(reordered);
+    debugPrint('[POI posts] Reordering ${widget.poiId}: $payload');
+    try {
+      await ref
           .read(entrepreneurRepositoryProvider)
-          .reorderPoiPosts(
-            poiId: widget.poiId,
-            posts: payload['posts'] as List<Map<String, dynamic>>,
-          )
-          .catchError((_) {}),
+          .reorderPoiPosts(poiId: widget.poiId, posts: payload);
+      ref.invalidate(poiPublicPostsProvider(widget.poiId));
+      final refreshed = await ref.refresh(
+        poiPostsProvider(widget.poiId).future,
+      );
+      if (!mounted) return;
+      setState(() {
+        _optimisticPosts = refreshed;
+        _isReordering = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Orden de posts actualizado.')),
+      );
+    } catch (error) {
+      debugPrint('[POI posts] Reorder failed for ${widget.poiId}: $error');
+      if (!mounted) return;
+      setState(() {
+        _optimisticPosts = previous;
+        _isReordering = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos actualizar el orden.')),
+      );
+    }
+  }
+
+  List<EntrepreneurPostModel> _displayItems(List<EntrepreneurPostModel> items) {
+    final displayItems = _optimisticPosts ?? items;
+    _lastRenderedPosts = displayItems;
+    return displayItems;
+  }
+
+  Widget _reorderStatus(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Guardando nuevo orden...',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -225,7 +290,8 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
                     child: posts.when(
                       data: (items) {
-                        final canAdd = items.length < maxPosts;
+                        final displayItems = _displayItems(items);
+                        final canAdd = displayItems.length < maxPosts;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -246,7 +312,7 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
                                       const SizedBox(height: 4),
                                       Text(
                                         canAdd
-                                            ? '${items.length} de $maxPosts publicaciones'
+                                            ? '${displayItems.length} de $maxPosts publicaciones'
                                             : 'Límite de $maxPosts publicaciones alcanzado',
                                         style: theme.textTheme.bodyMedium,
                                       ),
@@ -265,7 +331,8 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            if (items.isEmpty)
+                            if (_isReordering) _reorderStatus(context),
+                            if (displayItems.isEmpty)
                               const EmptyStateWidget(
                                 icon: Icons.campaign_outlined,
                                 message:
@@ -275,7 +342,7 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
                               ReorderableListView.builder(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
-                                itemCount: items.length,
+                                itemCount: displayItems.length,
                                 onReorder: _onReorder,
                                 buildDefaultDragHandles: false,
                                 proxyDecorator: (child, index, anim) =>
@@ -284,14 +351,15 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
                                       child: child,
                                     ),
                                 itemBuilder: (context, index) {
-                                  final post = items[index];
+                                  final post = displayItems[index];
                                   return _PostItem(
                                     key: ValueKey(post.id),
+                                    index: index,
                                     post: post,
                                     onEdit: () => _openPostDialog(post: post),
                                     onDelete: () => _deletePost(post),
                                     onTogglePin: () => _togglePin(post),
-                                    isLast: index == items.length - 1,
+                                    isLast: index == displayItems.length - 1,
                                   );
                                 },
                               ),
@@ -319,6 +387,7 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
 }
 
 class _PostItem extends StatelessWidget {
+  final int index;
   final EntrepreneurPostModel post;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -327,6 +396,7 @@ class _PostItem extends StatelessWidget {
 
   const _PostItem({
     super.key,
+    required this.index,
     required this.post,
     required this.onEdit,
     required this.onDelete,
@@ -359,13 +429,15 @@ class _PostItem extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ReorderableDragStartListener(
-                index: 0,
+                index: index,
                 child: Icon(
                   Icons.drag_handle_rounded,
                   color: theme.colorScheme.onSurfaceVariant,
                   size: 20,
                 ),
               ),
+              const SizedBox(width: 8),
+              _PostOrderBadge(index: index + 1),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -453,6 +525,33 @@ class _ProxyDecorator extends StatelessWidget {
         );
       },
       child: child,
+    );
+  }
+}
+
+class _PostOrderBadge extends StatelessWidget {
+  final int index;
+
+  const _PostOrderBadge({required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$index',
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }
