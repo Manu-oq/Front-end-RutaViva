@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/network/api_provider.dart';
 import '../../../../core/network/dio_client.dart';
@@ -27,12 +28,27 @@ class ItineraryRepository {
 
   const ItineraryRepository(this._client);
 
-  Future<List<ItineraryModel>> getMyItineraries() async {
+  Future<List<ItineraryModel>> getMyItineraries({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final paginated = await getMyItinerariesPage(
+      page: page,
+      pageSize: pageSize,
+    );
+    return paginated.items;
+  }
+
+  Future<PaginatedItinerariesModel> getMyItinerariesPage({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
     try {
-      final response = await _client.get<List<dynamic>>('/itineraries/');
-      return (response.data ?? [])
-          .map((item) => ItineraryModel.fromJson(item as Map<String, dynamic>))
-          .toList();
+      final response = await _client.get<Map<String, dynamic>>(
+        '/itineraries/',
+        queryParameters: {'page': page, 'page_size': pageSize},
+      );
+      return PaginatedItinerariesModel.fromJson(response.data ?? const {});
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
@@ -86,6 +102,49 @@ class ItineraryRepository {
         data: {'poi_id': poiId},
       );
       return _parseItineraryOrFetch(response.data, itineraryId);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<ItineraryModel> addStep({
+    required String itineraryId,
+    required String poiId,
+    DateTime? arrivalTime,
+    DateTime? departureTime,
+    Map<String, dynamic>? aiContext,
+  }) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/itineraries/$itineraryId/steps',
+        data: {
+          'poi_id': poiId,
+          // ignore: use_null_aware_elements
+          if (arrivalTime != null)
+            'arrival_time': arrivalTime.toUtc().toIso8601String(),
+          // ignore: use_null_aware_elements
+          if (departureTime != null)
+            'departure_time': departureTime.toUtc().toIso8601String(),
+          // ignore: use_null_aware_elements
+          if (aiContext != null) 'ai_context': aiContext,
+        },
+      );
+      return ItineraryModel.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<ItineraryModel> updateStatus({
+    required String itineraryId,
+    required String status,
+  }) async {
+    try {
+      final response = await _client.patch<Map<String, dynamic>>(
+        '/itineraries/$itineraryId/status',
+        data: {'status': status},
+      );
+      return ItineraryModel.fromJson(response.data!);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
@@ -170,6 +229,79 @@ class ItineraryRepository {
         '/itineraries/$itineraryId/weather',
       );
       return response.data ?? const {};
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<StepVisitModel> markStepVisited({
+    required String itineraryId,
+    required String stepId,
+    String? note,
+  }) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/itineraries/$itineraryId/steps/$stepId/visit',
+        data: {
+          // ignore: use_null_aware_elements
+          if (note != null) 'note': note,
+        },
+      );
+      return StepVisitModel.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<List<StepVisitModel>> getVisits(String itineraryId) async {
+    try {
+      final response = await _client.get<List<dynamic>>(
+        '/itineraries/$itineraryId/visits',
+      );
+      return (response.data ?? [])
+          .map((item) => StepVisitModel.fromJson(item as Map<String, dynamic>))
+          .toList(growable: false);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<ItineraryExportModel> exportItinerary(String itineraryId) async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/itineraries/$itineraryId/export',
+      );
+      return ItineraryExportModel.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<ItineraryShareModel> shareItinerary(String itineraryId) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/itineraries/$itineraryId/share',
+      );
+      return ItineraryShareModel.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<void> deleteShare(String itineraryId) async {
+    try {
+      await _client.delete<void>('/itineraries/$itineraryId/share');
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<ItineraryExportModel> getSharedItinerary(String publicId) async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '${ApiConstants.backendOrigin}/share/$publicId',
+      );
+      return ItineraryExportModel.fromJson(response.data!);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }

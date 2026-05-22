@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/error_banner.dart';
 import '../../../../core/widgets/terms_and_conditions.dart';
 import '../../../onboarding/presentation/providers/interests_provider.dart';
 import '../../../onboarding/presentation/widgets/interests_selector.dart';
@@ -24,6 +25,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   bool _hasOwnTransport = false;
   bool _obscurePassword = true;
   bool _acceptedTerms = false;
+  bool _termsError = false;
   String? _errorMessage;
 
   @override
@@ -41,13 +43,29 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     }
 
     if (!_acceptedTerms) {
-      setState(
-        () => _errorMessage = 'Debes aceptar los términos y condiciones.',
-      );
-      return;
+      setState(() {
+        _termsError = true;
+        _errorMessage = null;
+      });
+      final accepted = await showTermsAndConditionsDialog(context);
+      if (!mounted) return;
+      if (!accepted) {
+        setState(
+          () => _errorMessage =
+              'Debes aceptar los términos y condiciones para crear tu cuenta.',
+        );
+        return;
+      }
+      setState(() {
+        _acceptedTerms = true;
+        _termsError = false;
+      });
     }
 
-    setState(() => _errorMessage = null);
+    setState(() {
+      _errorMessage = null;
+      _termsError = false;
+    });
 
     final selectedInterests = ref.read(interestsProvider);
     final success = await ref
@@ -114,38 +132,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     if (_errorMessage != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.error,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.error_outline,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                onPressed: () =>
-                                    setState(() => _errorMessage = null),
-                              ),
-                            ],
-                          ),
+                        child: ErrorBanner(
+                          message: _errorMessage!,
+                          onDismiss: () => setState(() => _errorMessage = null),
                         ),
                       ),
                     TextFormField(
@@ -203,8 +192,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         ),
                       ),
                       validator: (value) {
-                        if ((value ?? '').length < 6) {
-                          return 'Usa al menos 6 caracteres.';
+                        if ((value ?? '').length < 8) {
+                          return 'La contraseña debe tener al menos 8 caracteres.';
                         }
                         return null;
                       },
@@ -252,16 +241,27 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     const SizedBox(height: 16),
                     const InterestsSelector(),
                     const SizedBox(height: 32),
-                    TermsAndConditionsSection(
+                    TermsAcceptanceCard(
                       enabled: !authState.isLoading,
-                      onChanged: (accepted) =>
-                          setState(() => _acceptedTerms = accepted),
+                      accepted: _acceptedTerms,
+                      hasError: _termsError,
+                      onOpenTerms: () async {
+                        final accepted = await showTermsAndConditionsDialog(
+                          context,
+                        );
+                        if (!mounted || !accepted) return;
+                        setState(() {
+                          _acceptedTerms = true;
+                          _termsError = false;
+                          _errorMessage = null;
+                        });
+                      },
                     ),
                     const SizedBox(height: 24),
                     CustomButton(
                       text: 'Crear cuenta y entrar',
                       isLoading: authState.isLoading,
-                      onPressed: _acceptedTerms ? _submit : () {},
+                      onPressed: _submit,
                     ),
                     const SizedBox(height: 16),
                     Center(

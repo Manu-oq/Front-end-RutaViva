@@ -135,7 +135,7 @@ void main() {
         name: 'Café del Lago',
         description: 'Café local con productos regionales',
         accessType: 'public',
-        imageUrl: 'https://example.com/cafe.jpg',
+        imageUrl: '/media/cafe.jpg',
         latitude: -39.27,
         longitude: -71.97,
         contactPhone: '',
@@ -149,7 +149,7 @@ void main() {
         equals('Café local con productos regionales'),
       );
       expect(body['access_type'], equals('public'));
-      expect(body['image_url'], equals('https://example.com/cafe.jpg'));
+      expect(body['image_url'], equals('/media/cafe.jpg'));
       expect(body['contact_phone'], isNull);
       expect(body['contact_email'], equals('hola@example.com'));
       expect(body['category_ids'], equals([1, 2]));
@@ -167,7 +167,7 @@ void main() {
       final body = PoiRepository.updatePoiRequestBodyForTesting(
         name: 'Sendero',
         description: 'Sendero con guía comunitaria',
-        accessType: 'reservation',
+        accessType: 'restricted',
         latitude: -39.1,
         longitude: -72.2,
       );
@@ -177,6 +177,20 @@ void main() {
       expect(body.keys, isNot(contains('image_url')));
       expect(body.keys, isNot(contains('latitud')));
       expect(body.keys, isNot(contains('longitud')));
+    });
+
+    test('create body allows empty image_url when user skips upload', () {
+      final body = PoiRepository.createPoiRequestBodyForTesting(
+        name: 'Mirador local',
+        description: 'Mirador recomendado por la comunidad',
+        accessType: 'private',
+        imageUrl: '',
+        latitude: -39.2,
+        longitude: -71.9,
+      );
+
+      expect(body['image_url'], equals(''));
+      expect(body['access_type'], equals('private'));
     });
   });
 }

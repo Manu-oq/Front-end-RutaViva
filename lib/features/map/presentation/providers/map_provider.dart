@@ -8,7 +8,13 @@ const araucaniaDefaultCenter = LatLng(-39.35, -71.70);
 const defaultSearchRadiusMeters = 30000.0;
 
 class MapState {
+  /// Canonical/global POIs loaded from nearby/search endpoints.
+  ///
+  /// Temporary map views must not mutate this list; Home and other global
+  /// surfaces rely on it staying intact.
   final List<MapPoint> points;
+  final List<MapPoint> itineraryPoints;
+  final MapPoint? focusedPoint;
   final MapPoint? selectedPoint;
   final bool isLoading;
   final String? errorMessage;
@@ -20,7 +26,9 @@ class MapState {
   MapState({
     required this.points,
     required this.center,
+    this.itineraryPoints = const [],
     Set<int> selectedCategoryIds = const {},
+    this.focusedPoint,
     this.selectedPoint,
     this.isLoading = false,
     this.errorMessage,
@@ -30,8 +38,20 @@ class MapState {
 
   bool get isGlobalMode => filteredItineraryId == null && focusedPoiId == null;
 
+  List<MapPoint> get visiblePoints {
+    if (focusedPoint != null) {
+      return [focusedPoint!];
+    }
+    if (filteredItineraryId != null) {
+      return itineraryPoints;
+    }
+    return points;
+  }
+
   MapState copyWith({
     List<MapPoint>? points,
+    List<MapPoint>? itineraryPoints,
+    MapPoint? focusedPoint,
     MapPoint? selectedPoint,
     bool clearSelection = false,
     bool? isLoading,
@@ -46,6 +66,12 @@ class MapState {
   }) {
     return MapState(
       points: points ?? this.points,
+      itineraryPoints: clearFilteredItinerary
+          ? const []
+          : (itineraryPoints ?? this.itineraryPoints),
+      focusedPoint: clearFocusedPoi
+          ? null
+          : (focusedPoint ?? this.focusedPoint),
       selectedPoint: clearSelection
           ? null
           : (selectedPoint ?? this.selectedPoint),
@@ -163,7 +189,7 @@ class MapNotifier extends Notifier<MapState> {
   }) {
     if (points.isEmpty) {
       state = state.copyWith(
-        points: const [],
+        itineraryPoints: const [],
         filteredItineraryId: itineraryId,
         clearFocusedPoi: true,
         clearSelection: true,
@@ -172,7 +198,7 @@ class MapNotifier extends Notifier<MapState> {
     }
 
     state = state.copyWith(
-      points: points,
+      itineraryPoints: points,
       center: points.first.coordinates,
       filteredItineraryId: itineraryId,
       clearFocusedPoi: true,
@@ -184,7 +210,7 @@ class MapNotifier extends Notifier<MapState> {
 
   void showSinglePoi(MapPoint point) {
     state = state.copyWith(
-      points: [point],
+      focusedPoint: point,
       selectedPoint: point,
       center: point.coordinates,
       focusedPoiId: point.id,

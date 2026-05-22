@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
@@ -22,11 +23,16 @@ import '../../features/user_profile/presentation/pages/profile_screen.dart';
 import 'app_routes.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+  final authRefresh = _GoRouterRefreshStream();
+  ref
+    ..onDispose(authRefresh.dispose)
+    ..listen<AuthState>(authProvider, (previous, next) => authRefresh.notify());
 
   return GoRouter(
     initialLocation: AppRoutes.login,
+    refreshListenable: authRefresh,
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
       final isPublicAuthRoute =
           state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register;
@@ -80,11 +86,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.editProfile,
         name: AppRouteNames.editProfile,
         builder: (context, state) => const EditProfilePage(),
-      ),
-      GoRoute(
-        path: AppRoutes.chat,
-        name: 'chat_focused',
-        builder: (context, state) => const ChatScreen(),
       ),
       GoRoute(
         path: AppRoutes.entrepreneur,
@@ -171,3 +172,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _GoRouterRefreshStream extends ChangeNotifier {
+  void notify() => notifyListeners();
+}

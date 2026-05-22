@@ -86,6 +86,10 @@ class MistNavigation extends ConsumerWidget {
   void _onItemTapped(int index, BuildContext context, WidgetRef ref) {
     switch (index) {
       case 0:
+        final mapState = ref.read(mapProvider);
+        if (!mapState.isGlobalMode && mapState.points.isEmpty) {
+          ref.read(mapProvider.notifier).loadNearby(center: mapState.center);
+        }
         context.goNamed(AppRouteNames.home);
       case 1:
         context.goNamed(AppRouteNames.chat);

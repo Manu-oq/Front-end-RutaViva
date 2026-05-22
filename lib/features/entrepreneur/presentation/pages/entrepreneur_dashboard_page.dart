@@ -5,6 +5,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_back_button.dart';
+import '../../../../core/widgets/error_banner.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/entrepreneur_models.dart';
 import '../../data/repositories/entrepreneur_repository.dart';
@@ -70,7 +71,9 @@ class _ActivateEntrepreneurPanel extends ConsumerStatefulWidget {
 
 class _ActivateEntrepreneurPanelState
     extends ConsumerState<_ActivateEntrepreneurPanel> {
+  final _formKey = GlobalKey<FormState>();
   final _rutController = TextEditingController();
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -79,14 +82,26 @@ class _ActivateEntrepreneurPanelState
   }
 
   Future<void> _activate() async {
+    if (!_formKey.currentState!.validate()) {
+      setState(() {
+        _errorMessage = 'Ingresa tu RUT para activar el modo emprendedor.';
+      });
+      return;
+    }
+
     final rut = _rutController.text.trim();
+    debugPrint(
+      '[Entrepreneur] Activating entrepreneur profile for current user',
+    );
     final success = await ref
         .read(authProvider.notifier)
-        .activateEntrepreneurProfile(rut: rut.isNotEmpty ? rut : null);
+        .activateEntrepreneurProfile(rut: rut);
 
     if (!mounted) return;
 
     if (success) {
+      debugPrint('[Entrepreneur] Entrepreneur profile activated successfully');
+      setState(() => _errorMessage = null);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Modo emprendedor activado.')),
       );
@@ -97,9 +112,8 @@ class _ActivateEntrepreneurPanelState
     final message =
         ref.read(authProvider).errorMessage ??
         'No se pudo activar el modo emprendedor.';
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    debugPrint('[Entrepreneur] Activation failed: $message');
+    setState(() => _errorMessage = message);
   }
 
   @override
@@ -133,47 +147,60 @@ class _ActivateEntrepreneurPanelState
                   border: Border.all(color: theme.colorScheme.outlineVariant),
                   boxShadow: AppColors.ambientShadow,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Verificación de identidad',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Verificación de identidad',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Ingresa tu RUT chileno para verificar tu perfil emprendedor. Es opcional.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      const SizedBox(height: 6),
+                      Text(
+                        'Ingresa tu RUT chileno para verificar tu perfil emprendedor.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _rutController,
-                      enabled: !widget.isLoading,
-                      decoration: const InputDecoration(
-                        labelText: 'RUT (opcional)',
-                        hintText: '12345678-9',
-                        prefixIcon: Icon(Icons.badge_outlined),
+                      const SizedBox(height: 14),
+                      if (_errorMessage != null) ...[
+                        ErrorBanner(
+                          message: _errorMessage!,
+                          onDismiss: () => setState(() => _errorMessage = null),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                      TextFormField(
+                        controller: _rutController,
+                        enabled: !widget.isLoading,
+                        decoration: const InputDecoration(
+                          labelText: 'RUT',
+                          hintText: '12345678-9',
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
+                        validator: _validateRut,
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: widget.isLoading ? null : _activate,
-                      icon: widget.isLoading
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.verified_user_outlined),
-                      label: Text(
-                        widget.isLoading ? 'Activando...' : 'Activar modo',
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: widget.isLoading ? null : _activate,
+                        icon: widget.isLoading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.verified_user_outlined),
+                        label: Text(
+                          widget.isLoading ? 'Activando...' : 'Activar modo',
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -181,6 +208,19 @@ class _ActivateEntrepreneurPanelState
         ),
       ),
     );
+  }
+
+  String? _validateRut(String? value) {
+    final rut = (value ?? '').trim();
+    if (rut.isEmpty) {
+      return 'El RUT es obligatorio para activar el modo emprendedor.';
+    }
+    final normalized = rut.replaceAll('.', '').toUpperCase();
+    final pattern = RegExp(r'^\d{7,8}-[\dK]$');
+    if (!pattern.hasMatch(normalized)) {
+      return 'Ingresa un RUT válido, por ejemplo 12345678-9.';
+    }
+    return null;
   }
 }
 

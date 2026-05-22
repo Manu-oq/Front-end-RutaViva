@@ -24,9 +24,6 @@ enum AraChatUiState {
 }
 
 class ChatNotifier extends Notifier<List<MessageEntity>> {
-  static const _generationPollingInterval = Duration(milliseconds: 2500);
-  static const _generationMaxPollingAttempts = 48;
-
   String? _sessionId;
   DateTime? _sessionStartDate;
   DateTime? _sessionEndDate;
@@ -249,7 +246,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
 
   Future<bool> _runItineraryGeneration({String? finalInstruction}) async {
     _uiState = AraChatUiState.generatingItinerary;
-    final typing = MessageEntity(
+    var typing = MessageEntity(
       text:
           'Ara está armando tu itinerario…\nPuedes seguir navegando mientras preparo la ruta.',
       isUser: false,
@@ -259,14 +256,41 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     state = [...state, typing];
 
     try {
-      await ref
-          .read(araRepositoryProvider)
-          .startItineraryGenerationAsync(
-            sessionId: _sessionId!,
-            finalInstruction: finalInstruction,
-          );
-      _uiState = AraChatUiState.pollingGeneration;
-      final response = await _pollGeneratedItinerary(_sessionId!);
+      AraGenerateItineraryResponse? response;
+      await for (final event
+          in ref
+              .read(araRepositoryProvider)
+              .generateItineraryStream(
+                sessionId: _sessionId!,
+                finalInstruction: finalInstruction,
+              )) {
+        switch (event) {
+          case AraGenerationStatusEvent():
+            final message = event.message.trim().isEmpty
+                ? 'Ara está armando tu itinerario…'
+                : event.message.trim();
+            final nextTyping = MessageEntity(
+              text: message,
+              isUser: false,
+              timestamp: DateTime.now(),
+              isTyping: true,
+            );
+            state = [
+              for (final message in state)
+                if (identical(message, typing)) nextTyping else message,
+            ];
+            typing = nextTyping;
+          case AraGenerationResultEvent():
+            response = event.response;
+          case AraGenerationErrorEvent():
+            throw ApiException(message: event.message);
+        }
+      }
+      if (response == null) {
+        throw const ApiException(
+          message: 'Ara no entregó un itinerario al finalizar.',
+        );
+      }
       ref.read(itineraryProvider.notifier).setCurrent(response.itinerary);
       _uiState = AraChatUiState.idle;
       _isBusy = false;
@@ -309,73 +333,6 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     }
   }
 
-  Future<AraGenerateItineraryResponse> _pollGeneratedItinerary(
-    String sessionId,
-  ) async {
-    var transientFailures = 0;
-    for (var attempt = 0; attempt < _generationMaxPollingAttempts; attempt++) {
-      if (attempt > 0) {
-        await Future<void>.delayed(_generationPollingInterval);
-      }
-
-      late final AraItineraryGenerationStatus status;
-      try {
-        status = await ref
-            .read(araRepositoryProvider)
-            .getGenerationStatus(sessionId: sessionId);
-        transientFailures = 0;
-      } catch (error) {
-        transientFailures++;
-        if (transientFailures <= 3) {
-          continue;
-        }
-        rethrow;
-      }
-      final normalized = status.status.trim().toLowerCase();
-
-      if (normalized == 'queued' || normalized == 'generating') {
-        continue;
-      }
-
-      if (normalized == 'completed') {
-        final itinerary =
-            status.itinerary ??
-            await _fetchGeneratedItinerary(status.generatedItineraryId);
-        if (itinerary == null) {
-          throw const ApiException(
-            message:
-                'Ara terminó la generación, pero no recibimos el itinerario.',
-          );
-        }
-        return AraGenerateItineraryResponse(
-          sessionId: status.sessionId,
-          status: status.status,
-          itinerary: itinerary,
-        );
-      }
-
-      if (normalized == 'failed') {
-        throw ApiException(
-          message:
-              status.detail ??
-              'No pude armar el itinerario esta vez. Intenta ajustar tu búsqueda o vuelve a intentarlo.',
-        );
-      }
-    }
-
-    throw const ApiException(
-      message:
-          'Ara sigue preparando tu itinerario. Vuelve a intentarlo en unos segundos.',
-    );
-  }
-
-  Future<ItineraryModel?> _fetchGeneratedItinerary(String? itineraryId) {
-    if (itineraryId == null || itineraryId.trim().isEmpty) {
-      return Future<ItineraryModel?>.value(null);
-    }
-    return ref.read(itineraryRepositoryProvider).getItineraryById(itineraryId);
-  }
-
   List<MessageEntity> _localThinkingMessages() {
     final now = DateTime.now();
     const messages = [
@@ -395,7 +352,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
 
   Future<void> _replaceThinkingWithSession(AraSessionModel session) async {
     final assistantMessage = session.assistantMessage;
-    final assistantText = assistantMessage?.content.trim() ?? '';
+    final assistantText = session.assistantText;
     final turnType = assistantMessage?.turnType?.trim().toLowerCase();
     final normalizedStatus = session.status.trim().toLowerCase();
     final isStepReplacementCompleted = normalizedStatus == 'step_replaced';
@@ -449,9 +406,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     ];
 
     if (turnType == 'generate_request') {
-      final instruction = session.userMessage?.content.trim().isNotEmpty == true
-          ? session.userMessage!.content
-          : 'Haz una ruta sorpresa equilibrada';
+      const instruction = 'Haz una ruta sorpresa equilibrada';
       _isBusy = true;
       await _runItineraryGeneration(finalInstruction: instruction);
     }
@@ -543,6 +498,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
             imageUrl: candidate.imageUrl,
             distanceMeters: candidate.distanceMeters,
             actionValue: candidate.actionValue,
+            poiRole: candidate.poiRole,
           ),
     ];
   }

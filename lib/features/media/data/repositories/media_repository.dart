@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/network/api_provider.dart';
 import '../../../../core/network/dio_client.dart';
@@ -33,7 +32,7 @@ class MediaRepository {
           message: 'No se pudo obtener la URL de la imagen.',
         );
       }
-      return ApiConstants.resolveBackendUrl(url) ?? url;
+      return url;
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }

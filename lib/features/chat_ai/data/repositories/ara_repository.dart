@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
@@ -69,6 +72,81 @@ class AraRepository {
             : {'final_instruction': finalInstruction.trim()},
       );
       return AraGenerateItineraryResponse.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Stream<AraGenerationStreamEvent> generateItineraryStream({
+    required String sessionId,
+    String? finalInstruction,
+  }) async* {
+    try {
+      final response = await _client.post<ResponseBody>(
+        '/ara/sessions/$sessionId/generate-itinerary/stream',
+        data: finalInstruction == null || finalInstruction.trim().isEmpty
+            ? null
+            : {'final_instruction': finalInstruction.trim()},
+        options: Options(
+          responseType: ResponseType.stream,
+          headers: {'Accept': 'text/event-stream'},
+        ),
+      );
+
+      final body = response.data;
+      if (body == null) {
+        throw const ApiException(message: 'Ara no inició el streaming.');
+      }
+
+      String? eventName;
+      final dataLines = <String>[];
+
+      AraGenerationStreamEvent? flushEvent() {
+        if (eventName == null && dataLines.isEmpty) return null;
+        final currentEvent = eventName ?? 'message';
+        final rawData = dataLines.join('\n');
+        eventName = null;
+        dataLines.clear();
+        if (rawData.trim().isEmpty) return null;
+
+        final decoded = jsonDecode(rawData);
+        final json = decoded is Map<String, dynamic>
+            ? decoded
+            : Map<String, dynamic>.from(decoded as Map);
+
+        return switch (currentEvent) {
+          'status' => AraGenerationStatusEvent.fromJson(json),
+          'result' => AraGenerationResultEvent(
+            AraGenerateItineraryResponse.fromJson(json),
+          ),
+          'error' => AraGenerationErrorEvent(
+            (json['message'] ?? 'Ara no pudo generar el itinerario.')
+                .toString(),
+          ),
+          _ => null,
+        };
+      }
+
+      await for (final line
+          in body.stream
+              .cast<List<int>>()
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())) {
+        if (line.isEmpty) {
+          final event = flushEvent();
+          if (event != null) yield event;
+          continue;
+        }
+        if (line.startsWith(':')) continue;
+        if (line.startsWith('event:')) {
+          eventName = line.substring('event:'.length).trim();
+        } else if (line.startsWith('data:')) {
+          dataLines.add(line.substring('data:'.length).trimLeft());
+        }
+      }
+
+      final event = flushEvent();
+      if (event != null) yield event;
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }

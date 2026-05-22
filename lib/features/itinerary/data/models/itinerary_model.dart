@@ -1,3 +1,5 @@
+import '../../../../core/utils/public_text_sanitizer.dart';
+
 class ItineraryModel {
   final String id;
   final String touristId;
@@ -78,6 +80,8 @@ class ItineraryStepModel {
   final DateTime? dayDate;
   final String? dayLabel;
   final Map<String, dynamic>? aiContext;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const ItineraryStepModel({
     required this.id,
@@ -92,6 +96,8 @@ class ItineraryStepModel {
     this.dayDate,
     this.dayLabel,
     this.aiContext,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory ItineraryStepModel.fromJson(Map<String, dynamic> json) {
@@ -100,7 +106,9 @@ class ItineraryStepModel {
       itineraryId: json['itinerary_id'] as String,
       poiId: json['poi_id'] as String,
       poiNombre: json['poi_nombre'] as String?,
-      poiDescripcion: json['poi_descripcion'] as String?,
+      poiDescripcion: PublicTextSanitizer.cleanOptional(
+        json['poi_descripcion'] as String?,
+      ),
       stepOrder: (json['step_order'] as num).toInt(),
       arrivalTime: _parseDateTime(json['arrival_time'] as String?),
       departureTime: _parseDateTime(json['departure_time'] as String?),
@@ -108,6 +116,8 @@ class ItineraryStepModel {
       dayDate: ItineraryModel._parseDate(json['day_date'] as String?),
       dayLabel: json['day_label'] as String?,
       aiContext: json['ai_context'] as Map<String, dynamic>?,
+      createdAt: _parseDateTime(json['created_at'] as String?),
+      updatedAt: _parseDateTime(json['updated_at'] as String?),
     );
   }
 
@@ -115,7 +125,9 @@ class ItineraryStepModel {
       aiContext?['title']?.toString() ?? poiNombre ?? 'Parada $stepOrder';
 
   String get reason {
-    final reasonRaw = aiContext?['reason']?.toString() ?? '';
+    final reasonRaw =
+        PublicTextSanitizer.cleanOptional(aiContext?['reason']?.toString()) ??
+        '';
     if (reasonRaw.isEmpty ||
         reasonRaw.contains('reemplazado') ||
         reasonRaw.contains('placeholder') ||
@@ -126,7 +138,8 @@ class ItineraryStepModel {
     return reasonRaw;
   }
 
-  String get tips => aiContext?['tips']?.toString() ?? '';
+  String get tips =>
+      PublicTextSanitizer.cleanOptional(aiContext?['tips']?.toString()) ?? '';
 
   String get recommendedDuration =>
       aiContext?['recommended_duration']?.toString() ?? '';
@@ -145,6 +158,8 @@ class ItineraryStepModel {
       'day_date': dayDate == null ? null : ItineraryModel._dateOnly(dayDate!),
       'day_label': dayLabel,
       'ai_context': aiContext,
+      'created_at': createdAt?.toLocal().toIso8601String(),
+      'updated_at': updatedAt?.toLocal().toIso8601String(),
     };
   }
 
@@ -176,6 +191,8 @@ class ItineraryStepModel {
     DateTime? dayDate,
     String? dayLabel,
     Map<String, dynamic>? aiContext,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return ItineraryStepModel(
       id: id,
@@ -190,6 +207,167 @@ class ItineraryStepModel {
       dayDate: dayDate ?? this.dayDate,
       dayLabel: dayLabel ?? this.dayLabel,
       aiContext: aiContext ?? this.aiContext,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+}
+
+class PaginatedItinerariesModel {
+  final List<ItineraryModel> items;
+  final int total;
+  final int page;
+  final int pageSize;
+  final int totalPages;
+
+  const PaginatedItinerariesModel({
+    required this.items,
+    required this.total,
+    required this.page,
+    required this.pageSize,
+    required this.totalPages,
+  });
+
+  factory PaginatedItinerariesModel.fromJson(Map<String, dynamic> json) {
+    return PaginatedItinerariesModel(
+      items: (json['items'] as List<dynamic>? ?? [])
+          .map((item) => ItineraryModel.fromJson(item as Map<String, dynamic>))
+          .toList(growable: false),
+      total: (json['total'] as num? ?? 0).toInt(),
+      page: (json['page'] as num? ?? 1).toInt(),
+      pageSize: (json['page_size'] as num? ?? 20).toInt(),
+      totalPages: (json['total_pages'] as num? ?? 1).toInt(),
+    );
+  }
+}
+
+class StepVisitModel {
+  final String id;
+  final String stepId;
+  final String poiId;
+  final DateTime? visitedAt;
+  final String source;
+  final String? note;
+
+  const StepVisitModel({
+    required this.id,
+    required this.stepId,
+    required this.poiId,
+    this.visitedAt,
+    required this.source,
+    this.note,
+  });
+
+  factory StepVisitModel.fromJson(Map<String, dynamic> json) {
+    return StepVisitModel(
+      id: json['id'].toString(),
+      stepId: json['step_id'].toString(),
+      poiId: json['poi_id'].toString(),
+      visitedAt: ItineraryStepModel._parseDateTime(
+        json['visited_at'] as String?,
+      ),
+      source: (json['source'] ?? 'itinerary').toString(),
+      note: json['note']?.toString(),
+    );
+  }
+}
+
+class ItineraryExportStepModel {
+  final int day;
+  final DateTime? date;
+  final int order;
+  final String poiName;
+  final String? poiDescription;
+  final String? poiAddress;
+  final String? arrivalTime;
+  final String? departureTime;
+  final String? tips;
+  final Map<String, dynamic>? weather;
+  final double? latitude;
+  final double? longitude;
+
+  const ItineraryExportStepModel({
+    required this.day,
+    this.date,
+    required this.order,
+    required this.poiName,
+    this.poiDescription,
+    this.poiAddress,
+    this.arrivalTime,
+    this.departureTime,
+    this.tips,
+    this.weather,
+    this.latitude,
+    this.longitude,
+  });
+
+  factory ItineraryExportStepModel.fromJson(Map<String, dynamic> json) {
+    return ItineraryExportStepModel(
+      day: (json['day'] as num? ?? 0).toInt(),
+      date: ItineraryModel._parseDate(json['date'] as String?),
+      order: (json['order'] as num? ?? 0).toInt(),
+      poiName: (json['poi_name'] ?? '').toString(),
+      poiDescription: json['poi_description']?.toString(),
+      poiAddress: json['poi_address']?.toString(),
+      arrivalTime: json['arrival_time']?.toString(),
+      departureTime: json['departure_time']?.toString(),
+      tips: json['tips']?.toString(),
+      weather: json['weather'] as Map<String, dynamic>?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+    );
+  }
+}
+
+class ItineraryExportModel {
+  final String title;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final List<ItineraryExportStepModel> steps;
+  final int totalDays;
+  final int totalSteps;
+  final DateTime? generatedAt;
+
+  const ItineraryExportModel({
+    required this.title,
+    this.startDate,
+    this.endDate,
+    this.steps = const [],
+    required this.totalDays,
+    required this.totalSteps,
+    this.generatedAt,
+  });
+
+  factory ItineraryExportModel.fromJson(Map<String, dynamic> json) {
+    return ItineraryExportModel(
+      title: (json['title'] ?? '').toString(),
+      startDate: ItineraryModel._parseDate(json['start_date'] as String?),
+      endDate: ItineraryModel._parseDate(json['end_date'] as String?),
+      steps: (json['steps'] as List<dynamic>? ?? [])
+          .map(
+            (item) =>
+                ItineraryExportStepModel.fromJson(item as Map<String, dynamic>),
+          )
+          .toList(growable: false),
+      totalDays: (json['total_days'] as num? ?? 0).toInt(),
+      totalSteps: (json['total_steps'] as num? ?? 0).toInt(),
+      generatedAt: ItineraryStepModel._parseDateTime(
+        json['generated_at'] as String?,
+      ),
+    );
+  }
+}
+
+class ItineraryShareModel {
+  final String shareUrl;
+  final String publicId;
+
+  const ItineraryShareModel({required this.shareUrl, required this.publicId});
+
+  factory ItineraryShareModel.fromJson(Map<String, dynamic> json) {
+    return ItineraryShareModel(
+      shareUrl: (json['share_url'] ?? '').toString(),
+      publicId: (json['public_id'] ?? '').toString(),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:latlong2/latlong.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/utils/public_text_sanitizer.dart';
 import '../../domain/entities/map_point.dart';
 
 class VisitRulesModel {
@@ -51,6 +52,7 @@ class PoiModel {
   final String? contactPhone;
   final String? contactEmail;
   final dynamic multimediaUrls;
+  final String? imageUrl;
   final String? openingHoursText;
   final VisitRulesModel? visitRules;
   final List<int> categoryIds;
@@ -68,6 +70,7 @@ class PoiModel {
     this.contactPhone,
     this.contactEmail,
     this.multimediaUrls,
+    this.imageUrl,
     this.openingHoursText,
     this.visitRules,
     required this.categoryIds,
@@ -83,11 +86,14 @@ class PoiModel {
     return PoiModel(
       id: json['id'] as String,
       name: json['name'] as String,
-      description: json['description'] as String,
+      description: PublicTextSanitizer.cleanDescription(
+        json['description'] as String?,
+      ),
       accessType: json['access_type'] as String,
       contactPhone: json['contact_phone'] as String?,
       contactEmail: json['contact_email'] as String?,
       multimediaUrls: json['multimedia_urls'],
+      imageUrl: json['image_url'] as String?,
       openingHoursText: json['opening_hours_text'] as String?,
       visitRules: rawVisitRules is Map<String, dynamic>
           ? VisitRulesModel.fromJson(rawVisitRules)
@@ -107,12 +113,14 @@ class PoiModel {
     return MapPoint(
       id: id,
       name: name,
-      description: description,
+      description: PublicTextSanitizer.cleanOptional(description),
       phone: contactPhone,
       email: contactEmail,
       categoryIds: categoryIds,
       coordinates: LatLng(latitude, longitude),
-      imageUrl: ApiConstants.resolveBackendUrl(_firstMediaUrl(multimediaUrls)),
+      imageUrl: ApiConstants.resolveBackendUrl(
+        _firstMediaUrl(imageUrl) ?? _firstMediaUrl(multimediaUrls),
+      ),
       distanceMeters: distanceMeters,
       openingHoursText: openingHoursText,
       visitRules: visitRules?.toMapPointVisitRules(),
@@ -122,6 +130,10 @@ class PoiModel {
   }
 
   static String? _firstMediaUrl(dynamic media) {
+    if (media is String && media.isNotEmpty) {
+      return media;
+    }
+
     if (media is List) {
       for (final item in media) {
         if (item is String && item.isNotEmpty) return item;

@@ -16,6 +16,7 @@ import '../widgets/coordinate_fields.dart';
 import '../widgets/location_picker_sheet.dart';
 import '../widgets/poi_form_background.dart';
 import '../widgets/poi_form_hero.dart';
+import '../widgets/poi_image_upload_field.dart';
 
 class CreatePoiPage extends ConsumerStatefulWidget {
   const CreatePoiPage({super.key});
@@ -30,10 +31,10 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
   final _descriptionController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
-  final _imageUrlController = TextEditingController();
   late final TextEditingController _latController;
   late final TextEditingController _lonController;
   String _accessType = 'public';
+  String? _uploadedImageUrl;
   final Set<int> _selectedCategoryIds = {};
   bool _isSubmitting = false;
 
@@ -55,7 +56,6 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
     _descriptionController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
-    _imageUrlController.dispose();
     _latController.dispose();
     _lonController.dispose();
     super.dispose();
@@ -80,7 +80,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
             name: _nameController.text.trim(),
             description: _descriptionController.text.trim(),
             accessType: _accessType,
-            imageUrl: _imageUrlController.text.trim(),
+            imageUrl: _uploadedImageUrl?.trim() ?? '',
             contactPhone: _phoneController.text.trim(),
             contactEmail: _emailController.text.trim(),
             categoryIds: _selectedCategoryIds.toList()..sort(),
@@ -207,7 +207,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
                             ),
                             const SizedBox(height: 16),
                             SectionCard(
-                              title: 'Contacto e imagen',
+                              title: 'Contacto',
                               icon: Icons.contact_phone_rounded,
                               child: Column(
                                 children: [
@@ -228,17 +228,18 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
                                       prefixIcon: Icon(Icons.email_outlined),
                                     ),
                                   ),
-                                  const SizedBox(height: 14),
-                                  TextFormField(
-                                    controller: _imageUrlController,
-                                    keyboardType: TextInputType.url,
-                                    decoration: const InputDecoration(
-                                      labelText: 'URL de imagen',
-                                      prefixIcon: Icon(Icons.image_outlined),
-                                    ),
-                                    validator: _validateRequiredImageUrl,
-                                  ),
                                 ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SectionCard(
+                              title: 'Foto del lugar',
+                              icon: Icons.add_photo_alternate_rounded,
+                              child: PoiImageUploadField(
+                                imageUrl: _uploadedImageUrl,
+                                enabled: !_isSubmitting,
+                                onChanged: (url) =>
+                                    setState(() => _uploadedImageUrl = url),
                               ),
                             ),
                             const SizedBox(height: 18),
@@ -301,18 +302,6 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
   String? _descriptionValidator(String? value) {
     if ((value ?? '').trim().length < 20) {
       return 'La descripción debe tener al menos 20 caracteres.';
-    }
-    return null;
-  }
-
-  String? _validateRequiredImageUrl(String? value) {
-    final text = (value ?? '').trim();
-    if (text.isEmpty) {
-      return 'Ingresa una URL de imagen.';
-    }
-    final uri = Uri.tryParse(text);
-    if (uri == null || !uri.hasScheme) {
-      return 'Ingresa una URL de imagen válida.';
     }
     return null;
   }

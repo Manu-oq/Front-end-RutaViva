@@ -4,11 +4,21 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 class _NavigationLock {
+  static const _debounceDuration = Duration(milliseconds: 650);
   static final Set<String> _activePushes = <String>{};
+  static final Map<String, Timer> _timers = <String, Timer>{};
 
-  static bool acquire(String key) => _activePushes.add(key);
+  static bool acquire(String key) {
+    if (!_activePushes.add(key)) {
+      return false;
+    }
+    _timers[key]?.cancel();
+    _timers[key] = Timer(_debounceDuration, () => release(key));
+    return true;
+  }
 
   static void release(String key) {
+    _timers.remove(key)?.cancel();
     _activePushes.remove(key);
   }
 }
@@ -31,33 +41,31 @@ extension SafeNavigation on BuildContext {
     if (skipIfSameLocation && targetLocation != null) {
       final currentLocation = _currentLocationOrNull();
       if (currentLocation == targetLocation) {
+        debugPrint(
+          '[Navigation] Skipping push to same location: $targetLocation',
+        );
         return Future<T?>.value();
       }
     }
 
     if (!_NavigationLock.acquire(lockKey)) {
+      debugPrint('[Navigation] Blocked duplicate push: $lockKey');
       return Future<T?>.value();
     }
 
-    late final Future<T?> future;
     try {
-      future = pushNamed<T>(
+      debugPrint('[Navigation] pushNamedSafe: $name -> $lockKey');
+      return pushNamed<T>(
         name,
         pathParameters: pathParameters,
         queryParameters: queryParameters,
         extra: extra,
       );
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[Navigation] pushNamedSafe failed for $name: $error');
       _NavigationLock.release(lockKey);
       rethrow;
     }
-    unawaited(
-      future.whenComplete(() async {
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-        _NavigationLock.release(lockKey);
-      }),
-    );
-    return future;
   }
 
   String? _namedLocationOrNull(
@@ -71,7 +79,8 @@ extension SafeNavigation on BuildContext {
         pathParameters: pathParameters,
         queryParameters: queryParameters,
       );
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[Navigation] namedLocation failed for $name: $error');
       return null;
     }
   }
@@ -79,7 +88,8 @@ extension SafeNavigation on BuildContext {
   String? _currentLocationOrNull() {
     try {
       return GoRouterState.of(this).uri.toString();
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[Navigation] current location lookup failed: $error');
       return null;
     }
   }

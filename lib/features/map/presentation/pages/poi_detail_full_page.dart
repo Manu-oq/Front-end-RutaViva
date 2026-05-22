@@ -26,7 +26,10 @@ class PoiDetailFullPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cachedPoi = _findPointById(ref.watch(mapProvider).points, poiId);
+    final mapState = ref.watch(mapProvider);
+    final cachedPoi =
+        _findPointById(mapState.visiblePoints, poiId) ??
+        _findPointById(mapState.points, poiId);
     final asyncPoi = ref.watch(poiDetailProvider(poiId));
 
     return asyncPoi.when(

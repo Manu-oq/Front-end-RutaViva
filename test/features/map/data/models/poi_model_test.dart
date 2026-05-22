@@ -90,5 +90,24 @@ void main() {
 
       expect(point.categoryIds, equals([1]));
     });
+
+    test('uses image_url as POI image source', () {
+      final json = baseJson(categoryIds: [1])..['image_url'] = '/media/poi.jpg';
+
+      final point = PoiModel.fromJson(json).toMapPoint();
+
+      expect(point.imageUrl, contains('/media/poi.jpg'));
+    });
+
+    test('prioritizes image_url over multimedia_urls', () {
+      final json = baseJson(categoryIds: [1])
+        ..['image_url'] = '/media/primary.jpg'
+        ..['multimedia_urls'] = {'cover': '/media/legacy.jpg'};
+
+      final point = PoiModel.fromJson(json).toMapPoint();
+
+      expect(point.imageUrl, contains('/media/primary.jpg'));
+      expect(point.imageUrl, isNot(contains('/media/legacy.jpg')));
+    });
   });
 }

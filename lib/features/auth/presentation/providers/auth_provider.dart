@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/network/auth_token_provider.dart';
@@ -109,6 +110,7 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       return login(email: email, password: password);
     } catch (error) {
+      debugPrint('[Auth] activateEntrepreneurProfile failed: $error');
       state = state.copyWith(
         isLoading: false,
         errorMessage: _readableError(error),

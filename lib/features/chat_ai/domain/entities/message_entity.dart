@@ -36,6 +36,7 @@ class MessageCandidatePoi {
   final String? imageUrl;
   final double? distanceMeters;
   final String? actionValue;
+  final String? poiRole;
 
   const MessageCandidatePoi({
     required this.id,
@@ -47,6 +48,7 @@ class MessageCandidatePoi {
     this.imageUrl,
     this.distanceMeters,
     this.actionValue,
+    this.poiRole,
   });
 
   bool get hasCoordinates => latitude != null && longitude != null;

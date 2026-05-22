@@ -52,7 +52,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       if (widget.backFallbackRouteName == AppRouteNames.home &&
           !current.isGlobalMode) {
         ref.read(mapProvider.notifier).loadNearby(center: current.center);
-      } else if (current.points.isEmpty && !current.isLoading) {
+      } else if (current.isGlobalMode &&
+          current.points.isEmpty &&
+          !current.isLoading) {
         ref.read(mapProvider.notifier).loadNearby();
       }
     });
@@ -378,7 +380,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mapState = ref.watch(mapProvider);
-    final visibleMarkers = _visibleMarkers(mapState.points, mapState);
+    final visiblePoints = mapState.visiblePoints;
+    final visibleMarkers = _visibleMarkers(visiblePoints, mapState);
 
     ref.listen<MapState>(mapProvider, (previous, next) {
       if (next.isGlobalMode || previous?.center == next.center) {
@@ -587,7 +590,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           if (!mapState.isLoading &&
               mapState.errorMessage == null &&
-              mapState.points.isEmpty)
+              visiblePoints.isEmpty)
             Positioned(
               left: 20,
               right: 20,
@@ -602,14 +605,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           if (mapState.isGlobalMode &&
               _activeMapSearchQuery != null &&
-              mapState.points.isNotEmpty)
+              visiblePoints.isNotEmpty)
             Positioned(
               left: 16,
               right: 92,
               bottom: 112,
               child: SafeArea(
                 child: _MapSearchResultsPanel(
-                  points: mapState.points,
+                  points: visiblePoints,
                   selectedPointId: mapState.selectedPoint?.id,
                   onSelect: _focusSearchResult,
                 ),

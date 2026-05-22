@@ -1,69 +1,115 @@
 import 'package:flutter/material.dart';
 
-class TermsAndConditionsSection extends StatefulWidget {
+class TermsAcceptanceCard extends StatelessWidget {
+  final bool accepted;
+  final bool hasError;
   final bool enabled;
-  final ValueChanged<bool> onChanged;
+  final VoidCallback onOpenTerms;
 
-  const TermsAndConditionsSection({
+  const TermsAcceptanceCard({
     super.key,
+    required this.accepted,
+    required this.hasError,
     required this.enabled,
-    required this.onChanged,
+    required this.onOpenTerms,
   });
-
-  @override
-  State<TermsAndConditionsSection> createState() =>
-      _TermsAndConditionsSectionState();
-}
-
-class _TermsAndConditionsSectionState extends State<TermsAndConditionsSection> {
-  bool _accepted = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final color = hasError
+        ? theme.colorScheme.error
+        : theme.colorScheme.primary;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: color.withValues(alpha: hasError ? 0.45 : 0.20),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            accepted ? Icons.verified_rounded : Icons.article_outlined,
+            color: color,
           ),
-          constraints: const BoxConstraints(maxHeight: 180),
-          child: SingleChildScrollView(
-            child: Text(
-              kTermsAndConditionsText,
-              style: theme.textTheme.bodySmall?.copyWith(
-                height: 1.45,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  accepted
+                      ? 'Términos y condiciones aceptados'
+                      : 'Debes leer y aceptar los términos y condiciones para crear tu cuenta.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: hasError ? theme.colorScheme.error : null,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (hasError) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Presiona “Crear cuenta” o “Leer términos” para revisarlos y aceptar.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ],
+              ],
             ),
+          ),
+          TextButton(
+            onPressed: enabled ? onOpenTerms : null,
+            child: Text(accepted ? 'Ver' : 'Leer términos'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<bool> showTermsAndConditionsDialog(BuildContext context) async {
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const _TermsAndConditionsDialog(),
+  );
+  return result ?? false;
+}
+
+class _TermsAndConditionsDialog extends StatelessWidget {
+  const _TermsAndConditionsDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      title: const Text('Términos y condiciones'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 560),
+        child: SingleChildScrollView(
+          child: Text(
+            kTermsAndConditionsText,
+            style: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
           ),
         ),
-        const SizedBox(height: 8),
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
-          value: _accepted,
-          onChanged: widget.enabled
-              ? (value) {
-                  setState(() => _accepted = value ?? false);
-                  widget.onChanged(_accepted);
-                }
-              : null,
-          title: Text(
-            'He leído y acepto los términos y condiciones',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: _accepted
-                  ? theme.colorScheme.onSurface
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          activeColor: theme.colorScheme.primary,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton.icon(
+          onPressed: () => Navigator.of(context).pop(true),
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('Acepto y continuar'),
         ),
       ],
     );

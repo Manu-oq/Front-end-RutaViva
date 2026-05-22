@@ -17,6 +17,9 @@ void main() {
       expect(state.errorMessage, isNull);
       expect(state.selectedCategoryIds, isEmpty);
       expect(state.focusedPoiId, isNull);
+      expect(state.focusedPoint, isNull);
+      expect(state.itineraryPoints, isEmpty);
+      expect(state.visiblePoints, isEmpty);
       expect(state.isGlobalMode, isTrue);
     });
 
@@ -89,6 +92,7 @@ void main() {
       final updated = state.copyWith(clearFocusedPoi: true);
 
       expect(updated.focusedPoiId, isNull);
+      expect(updated.focusedPoint, isNull);
       expect(updated.isGlobalMode, isTrue);
     });
 
@@ -154,10 +158,16 @@ void main() {
       expect(container.read(mapProvider).selectedPoint, isNull);
     });
 
-    test('showSinglePoi isolates the selected point', () {
+    test('showSinglePoi isolates visible points without replacing globals', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
+      final globalPoint = MapPoint(
+        id: 'global',
+        name: 'Global',
+        coordinates: const LatLng(-39.0, -71.0),
+        categoryIds: const [1],
+      );
       final point = MapPoint(
         id: 'focused',
         name: 'Focused',
@@ -165,15 +175,55 @@ void main() {
         categoryIds: const [2],
       );
 
+      container.read(mapProvider.notifier).state = container
+          .read(mapProvider)
+          .copyWith(points: [globalPoint]);
       container.read(mapProvider.notifier).showSinglePoi(point);
 
       final state = container.read(mapProvider);
-      expect(state.points, equals([point]));
+      expect(state.points, equals([globalPoint]));
+      expect(state.visiblePoints, equals([point]));
       expect(state.selectedPoint, equals(point));
+      expect(state.focusedPoint, equals(point));
       expect(state.center, equals(point.coordinates));
       expect(state.focusedPoiId, equals('focused'));
       expect(state.filteredItineraryId, isNull);
       expect(state.selectedCategoryIds, isEmpty);
+      expect(state.isGlobalMode, isFalse);
+    });
+
+    test('showItineraryPois keeps global points and swaps visible points', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final globalPoint = MapPoint(
+        id: 'global',
+        name: 'Global',
+        coordinates: const LatLng(-39.0, -71.0),
+        categoryIds: const [1],
+      );
+      final itineraryPoint = MapPoint(
+        id: 'itinerary-poi',
+        name: 'Itinerary POI',
+        coordinates: const LatLng(-38.7, -72.6),
+        categoryIds: const [2],
+      );
+
+      container.read(mapProvider.notifier).state = container
+          .read(mapProvider)
+          .copyWith(points: [globalPoint]);
+      container
+          .read(mapProvider.notifier)
+          .showItineraryPois(
+            itineraryId: 'itinerary-1',
+            points: [itineraryPoint],
+          );
+
+      final state = container.read(mapProvider);
+      expect(state.points, equals([globalPoint]));
+      expect(state.itineraryPoints, equals([itineraryPoint]));
+      expect(state.visiblePoints, equals([itineraryPoint]));
+      expect(state.filteredItineraryId, equals('itinerary-1'));
       expect(state.isGlobalMode, isFalse);
     });
   });

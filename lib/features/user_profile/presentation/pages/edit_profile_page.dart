@@ -69,7 +69,11 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Perfil actualizado.')));
-      context.goNamed(AppRouteNames.profile);
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.goNamed(AppRouteNames.profile);
+      }
       return;
     }
 

@@ -22,6 +22,8 @@ const _itineraryJson = <String, dynamic>{
       'day_index': 1,
       'day_date': '2025-03-01',
       'day_label': 'Sábado 1',
+      'created_at': '2026-05-22T10:00:00-04:00',
+      'updated_at': '2026-05-22T11:00:00-04:00',
       'ai_context': <String, dynamic>{
         'title': 'Ascenso al Volcán',
         'reason': 'Experiencia única en la región',
@@ -75,6 +77,8 @@ void main() {
       expect(step.dayIndex, equals(1));
       expect(step.dayDate, equals(DateTime(2025, 3, 1)));
       expect(step.dayLabel, equals('Sábado 1'));
+      expect(step.createdAt, equals(DateTime(2026, 5, 22, 10)));
+      expect(step.updatedAt, equals(DateTime(2026, 5, 22, 11)));
       expect(step.aiContext, isNotNull);
 
       expect(step.title, equals('Ascenso al Volcán'));
@@ -189,6 +193,8 @@ void main() {
       expect(stepJson['day_index'], equals(1));
       expect(stepJson['day_date'], equals('2025-03-01'));
       expect(stepJson['day_label'], equals('Sábado 1'));
+      expect(stepJson['created_at'], startsWith('2026-05-22T10:00:00'));
+      expect(stepJson['updated_at'], startsWith('2026-05-22T11:00:00'));
       expect(stepJson['ai_context']['tips'], equals('Llevar ropa térmica'));
     });
 
@@ -221,5 +227,87 @@ void main() {
         expect(step.dayLabel, equals('Lunes 18'));
       },
     );
+  });
+
+  group('PaginatedItinerariesModel', () {
+    test('parses paginated backend response', () {
+      final page = PaginatedItinerariesModel.fromJson({
+        'items': [_itineraryJson],
+        'total': 42,
+        'page': 1,
+        'page_size': 20,
+        'total_pages': 3,
+      });
+
+      expect(page.items.single.id, equals('itin-xyz-789'));
+      expect(page.total, equals(42));
+      expect(page.page, equals(1));
+      expect(page.pageSize, equals(20));
+      expect(page.totalPages, equals(3));
+    });
+  });
+
+  group('Itinerary visits and export models', () {
+    test('parses StepVisitModel', () {
+      final visit = StepVisitModel.fromJson({
+        'id': 'visit-1',
+        'step_id': 'step-1',
+        'poi_id': 'poi-1',
+        'visited_at': '2026-05-22T14:30:00-04:00',
+        'source': 'itinerary',
+        'note': null,
+      });
+
+      expect(visit.id, equals('visit-1'));
+      expect(visit.stepId, equals('step-1'));
+      expect(visit.poiId, equals('poi-1'));
+      expect(visit.visitedAt, equals(DateTime(2026, 5, 22, 14, 30)));
+      expect(visit.source, equals('itinerary'));
+      expect(visit.note, isNull);
+    });
+
+    test('parses ItineraryExportModel', () {
+      final export = ItineraryExportModel.fromJson({
+        'title': 'Mi viaje a Pucón',
+        'start_date': '2026-05-22',
+        'end_date': '2026-05-24',
+        'steps': [
+          {
+            'day': 1,
+            'date': '2026-05-22',
+            'order': 1,
+            'poi_name': 'Volcán Villarrica',
+            'poi_description': 'Volcán activo',
+            'poi_address': 'Ruta volcán',
+            'arrival_time': '09:00',
+            'departure_time': '12:00',
+            'tips': 'Llevar ropa de abrigo',
+            'weather': {'description': 'Frío'},
+            'latitude': -39.2,
+            'longitude': -71.9,
+          },
+        ],
+        'total_days': 3,
+        'total_steps': 15,
+        'generated_at': '2026-05-22T10:00:00-04:00',
+      });
+
+      expect(export.title, equals('Mi viaje a Pucón'));
+      expect(export.totalDays, equals(3));
+      expect(export.totalSteps, equals(15));
+      expect(export.generatedAt, equals(DateTime(2026, 5, 22, 10)));
+      expect(export.steps.single.poiName, equals('Volcán Villarrica'));
+      expect(export.steps.single.weather?['description'], equals('Frío'));
+    });
+
+    test('parses ItineraryShareModel', () {
+      final share = ItineraryShareModel.fromJson({
+        'share_url': '/share/abc123',
+        'public_id': 'abc123',
+      });
+
+      expect(share.shareUrl, equals('/share/abc123'));
+      expect(share.publicId, equals('abc123'));
+    });
   });
 }

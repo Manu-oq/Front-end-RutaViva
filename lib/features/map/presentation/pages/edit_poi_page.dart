@@ -100,7 +100,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
     _lonController = TextEditingController(
       text: widget.poi.longitude.toStringAsFixed(6),
     );
-    _accessType = widget.poi.accessType;
+    _accessType = _normalizeAccessType(widget.poi.accessType);
     _selectedCategoryIds = {...widget.poi.categoryIds};
   }
 
@@ -347,6 +347,13 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
       return 'Coordenada inválida.';
     }
     return null;
+  }
+
+  String _normalizeAccessType(String value) {
+    return switch (value) {
+      'public' || 'restricted' || 'private' => value,
+      _ => 'public',
+    };
   }
 }
 
