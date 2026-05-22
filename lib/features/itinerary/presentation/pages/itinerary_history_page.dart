@@ -72,9 +72,9 @@ class ItineraryHistoryPage extends ConsumerWidget {
               constraints: const BoxConstraints(maxWidth: 760),
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                itemBuilder: (context, index) => SkeletonContainer(
+                itemBuilder: (context, index) => const SkeletonContainer(
                   height: 142,
-                  borderRadius: const BorderRadius.all(Radius.circular(26)),
+                  borderRadius: BorderRadius.all(Radius.circular(26)),
                 ),
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 14),

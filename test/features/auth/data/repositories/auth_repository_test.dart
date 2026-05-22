@@ -29,7 +29,10 @@ void main() {
     test('parses access_token and token_type', () {
       final token = TokenModel.fromJson(_tokenJson);
 
-      expect(token.accessToken, equals('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.fake'));
+      expect(
+        token.accessToken,
+        equals('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.fake'),
+      );
       expect(token.tokenType, equals('bearer'));
     });
 
@@ -97,8 +100,7 @@ void main() {
     });
 
     test('defaults is_active to true when absent', () {
-      final json = Map<String, dynamic>.from(_userJson)
-        ..remove('is_active');
+      final json = Map<String, dynamic>.from(_userJson)..remove('is_active');
       final user = UserModel.fromJson(json);
 
       expect(user.isActive, isTrue);
@@ -115,30 +117,36 @@ void main() {
       expect(user.isEntrepreneur, isFalse);
     });
 
-    test('interests defaults to empty list when system_preferences is null', () {
-      final json = Map<String, dynamic>.from(_userJson);
-      json['tourist_profile'] = <String, dynamic>{
-        'user_id': 'user-123',
-        'full_name': 'Test User',
-        'has_own_transport': false,
-        'system_preferences': null,
-      };
-      final user = UserModel.fromJson(json);
+    test(
+      'interests defaults to empty list when system_preferences is null',
+      () {
+        final json = Map<String, dynamic>.from(_userJson);
+        json['tourist_profile'] = <String, dynamic>{
+          'user_id': 'user-123',
+          'full_name': 'Test User',
+          'has_own_transport': false,
+          'system_preferences': null,
+        };
+        final user = UserModel.fromJson(json);
 
-      expect(user.touristProfile!.interests, isEmpty);
-    });
+        expect(user.touristProfile!.interests, isEmpty);
+      },
+    );
 
-    test('interests defaults to empty list when interests field is missing', () {
-      final json = Map<String, dynamic>.from(_userJson);
-      json['tourist_profile'] = <String, dynamic>{
-        'user_id': 'user-123',
-        'full_name': 'Test User',
-        'has_own_transport': false,
-        'system_preferences': <String, dynamic>{},
-      };
-      final user = UserModel.fromJson(json);
+    test(
+      'interests defaults to empty list when interests field is missing',
+      () {
+        final json = Map<String, dynamic>.from(_userJson);
+        json['tourist_profile'] = <String, dynamic>{
+          'user_id': 'user-123',
+          'full_name': 'Test User',
+          'has_own_transport': false,
+          'system_preferences': <String, dynamic>{},
+        };
+        final user = UserModel.fromJson(json);
 
-      expect(user.touristProfile!.interests, isEmpty);
-    });
+        expect(user.touristProfile!.interests, isEmpty);
+      },
+    );
   });
 }

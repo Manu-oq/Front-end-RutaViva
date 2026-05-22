@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/authenticated_network_image.dart';
 import '../../../map/data/repositories/poi_repository.dart';
 import '../../../map/presentation/providers/map_provider.dart';
 import '../../data/repositories/media_repository.dart';
@@ -112,12 +113,12 @@ class _UploadedPreview extends StatelessWidget {
       borderRadius: BorderRadius.circular(24),
       child: Stack(
         children: [
-          Image.network(
-            url,
+          AuthenticatedNetworkImage(
+            imageUrl: url,
             height: 190,
             width: double.infinity,
             fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
+            errorBuilder: (context) => Container(
               height: 120,
               width: double.infinity,
               alignment: Alignment.center,

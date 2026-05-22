@@ -10,16 +10,16 @@ void main() {
   Map<String, dynamic> baseJson({required List<int>? categoryIds}) {
     return <String, dynamic>{
       'id': 'poi-1',
-      'nombre': 'Centro Cultural',
-      'descripcion': 'Espacio cultural en Pucón.',
-      'tipo_acceso': 'publico',
-      'telefono_publico': null,
-      'email_publico': null,
+      'name': 'Centro Cultural',
+      'description': 'Espacio cultural en Pucón.',
+      'access_type': 'public',
+      'contact_phone': null,
+      'contact_email': null,
       'multimedia_urls': null,
       'category_ids': categoryIds,
       'latitude': -39.27,
       'longitude': -71.97,
-      'distancia_metros': null,
+      'distance_meters': null,
       'opening_hours_text': 'Mo-Su 09:00-18:00',
       'visit_rules': {
         'is_primary_experience': true,

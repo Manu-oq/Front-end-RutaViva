@@ -1,11 +1,11 @@
 {
-    "name": "ruta_viva",
-    "short_name": "ruta_viva",
+    "name": "Ruta Viva",
+    "short_name": "Ruta Viva",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0F3D2E",
+    "theme_color": "#0F3D2E",
+    "description": "Descubre La Araucanía con rutas personalizadas, puntos de interés y la guía de Ara.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

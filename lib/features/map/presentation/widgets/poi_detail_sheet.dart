@@ -5,6 +5,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/url_launcher_helper.dart';
+import '../../../../core/widgets/authenticated_network_image.dart';
 import '../../../categories/data/repositories/category_repository.dart';
 import '../../domain/entities/map_point.dart';
 
@@ -54,11 +55,10 @@ class PoiDetailSheet extends ConsumerWidget {
                     fit: StackFit.expand,
                     children: [
                       hasImage
-                          ? Image.network(
-                              point.imageUrl!,
+                          ? AuthenticatedNetworkImage(
+                              imageUrl: point.imageUrl!,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) =>
-                                  const _SheetImageFallback(),
+                              errorBuilder: (_) => const _SheetImageFallback(),
                             )
                           : const _SheetImageFallback(),
                       DecoratedBox(

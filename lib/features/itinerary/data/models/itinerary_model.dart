@@ -114,10 +114,17 @@ class ItineraryStepModel {
   String get title =>
       aiContext?['title']?.toString() ?? poiNombre ?? 'Parada $stepOrder';
 
-  String get reason =>
-      aiContext?['reason']?.toString() ??
-      poiDescripcion ??
-      'Lugar seleccionado por Ara para este recorrido.';
+  String get reason {
+    final reasonRaw = aiContext?['reason']?.toString() ?? '';
+    if (reasonRaw.isEmpty ||
+        reasonRaw.contains('reemplazado') ||
+        reasonRaw.contains('placeholder') ||
+        reasonRaw == 'null') {
+      return poiDescripcion ??
+          'Lugar seleccionado por Ara para este recorrido.';
+    }
+    return reasonRaw;
+  }
 
   String get tips => aiContext?['tips']?.toString() ?? '';
 
@@ -159,5 +166,30 @@ class ItineraryStepModel {
       );
     }
     return DateTime.tryParse(value)?.toLocal();
+  }
+
+  ItineraryStepModel copyWith({
+    int? stepOrder,
+    DateTime? arrivalTime,
+    DateTime? departureTime,
+    int? dayIndex,
+    DateTime? dayDate,
+    String? dayLabel,
+    Map<String, dynamic>? aiContext,
+  }) {
+    return ItineraryStepModel(
+      id: id,
+      itineraryId: itineraryId,
+      poiId: poiId,
+      poiNombre: poiNombre,
+      poiDescripcion: poiDescripcion,
+      stepOrder: stepOrder ?? this.stepOrder,
+      arrivalTime: arrivalTime ?? this.arrivalTime,
+      departureTime: departureTime ?? this.departureTime,
+      dayIndex: dayIndex ?? this.dayIndex,
+      dayDate: dayDate ?? this.dayDate,
+      dayLabel: dayLabel ?? this.dayLabel,
+      aiContext: aiContext ?? this.aiContext,
+    );
   }
 }

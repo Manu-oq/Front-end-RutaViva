@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/authenticated_network_image.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/data/repositories/category_repository.dart';
@@ -95,7 +97,7 @@ class _BookmarksContent extends StatelessWidget {
               'Guarda lugares desde el detalle de cada punto de interés para tenerlos siempre a mano.',
           actionLabel: 'Explorar mapa',
           actionIcon: Icons.map_rounded,
-          onAction: () => context.pushNamedSafe(AppRouteNames.map),
+          onAction: () => context.goNamed(AppRouteNames.map),
         ),
       );
     }
@@ -315,10 +317,10 @@ class _BookmarkCard extends StatelessWidget {
                     height: 92,
                     child: imageUrl == null || imageUrl.isEmpty
                         ? const _BookmarkImageFallback()
-                        : Image.network(
-                            imageUrl,
+                        : AuthenticatedNetworkImage(
+                            imageUrl: imageUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
+                            errorBuilder: (context) =>
                                 const _BookmarkImageFallback(),
                           ),
                   ),

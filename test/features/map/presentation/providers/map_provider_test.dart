@@ -61,7 +61,7 @@ void main() {
 
     test('copyWith updates center', () {
       final state = MapState(points: [], center: araucaniaDefaultCenter);
-      final newCenter = const LatLng(-38.0, -72.0);
+      const newCenter = LatLng(-38.0, -72.0);
       final updated = state.copyWith(center: newCenter);
 
       expect(updated.center, equals(newCenter));

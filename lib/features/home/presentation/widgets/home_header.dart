@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/router/app_routes.dart';
-import '../../../../core/router/safe_navigation.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../map/presentation/providers/map_provider.dart';
 
@@ -62,25 +60,6 @@ class HomeHeader extends ConsumerWidget {
                       ? 'Ara está buscando lugares para inspirar tu próxima ruta.'
                       : 'Ara encontró ${mapState.points.length} lugares para explorar. Abre el chat para armar tu ruta personalizada.',
                   style: theme.textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 20),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () =>
-                          context.pushNamedSafe(AppRouteNames.itineraryHistory),
-                      icon: const Icon(Icons.route_outlined),
-                      label: const Text('Mis rutas'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () =>
-                          context.pushNamedSafe(AppRouteNames.chat),
-                      icon: const Icon(Icons.chat_bubble_outline),
-                      label: const Text('Chat con Ara'),
-                    ),
-                  ],
                 ),
               ],
             ),

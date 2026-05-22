@@ -128,6 +128,53 @@ class ItineraryRepository {
     }
   }
 
+  Future<ItineraryModel> reorderStepsWithTimes({
+    required String itineraryId,
+    required List<Map<String, dynamic>> steps,
+  }) async {
+    try {
+      final response = await _client.patch<dynamic>(
+        '/itineraries/$itineraryId/steps/reorder-with-times',
+        data: steps,
+      );
+      return _parseItineraryOrFetch(response.data, itineraryId);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<ItineraryModel> rescheduleStep({
+    required String itineraryId,
+    required String stepId,
+    required DateTime arrivalTime,
+    int? durationMinutes,
+  }) async {
+    try {
+      final response = await _client.patch<dynamic>(
+        '/itineraries/$itineraryId/steps/$stepId/reschedule',
+        data: {
+          'arrival_time': arrivalTime.toUtc().toIso8601String(),
+          // ignore: use_null_aware_elements
+          if (durationMinutes != null) 'duration_minutes': durationMinutes,
+        },
+      );
+      return _parseItineraryOrFetch(response.data, itineraryId);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<Map<String, dynamic>> getItineraryWeather(String itineraryId) async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/itineraries/$itineraryId/weather',
+      );
+      return response.data ?? const {};
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
   Future<ItineraryModel> _parseItineraryOrFetch(
     dynamic data,
     String itineraryId,

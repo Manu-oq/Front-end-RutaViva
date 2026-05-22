@@ -27,9 +27,7 @@ class GlobalLoadingOverlay extends ConsumerWidget {
     return Positioned.fill(
       child: Container(
         color: Colors.black54,
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        child: const Center(child: CircularProgressIndicator()),
       ),
     );
   }

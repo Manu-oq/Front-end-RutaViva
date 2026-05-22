@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -122,7 +123,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                     stepsCount: _steps.length,
                     dateLabel: _dateRangeLabel(widget.itinerary),
                     onHistory: () =>
-                        context.pushNamedSafe(AppRouteNames.itineraryHistory),
+                        context.goNamed(AppRouteNames.itineraryHistory),
                     onMap: () async {
                       try {
                         final points = await ref.read(
@@ -193,12 +194,28 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                   if (selectedSteps.isEmpty)
                     const _EmptyDayCard()
                   else
-                    for (final step in selectedSteps)
-                      _GeneratedStep(
-                        step: step,
-                        onDelete: () => _deleteStep(step),
-                        onChange: () => _changeStep(step),
-                      ),
+                    ReorderableListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: selectedSteps.length,
+                      onReorder: _onStepsReordered,
+                      proxyDecorator: (child, index, animation) =>
+                          _ReorderProxyDecorator(
+                            animation: animation,
+                            child: child,
+                          ),
+                      buildDefaultDragHandles: false,
+                      itemBuilder: (context, index) {
+                        final step = selectedSteps[index];
+                        return _GeneratedStep(
+                          key: ValueKey(step.id),
+                          step: step,
+                          onDelete: () => _deleteStep(step),
+                          onChange: () => _changeStep(step),
+                          onReschedule: () => _openRescheduleDialog(step),
+                        );
+                      },
+                    ),
                   if (outsideRangeSteps.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     _OutOfRangeWarning(count: outsideRangeSteps.length),
@@ -296,6 +313,29 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     }
   }
 
+  Future<void> _openRescheduleDialog(ItineraryStepModel step) async {
+    final initialTime = step.arrivalTime != null
+        ? TimeOfDay(
+            hour: step.arrivalTime!.hour,
+            minute: step.arrivalTime!.minute,
+          )
+        : const TimeOfDay(hour: 9, minute: 0);
+    final durationController = TextEditingController(
+      text: step.recommendedDuration,
+    );
+    final result = await showDialog<_RescheduleResult>(
+      context: context,
+      builder: (ctx) => _RescheduleDialog(
+        initialTime: initialTime,
+        durationController: durationController,
+      ),
+    );
+    durationController.dispose();
+    if (result == null) return;
+    final mins = int.tryParse(durationController.text.trim());
+    await _rescheduleStep(step, result.time, mins);
+  }
+
   Future<void> _changeStep(ItineraryStepModel step) async {
     if (_isStartingStepReplacement) {
       return;
@@ -307,41 +347,129 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     final end = widget.itinerary.endDate;
     final prompt = 'Quiero cambiar la parada de ${step.title}.';
 
-    unawaited(context.pushNamedSafe(AppRouteNames.chat));
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
+    try {
+      await ref
+          .read(chatProvider.notifier)
+          .startSessionFromHome(
+            initialMessage: prompt,
+            center: center,
+            radius: 10000,
+            startDate: start,
+            endDate: end,
+            metadata: {
+              'intent': 'change_itinerary_step',
+              'itinerary_id': widget.itinerary.id,
+              'step_id': step.id,
+              'poi_id': step.poiId,
+              'poi_name': step.title,
+            },
+          );
+      if (!mounted) return;
+      context.pushNamed('chat_focused');
+    } finally {
+      if (mounted) {
+        setState(() => _isStartingStepReplacement = false);
       }
-      unawaited(
-        ref
-            .read(chatProvider.notifier)
-            .startSessionFromHome(
-              initialMessage: prompt,
-              center: center,
-              radius: 10000,
-              startDate: start,
-              endDate: end,
-              metadata: {
-                'intent': 'change_itinerary_step',
-                'itinerary_id': widget.itinerary.id,
-                'step_id': step.id,
-                'poi_id': step.poiId,
-                'poi_name': step.title,
-              },
-            )
-            .whenComplete(() {
-              if (mounted) {
-                setState(() => _isStartingStepReplacement = false);
-              }
-            }),
-      );
-    });
+    }
   }
 
   void _invalidateItineraryData() {
     ref.invalidate(itineraryDetailProvider(widget.itinerary.id));
     ref.invalidate(itineraryPoisProvider(widget.itinerary.id));
     ref.invalidate(itineraryHistoryProvider);
+  }
+
+  Future<void> _rescheduleStep(
+    ItineraryStepModel step,
+    TimeOfDay arrivalTime,
+    int? durationMinutes,
+  ) async {
+    final now = DateTime.now();
+    final arrival = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      arrivalTime.hour,
+      arrivalTime.minute,
+    );
+    try {
+      final updated = await ref
+          .read(itineraryRepositoryProvider)
+          .rescheduleStep(
+            itineraryId: widget.itinerary.id,
+            stepId: step.id,
+            arrivalTime: arrival,
+            durationMinutes: durationMinutes,
+          );
+      if (!mounted) return;
+      setState(() => _steps = [...updated.steps]);
+      _invalidateItineraryData();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Horario actualizado.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos actualizar el horario.')),
+      );
+    }
+  }
+
+  void _onStepsReordered(int oldIndex, int newIndex) {
+    final days = _tripDays();
+    if (days.isEmpty) return;
+    final safeSelected = _selectedDayIndex.clamp(0, days.length - 1);
+    final day = days[safeSelected];
+    final daySteps = _stepsForDate(day);
+    if (oldIndex >= daySteps.length || newIndex >= daySteps.length) return;
+
+    final actualNewIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    final reorderedIds = daySteps.map((s) => s.id).toList();
+    final movedId = reorderedIds.removeAt(oldIndex);
+    reorderedIds.insert(actualNewIndex, movedId);
+
+    setState(() {
+      _steps = _steps.map((s) {
+        final sDay = _stepDay(s);
+        if (sDay != null && _isSameDay(sDay, day)) {
+          final newPos = reorderedIds.indexOf(s.id);
+          if (newPos >= 0) {
+            return s.copyWith(stepOrder: newPos);
+          }
+        }
+        return s;
+      }).toList();
+    });
+
+    final payload = reorderedIds.asMap().entries.map((entry) {
+      return {
+        'step_id': entry.value,
+        'day_index': safeSelected,
+        'position': entry.key,
+      };
+    }).toList();
+
+    unawaited(_saveReorder(payload));
+  }
+
+  Future<void> _saveReorder(List<Map<String, dynamic>> payload) async {
+    try {
+      final updated = await ref
+          .read(itineraryRepositoryProvider)
+          .reorderStepsWithTimes(
+            itineraryId: widget.itinerary.id,
+            steps: payload,
+          );
+      if (!mounted) return;
+      setState(() => _steps = [...updated.steps]);
+      _invalidateItineraryData();
+    } catch (_) {
+      if (!mounted) return;
+      ref.invalidate(itineraryDetailProvider(widget.itinerary.id));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos guardar el orden.')),
+      );
+    }
   }
 
   String _dateRangeLabel(ItineraryModel itinerary) {
@@ -857,11 +985,14 @@ class _GeneratedStep extends StatelessWidget {
   final ItineraryStepModel step;
   final VoidCallback onDelete;
   final VoidCallback onChange;
+  final VoidCallback onReschedule;
 
   const _GeneratedStep({
+    super.key,
     required this.step,
     required this.onDelete,
     required this.onChange,
+    required this.onReschedule,
   });
 
   @override
@@ -870,6 +1001,7 @@ class _GeneratedStep extends StatelessWidget {
       if (step.recommendedDuration.isNotEmpty) step.recommendedDuration,
       if (step.poiNombre != null && step.poiNombre!.isNotEmpty) step.poiNombre!,
     ];
+    final weather = step.aiContext?['weather'] as Map<String, dynamic>?;
 
     return ItineraryStepWidget(
       time: _stepTimeLabel(step),
@@ -879,26 +1011,50 @@ class _GeneratedStep extends StatelessWidget {
         text: step.tips.isNotEmpty
             ? '${step.reason}\n\nConsejo: ${step.tips}'
             : step.reason,
-        action: Wrap(
-          spacing: 8,
+        action: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextButton.icon(
-              onPressed: () => context.pushNamedSafe(
-                AppRouteNames.poiDetail,
-                pathParameters: {'id': step.poiId},
+            if (weather != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _StepWeatherChip(weather: weather),
               ),
-              icon: const Icon(Icons.place_outlined),
-              label: const Text('Ver lugar'),
-            ),
-            TextButton.icon(
-              onPressed: onChange,
-              icon: const Icon(Icons.swap_horiz_rounded),
-              label: const Text('Cambiar lugar'),
-            ),
-            TextButton.icon(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline_rounded),
-              label: const Text('Eliminar'),
+            Wrap(
+              spacing: 8,
+              children: [
+                ReorderableDragStartListener(
+                  index: 0,
+                  child: IconButton(
+                    tooltip: 'Arrastrar para reordenar',
+                    icon: const Icon(Icons.drag_handle_rounded),
+                    onPressed: () {},
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onReschedule,
+                  icon: const Icon(Icons.schedule_rounded),
+                  label: const Text('Horario'),
+                ),
+                TextButton.icon(
+                  onPressed: () => context.pushNamedSafe(
+                    AppRouteNames.poiDetail,
+                    pathParameters: {'id': step.poiId},
+                  ),
+                  icon: const Icon(Icons.place_outlined),
+                  label: const Text('Ver lugar'),
+                ),
+                TextButton.icon(
+                  onPressed: onChange,
+                  icon: const Icon(Icons.swap_horiz_rounded),
+                  label: const Text('Cambiar lugar'),
+                ),
+                TextButton.icon(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  label: const Text('Eliminar'),
+                ),
+              ],
             ),
           ],
         ),
@@ -914,6 +1070,76 @@ class _GeneratedStep extends StatelessWidget {
     final hour = arrival.hour.toString().padLeft(2, '0');
     final minute = arrival.minute.toString().padLeft(2, '0');
     return '$hour:$minute — Parada ${step.stepOrder}';
+  }
+}
+
+class _StepWeatherChip extends StatelessWidget {
+  final Map<String, dynamic> weather;
+
+  const _StepWeatherChip({required this.weather});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final description = weather['description']?.toString() ?? '';
+    final temp = weather['temperature_c'];
+    final rain = weather['precipitation_probability'];
+    final icon = _weatherIcon(description);
+    final parts = <String>[
+      if (temp != null) '${(temp as num).round()}°C',
+      if (rain != null) '$rain% lluvia',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.mint.withValues(
+          alpha: theme.brightness == Brightness.dark ? 0.14 : 0.7,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.leaf.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppColors.leaf),
+          const SizedBox(width: 6),
+          if (parts.isNotEmpty)
+            Flexible(
+              child: Text(
+                parts.join(' • '),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: AppColors.deepForest,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          if (description.isNotEmpty && parts.isNotEmpty)
+            Text(
+              ' — $description',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: AppColors.deepForest.withValues(alpha: 0.7),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  IconData _weatherIcon(String description) {
+    final lower = description.toLowerCase();
+    if (lower.contains('lluvia') || lower.contains('rain')) {
+      return Icons.water_drop_rounded;
+    }
+    if (lower.contains('nube') || lower.contains('cloud')) {
+      return Icons.cloud_rounded;
+    }
+    if (lower.contains('sol') ||
+        lower.contains('sun') ||
+        lower.contains('clear')) {
+      return Icons.wb_sunny_rounded;
+    }
+    return Icons.cloud_outlined;
   }
 }
 
@@ -933,8 +1159,8 @@ class _NoItineraryState extends StatelessWidget {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 620),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
+          child: const Padding(
+            padding: EdgeInsets.all(24),
             child: _EmptyStateCard(
               icon: Icons.route_outlined,
               title: 'Aún no hay una ruta generada',
@@ -967,22 +1193,22 @@ class _ItineraryDetailSkeleton extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            SkeletonContainer(height: 28, width: 200),
+            const SkeletonContainer(height: 28, width: 200),
             const SizedBox(height: 12),
-            SkeletonContainer(height: 14),
+            const SkeletonContainer(height: 14),
             const SizedBox(height: 40),
             ...List.generate(
               4,
-              (index) => Padding(
-                padding: const EdgeInsets.only(bottom: 32),
+              (index) => const Padding(
+                padding: EdgeInsets.only(bottom: 32),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SkeletonContainer(height: 14, width: 140),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     SkeletonContainer(
                       height: 90,
-                      borderRadius: const BorderRadius.all(Radius.circular(20)),
+                      borderRadius: BorderRadius.all(Radius.circular(20)),
                     ),
                   ],
                 ),
@@ -1064,6 +1290,118 @@ class _EmptyStateCard extends StatelessWidget {
           Text(text, style: theme.textTheme.bodyLarge),
         ],
       ),
+    );
+  }
+}
+
+class _ReorderProxyDecorator extends StatelessWidget {
+  final Widget child;
+  final Animation<double> animation;
+
+  const _ReorderProxyDecorator({required this.child, required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final value = Curves.easeInOut.transform(animation.value);
+        return Transform.scale(
+          scale: 1.0 + (value * 0.06),
+          child: Material(
+            elevation: 6,
+            shadowColor: Theme.of(
+              context,
+            ).colorScheme.shadow.withValues(alpha: 0.28),
+            borderRadius: BorderRadius.circular(26),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+class _RescheduleResult {
+  final TimeOfDay time;
+
+  const _RescheduleResult({required this.time});
+}
+
+class _RescheduleDialog extends StatefulWidget {
+  final TimeOfDay initialTime;
+  final TextEditingController durationController;
+
+  const _RescheduleDialog({
+    required this.initialTime,
+    required this.durationController,
+  });
+
+  @override
+  State<_RescheduleDialog> createState() => _RescheduleDialogState();
+}
+
+class _RescheduleDialogState extends State<_RescheduleDialog> {
+  late TimeOfDay _time;
+
+  @override
+  void initState() {
+    super.initState();
+    _time = widget.initialTime;
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(context: context, initialTime: _time);
+    if (picked != null) {
+      setState(() => _time = picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      title: const Text('Cambiar horario'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.access_time_rounded,
+                color: theme.colorScheme.primary,
+              ),
+              title: Text('${_time.format(context)} hs'),
+              trailing: TextButton(
+                onPressed: _pickTime,
+                child: const Text('Cambiar'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: widget.durationController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Duracion (minutos, opcional)',
+                hintText: 'Ej: 60',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () =>
+              Navigator.of(context).pop(_RescheduleResult(time: _time)),
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }

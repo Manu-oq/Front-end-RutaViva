@@ -58,17 +58,33 @@ class EntrepreneurDashboardPage extends ConsumerWidget {
   }
 }
 
-class _ActivateEntrepreneurPanel extends ConsumerWidget {
+class _ActivateEntrepreneurPanel extends ConsumerStatefulWidget {
   final bool isLoading;
 
   const _ActivateEntrepreneurPanel({required this.isLoading});
 
-  Future<void> _activate(BuildContext context, WidgetRef ref) async {
+  @override
+  ConsumerState<_ActivateEntrepreneurPanel> createState() =>
+      _ActivateEntrepreneurPanelState();
+}
+
+class _ActivateEntrepreneurPanelState
+    extends ConsumerState<_ActivateEntrepreneurPanel> {
+  final _rutController = TextEditingController();
+
+  @override
+  void dispose() {
+    _rutController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _activate() async {
+    final rut = _rutController.text.trim();
     final success = await ref
         .read(authProvider.notifier)
-        .activateEntrepreneurProfile();
+        .activateEntrepreneurProfile(rut: rut.isNotEmpty ? rut : null);
 
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,37 +103,80 @@ class _ActivateEntrepreneurPanel extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
         child: Padding(
           padding: const EdgeInsets.all(20),
-          child: _HeroCard(
-            title: 'Activa tu espacio emprendedor',
-            subtitle:
-                'Gestiona tus lugares, revisa métricas y prepara tu presencia para futuras reservas dentro de Ruta Viva.',
-            badge: 'Comunidad local',
-            leading: const AppBackButton(
-              fallbackRouteName: AppRouteNames.profile,
-              color: Colors.white,
-            ),
-            action: FilledButton.icon(
-              onPressed: isLoading ? null : () => _activate(context, ref),
-              icon: isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.verified_user_outlined),
-              label: Text(isLoading ? 'Activando...' : 'Activar modo'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: theme.colorScheme.primary,
+          child: Column(
+            children: [
+              const _HeroCard(
+                title: 'Activa tu espacio emprendedor',
+                subtitle:
+                    'Gestiona tus lugares, revisa métricas y prepara tu presencia para futuras reservas dentro de Ruta Viva.',
+                badge: 'Comunidad local',
+                leading: AppBackButton(
+                  fallbackRouteName: AppRouteNames.profile,
+                  color: Colors.white,
+                ),
+                action: SizedBox.shrink(),
               ),
-            ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
+                  boxShadow: AppColors.ambientShadow,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Verificación de identidad',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Ingresa tu RUT chileno para verificar tu perfil emprendedor. Es opcional.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _rutController,
+                      enabled: !widget.isLoading,
+                      decoration: const InputDecoration(
+                        labelText: 'RUT (opcional)',
+                        hintText: '12345678-9',
+                        prefixIcon: Icon(Icons.badge_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: widget.isLoading ? null : _activate,
+                      icon: widget.isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.verified_user_outlined),
+                      label: Text(
+                        widget.isLoading ? 'Activando...' : 'Activar modo',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -133,7 +192,6 @@ class _EntrepreneurDashboard extends ConsumerWidget {
     final pois = ref.watch(myPoisProvider);
     final metrics = ref.watch(entrepreneurMetricsProvider);
     final income = ref.watch(entrepreneurIncomeProvider);
-    final posts = ref.watch(entrepreneurPostsProvider);
 
     return pois.when(
       data: (items) => RefreshIndicator(
@@ -141,7 +199,6 @@ class _EntrepreneurDashboard extends ConsumerWidget {
           ref.invalidate(myPoisProvider);
           ref.invalidate(entrepreneurMetricsProvider);
           ref.invalidate(entrepreneurIncomeProvider);
-          ref.invalidate(entrepreneurPostsProvider);
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -183,8 +240,6 @@ class _EntrepreneurDashboard extends ConsumerWidget {
                           metrics: metrics,
                           income: income,
                         ),
-                        const SizedBox(height: 16),
-                        _PostsSection(posts: posts),
                         const SizedBox(height: 16),
                         _PlacesSection(items: items),
                       ],
@@ -339,171 +394,6 @@ class _MetricGrid extends StatelessWidget {
   }
 }
 
-class _PostsSection extends ConsumerWidget {
-  final AsyncValue<List<EntrepreneurPostModel>> posts;
-
-  const _PostsSection({required this.posts});
-
-  Future<void> _openPostDialog(
-    BuildContext context,
-    WidgetRef ref, {
-    EntrepreneurPostModel? post,
-  }) async {
-    final titleController = TextEditingController(text: post?.title ?? '');
-    final contentController = TextEditingController(text: post?.content ?? '');
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(post == null ? 'Nuevo post' : 'Editar post'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: const InputDecoration(labelText: 'Título'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: contentController,
-              maxLines: 4,
-              decoration: const InputDecoration(labelText: 'Contenido'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
-    );
-    if (saved != true) return;
-    try {
-      final repository = ref.read(entrepreneurRepositoryProvider);
-      if (post == null) {
-        await repository.createPost(
-          title: titleController.text.trim(),
-          content: contentController.text.trim(),
-        );
-      } else {
-        await repository.updatePost(
-          postId: post.id,
-          title: titleController.text.trim(),
-          content: contentController.text.trim(),
-        );
-      }
-      ref.invalidate(entrepreneurPostsProvider);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Post guardado.')));
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos guardar el post.')),
-      );
-    }
-  }
-
-  Future<void> _deletePost(
-    BuildContext context,
-    WidgetRef ref,
-    EntrepreneurPostModel post,
-  ) async {
-    try {
-      await ref.read(entrepreneurRepositoryProvider).deletePost(post.id);
-      ref.invalidate(entrepreneurPostsProvider);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Post eliminado.')));
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos eliminar el post.')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        boxShadow: AppColors.ambientShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text('Posts creados', style: theme.textTheme.titleLarge),
-              ),
-              FilledButton.icon(
-                onPressed: () => _openPostDialog(context, ref),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Post'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          posts.when(
-            data: (items) {
-              if (items.isEmpty) {
-                return const Text('Aún no tienes publicaciones.');
-              }
-              return Column(
-                children: items
-                    .map(
-                      (post) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(post.title),
-                        subtitle: Text(
-                          post.content,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (value) {
-                            if (value == 'edit') {
-                              _openPostDialog(context, ref, post: post);
-                            } else if (value == 'delete') {
-                              _deletePost(context, ref, post);
-                            }
-                          },
-                          itemBuilder: (context) => const [
-                            PopupMenuItem(value: 'edit', child: Text('Editar')),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Eliminar'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                    .toList(),
-              );
-            },
-            loading: () => const LinearProgressIndicator(minHeight: 3),
-            error: (error, stackTrace) =>
-                const Text('No pudimos cargar los posts.'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _MetricCard extends StatelessWidget {
   final double width;
   final IconData icon;
@@ -568,7 +458,7 @@ class _PlacesSection extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('Eliminar lugar'),
         content: Text(
-          '¿Eliminar "${poi.nombre}"? Esta acción no se puede deshacer.',
+          '¿Eliminar "${poi.name}"? Esta acción no se puede deshacer.',
         ),
         actions: [
           TextButton(
@@ -628,6 +518,14 @@ class _PlacesSection extends ConsumerWidget {
                 AppRouteNames.poiDetail,
                 pathParameters: {'id': poi.id},
               ),
+              onAnalytics: () => context.pushNamedSafe(
+                AppRouteNames.poiDashboard,
+                pathParameters: {'id': poi.id},
+              ),
+              onPosts: () => context.pushNamedSafe(
+                AppRouteNames.poiPosts,
+                pathParameters: {'id': poi.id},
+              ),
               onEdit: () => context.pushNamedSafe(
                 AppRouteNames.editPoi,
                 pathParameters: {'id': poi.id},
@@ -644,12 +542,16 @@ class _PlacesSection extends ConsumerWidget {
 class _PlaceCard extends StatelessWidget {
   final PoiModel poi;
   final VoidCallback onOpen;
+  final VoidCallback onAnalytics;
+  final VoidCallback onPosts;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _PlaceCard({
     required this.poi,
     required this.onOpen,
+    required this.onAnalytics,
+    required this.onPosts,
     required this.onEdit,
     required this.onDelete,
   });
@@ -679,10 +581,20 @@ class _PlaceCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(poi.nombre, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(poi.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                 Text('${poi.categoryIds.length} categorías'),
               ],
             ),
+          ),
+          IconButton(
+            tooltip: 'Posts',
+            onPressed: onPosts,
+            icon: const Icon(Icons.campaign_rounded),
+          ),
+          IconButton(
+            tooltip: 'Analíticas',
+            onPressed: onAnalytics,
+            icon: const Icon(Icons.analytics_outlined),
           ),
           IconButton(
             onPressed: onOpen,

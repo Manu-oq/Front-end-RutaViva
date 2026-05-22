@@ -50,7 +50,7 @@ class AccountSettings extends ConsumerWidget {
               icon: Icons.person_rounded,
               title: 'Editar perfil',
               description: 'Actualiza tus datos e intereses de viaje.',
-              onTap: () => context.pushNamedSafe(AppRouteNames.editProfile),
+              onTap: () => context.pushNamed(AppRouteNames.editProfile),
             ),
             _SettingTile(
               icon: Icons.add_location_alt_rounded,

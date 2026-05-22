@@ -15,6 +15,8 @@ class AppRoutes {
   static const editPoi = '/pois/:id/edit';
   static const bookmarks = '/bookmarks';
   static const poiDetail = '/poi-detail/:id';
+  static const poiDashboard = '/entrepreneur/pois/:id/dashboard';
+  static const poiPosts = '/entrepreneur/pois/:id/posts';
 }
 
 class AppRouteNames {
@@ -34,4 +36,6 @@ class AppRouteNames {
   static const editPoi = 'edit_poi';
   static const bookmarks = 'bookmarks';
   static const poiDetail = 'poi_detail';
+  static const poiDashboard = 'poi_dashboard';
+  static const poiPosts = 'poi_posts';
 }

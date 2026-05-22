@@ -42,6 +42,18 @@ class ApiException implements Exception {
 
   static String _friendlyDetail(String detail, int? statusCode) {
     final normalized = detail.toLowerCase();
+    if (statusCode == 429) {
+      if (normalized.contains('per hour') || normalized.contains('hour')) {
+        return 'Has alcanzado el límite de creación. Puedes crear hasta 5 lugares por hora.';
+      }
+      if (normalized.contains('per day') || normalized.contains('day')) {
+        return 'Has alcanzado el límite diario. Puedes crear hasta 10 lugares por día.';
+      }
+      return 'Has alcanzado el límite de creación. Intenta de nuevo más tarde.';
+    }
+    if (statusCode != null && statusCode >= 500) {
+      return 'Hubo un error inesperado en el servidor. Intenta de nuevo en unos momentos.';
+    }
     if (statusCode == 502 || normalized.contains('llm')) {
       if (normalized.contains('large unexplained daytime gap') ||
           normalized.contains('gap')) {

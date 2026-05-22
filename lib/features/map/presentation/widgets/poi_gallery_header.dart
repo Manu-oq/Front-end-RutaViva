@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/authenticated_network_image.dart';
 import '../../../../core/widgets/app_back_button.dart';
 
 class PoiGalleryHeader extends StatelessWidget {
@@ -59,11 +60,10 @@ class PoiGalleryHeader extends StatelessWidget {
             hasImage
                 ? Hero(
                     tag: heroTag,
-                    child: Image.network(
-                      imageUrl!,
+                    child: AuthenticatedNetworkImage(
+                      imageUrl: imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const _PoiImagePlaceholder(),
+                      errorBuilder: (context) => const _PoiImagePlaceholder(),
                     ),
                   )
                 : const _PoiImagePlaceholder(),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/authenticated_network_image.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -68,11 +69,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Perfil actualizado.')));
-      if (context.canPop()) {
-        context.pop();
-      } else {
-        context.goNamed(AppRouteNames.profile);
-      }
+      context.goNamed(AppRouteNames.profile);
       return;
     }
 
@@ -249,13 +246,24 @@ class _AvatarPreviewFieldState extends State<_AvatarPreviewField> {
     final url = widget.controller.text.trim();
     return Row(
       children: [
-        CircleAvatar(
-          radius: 34,
-          backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-          backgroundImage: url.isEmpty ? null : NetworkImage(url),
-          child: url.isEmpty
-              ? Icon(Icons.person_rounded, color: theme.colorScheme.primary)
-              : null,
+        ClipOval(
+          child: Container(
+            width: 68,
+            height: 68,
+            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+            child: url.isEmpty
+                ? Icon(Icons.person_rounded, color: theme.colorScheme.primary)
+                : AuthenticatedNetworkImage(
+                    imageUrl: url,
+                    width: 68,
+                    height: 68,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_) => Icon(
+                      Icons.person_rounded,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(

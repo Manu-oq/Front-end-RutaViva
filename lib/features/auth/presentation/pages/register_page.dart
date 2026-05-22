@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/terms_and_conditions.dart';
 import '../../../onboarding/presentation/providers/interests_provider.dart';
 import '../../../onboarding/presentation/widgets/interests_selector.dart';
 import '../providers/auth_provider.dart';
@@ -22,6 +23,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _confirmPasswordController = TextEditingController();
   bool _hasOwnTransport = false;
   bool _obscurePassword = true;
+  bool _acceptedTerms = false;
   String? _errorMessage;
 
   @override
@@ -35,6 +37,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (!_acceptedTerms) {
+      setState(
+        () => _errorMessage = 'Debes aceptar los términos y condiciones.',
+      );
       return;
     }
 
@@ -243,10 +252,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     const SizedBox(height: 16),
                     const InterestsSelector(),
                     const SizedBox(height: 32),
+                    TermsAndConditionsSection(
+                      enabled: !authState.isLoading,
+                      onChanged: (accepted) =>
+                          setState(() => _acceptedTerms = accepted),
+                    ),
+                    const SizedBox(height: 24),
                     CustomButton(
                       text: 'Crear cuenta y entrar',
                       isLoading: authState.isLoading,
-                      onPressed: _submit,
+                      onPressed: _acceptedTerms ? _submit : () {},
                     ),
                     const SizedBox(height: 16),
                     Center(

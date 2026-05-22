@@ -58,36 +58,32 @@ class PoiRepository {
   }
 
   Future<PoiModel> createPoi({
-    required String nombre,
-    required String descripcion,
-    required String tipoAcceso,
+    required String name,
+    required String description,
+    required String accessType,
+    required String imageUrl,
     required double latitude,
     required double longitude,
-    String? telefonoPublico,
-    String? emailPublico,
-    String? imageUrl,
+    String? contactPhone,
+    String? contactEmail,
     List<int> categoryIds = const [],
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         '/pois/',
-        data: {
-          'nombre': nombre,
-          'descripcion': descripcion,
-          'tipo_acceso': tipoAcceso,
-          'telefono_publico': telefonoPublico?.isEmpty == true
-              ? null
-              : telefonoPublico,
-          'email_publico': emailPublico?.isEmpty == true ? null : emailPublico,
-          'multimedia_urls': imageUrl == null || imageUrl.isEmpty
-              ? null
-              : {'cover': imageUrl},
-          'category_ids': categoryIds,
-          'latitude': latitude,
-          'longitude': longitude,
-        },
+        data: _createPoiRequestBody(
+          name: name,
+          description: description,
+          accessType: accessType,
+          imageUrl: imageUrl,
+          latitude: latitude,
+          longitude: longitude,
+          contactPhone: contactPhone,
+          contactEmail: contactEmail,
+          categoryIds: categoryIds,
+        ),
       );
-      return PoiModel.fromJson(response.data!);
+      return _poiFromResponse(response.data!);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
@@ -102,7 +98,7 @@ class PoiRepository {
         '/pois/$poiId/media',
         data: {'image_url': imageUrl},
       );
-      return PoiModel.fromJson(response.data!);
+      return _poiFromResponse(response.data!);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
@@ -121,32 +117,30 @@ class PoiRepository {
 
   Future<PoiModel> updatePoi({
     required String poiId,
-    required String nombre,
-    required String descripcion,
-    required String tipoAcceso,
+    required String name,
+    required String description,
+    required String accessType,
     required double latitude,
     required double longitude,
-    String? telefonoPublico,
-    String? emailPublico,
+    String? contactPhone,
+    String? contactEmail,
     List<int> categoryIds = const [],
   }) async {
     try {
       final response = await _client.put<Map<String, dynamic>>(
         '/pois/$poiId',
-        data: {
-          'nombre': nombre,
-          'descripcion': descripcion,
-          'tipo_acceso': tipoAcceso,
-          'telefono_publico': telefonoPublico?.isEmpty == true
-              ? null
-              : telefonoPublico,
-          'email_publico': emailPublico?.isEmpty == true ? null : emailPublico,
-          'category_ids': categoryIds,
-          'latitude': latitude,
-          'longitude': longitude,
-        },
+        data: _updatePoiRequestBody(
+          name: name,
+          description: description,
+          accessType: accessType,
+          latitude: latitude,
+          longitude: longitude,
+          contactPhone: contactPhone,
+          contactEmail: contactEmail,
+          categoryIds: categoryIds,
+        ),
       );
-      return PoiModel.fromJson(response.data!);
+      return _poiFromResponse(response.data!);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
@@ -247,9 +241,109 @@ class PoiRepository {
   Future<PoiModel> getPoiById(String poiId) async {
     try {
       final response = await _client.get<Map<String, dynamic>>('/pois/$poiId');
-      return PoiModel.fromJson(response.data!);
+      return _poiFromResponse(response.data!);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
+  }
+
+  static Map<String, dynamic> createPoiRequestBodyForTesting({
+    required String name,
+    required String description,
+    required String accessType,
+    required String imageUrl,
+    required double latitude,
+    required double longitude,
+    String? contactPhone,
+    String? contactEmail,
+    List<int> categoryIds = const [],
+  }) {
+    return _createPoiRequestBody(
+      name: name,
+      description: description,
+      accessType: accessType,
+      imageUrl: imageUrl,
+      latitude: latitude,
+      longitude: longitude,
+      contactPhone: contactPhone,
+      contactEmail: contactEmail,
+      categoryIds: categoryIds,
+    );
+  }
+
+  static Map<String, dynamic> updatePoiRequestBodyForTesting({
+    required String name,
+    required String description,
+    required String accessType,
+    required double latitude,
+    required double longitude,
+    String? contactPhone,
+    String? contactEmail,
+    List<int> categoryIds = const [],
+  }) {
+    return _updatePoiRequestBody(
+      name: name,
+      description: description,
+      accessType: accessType,
+      latitude: latitude,
+      longitude: longitude,
+      contactPhone: contactPhone,
+      contactEmail: contactEmail,
+      categoryIds: categoryIds,
+    );
+  }
+
+  static Map<String, dynamic> _createPoiRequestBody({
+    required String name,
+    required String description,
+    required String accessType,
+    required String imageUrl,
+    required double latitude,
+    required double longitude,
+    required String? contactPhone,
+    required String? contactEmail,
+    required List<int> categoryIds,
+  }) {
+    return {
+      'name': name,
+      'description': description,
+      'access_type': accessType,
+      'contact_phone': contactPhone?.isEmpty == true ? null : contactPhone,
+      'contact_email': contactEmail?.isEmpty == true ? null : contactEmail,
+      'image_url': imageUrl,
+      'category_ids': categoryIds,
+      'latitude': latitude,
+      'longitude': longitude,
+    };
+  }
+
+  static Map<String, dynamic> _updatePoiRequestBody({
+    required String name,
+    required String description,
+    required String accessType,
+    required double latitude,
+    required double longitude,
+    required String? contactPhone,
+    required String? contactEmail,
+    required List<int> categoryIds,
+  }) {
+    return {
+      'name': name,
+      'description': description,
+      'access_type': accessType,
+      'contact_phone': contactPhone?.isEmpty == true ? null : contactPhone,
+      'contact_email': contactEmail?.isEmpty == true ? null : contactEmail,
+      'category_ids': categoryIds,
+      'latitude': latitude,
+      'longitude': longitude,
+    };
+  }
+
+  static PoiModel _poiFromResponse(Map<String, dynamic> data) {
+    final payload = data['poi'] ?? data['data'];
+    if (payload is Map<String, dynamic>) {
+      return PoiModel.fromJson(payload);
+    }
+    return PoiModel.fromJson(data);
   }
 }

@@ -156,10 +156,8 @@ class AraCandidatePoiModel {
     final id = _readString(json, ['id', 'poi_id', 'uuid']) ?? '';
     return AraCandidatePoiModel(
       id: id,
-      name:
-          _readString(json, ['nombre', 'name', 'title', 'label']) ??
-          'Lugar sugerido',
-      description: _readString(json, ['descripcion', 'description', 'summary']),
+      name: _readString(json, ['name', 'title', 'label']) ?? 'Lugar sugerido',
+      description: _readString(json, ['description', 'summary']),
       categoryIds: (json['category_ids'] as List<dynamic>? ?? [])
           .map((item) => (item as num).toInt())
           .toList(growable: false),
@@ -170,10 +168,7 @@ class AraCandidatePoiModel {
           json['multimedia_urls'] ?? json['media'] ?? json['image_url'],
         ),
       ),
-      distanceMeters: _readDouble(json, [
-        'distancia_metros',
-        'distance_meters',
-      ]),
+      distanceMeters: _readDouble(json, ['distance_meters']),
       actionValue: _readString(json, [
         'action_value',
         'quick_reply_value',

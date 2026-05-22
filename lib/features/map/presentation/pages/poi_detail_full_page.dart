@@ -5,8 +5,10 @@ import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/url_launcher_helper.dart';
 import '../../../../core/widgets/app_back_button.dart';
+import '../../../../core/widgets/section_card.dart';
 import '../../../bookmarks/presentation/widgets/bookmark_button.dart';
 import '../../../categories/data/repositories/category_repository.dart';
+import '../../../entrepreneur/presentation/widgets/poi_posts_view.dart';
 import '../../../media/presentation/widgets/image_upload_panel.dart';
 import '../../../reviews/presentation/widgets/reviews_section.dart';
 import '../../data/repositories/poi_repository.dart';
@@ -113,7 +115,7 @@ class _PoiDetailBody extends ConsumerWidget {
                           },
                         ),
                         const SizedBox(height: 16),
-                        _SectionCard(
+                        SectionCard(
                           title: 'Sobre este lugar',
                           icon: Icons.travel_explore_rounded,
                           child: Column(
@@ -146,10 +148,12 @@ class _PoiDetailBody extends ConsumerWidget {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 16),
+                        PoiPostsView(poiId: poi.id),
                         if (poi.amenities != null &&
                             poi.amenities!.isNotEmpty) ...[
                           const SizedBox(height: 16),
-                          _SectionCard(
+                          SectionCard(
                             title: 'Servicios disponibles',
                             icon: Icons.check_circle_rounded,
                             child: Wrap(
@@ -166,13 +170,13 @@ class _PoiDetailBody extends ConsumerWidget {
                           _ContactCard(poi: poi),
                         ],
                         const SizedBox(height: 16),
-                        _SectionCard(
+                        SectionCard(
                           title: 'Fotos de viajeros',
                           icon: Icons.photo_camera_rounded,
                           child: ImageUploadPanel(poiId: poi.id),
                         ),
                         const SizedBox(height: 16),
-                        _SectionCard(
+                        SectionCard(
                           title: 'Comunidad viajera',
                           icon: Icons.forum_rounded,
                           child: ReviewsSection(poiId: poi.id),
@@ -233,6 +237,8 @@ class _TitleCard extends StatelessWidget {
                   icon: Icons.wb_sunny_rounded,
                   label: 'Mejor con luz de día',
                 ),
+              if (poi.verificationStatus != null)
+                _VerificationBadge(status: poi.verificationStatus!),
             ],
           ),
           const SizedBox(height: 16),
@@ -351,7 +357,7 @@ class _ContactCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return _SectionCard(
+    return SectionCard(
       title: 'Contacto',
       icon: Icons.support_agent_rounded,
       child: Column(
@@ -391,76 +397,19 @@ class _ContactCard extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Widget child;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        boxShadow: AppColors.ambientShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: theme.colorScheme.primary, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
 class _DetailPill extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color? color;
 
-  const _DetailPill({required this.icon, required this.label});
+  const _DetailPill({required this.icon, required this.label, this.color});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final pillForeground = isDark
-        ? const Color(0xFF8EF0A7)
-        : theme.colorScheme.primary;
+    final pillForeground =
+        color ?? (isDark ? const Color(0xFF8EF0A7) : theme.colorScheme.primary);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
@@ -562,5 +511,30 @@ class _PoiErrorPage extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _VerificationBadge extends StatelessWidget {
+  final String status;
+
+  const _VerificationBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, label, color) = switch (status) {
+      'verified' => (
+        Icons.verified_rounded,
+        'Verificado',
+        const Color(0xFF2E7D32),
+      ),
+      'pending' => (
+        Icons.pending_rounded,
+        'Pendiente',
+        const Color(0xFFF57F17),
+      ),
+      'flagged' => (Icons.report_rounded, 'Reportado', const Color(0xFFC62828)),
+      _ => (Icons.help_outline_rounded, 'Sin verificar', Colors.grey),
+    };
+    return _DetailPill(icon: icon, label: label, color: color);
   }
 }

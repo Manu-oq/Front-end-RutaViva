@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/error/api_exception.dart';
@@ -183,7 +184,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   }
 
   Future<bool> handleAction(MessageAction action) {
-    _lockExistingActions(action);
+    lockExistingActions(action);
     return sendMessage(action.prompt, visibleText: _visibleActionText(action));
   }
 
@@ -217,7 +218,8 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     return looksTechnical ? label : null;
   }
 
-  void _lockExistingActions(MessageAction selectedAction) {
+  @visibleForTesting
+  void lockExistingActions(MessageAction selectedAction) {
     final selectedId = selectedAction.id.trim().isNotEmpty
         ? selectedAction.id.trim()
         : selectedAction.prompt;
@@ -434,7 +436,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
           evidenceLevel: assistantMessage?.evidenceLevel,
           actions: isStepReplacementCompleted
               ? const []
-              : _buildActions(session.quickReplies),
+              : buildActions(session.quickReplies),
           itineraryCard: _buildUpdatedItineraryCard(
             updatedItinerary,
             fallbackItineraryId: assistantMessage?.metadata?['itinerary_id']
@@ -495,7 +497,8 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     });
   }
 
-  List<MessageAction> _buildActions(List<AraQuickReplyModel> replies) {
+  @visibleForTesting
+  List<MessageAction> buildActions(List<AraQuickReplyModel> replies) {
     final actions = <MessageAction>[];
     final seen = <String>{};
 
@@ -602,8 +605,3 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
 final chatProvider = NotifierProvider<ChatNotifier, List<MessageEntity>>(
   ChatNotifier.new,
 );
-
-final chatUiStateProvider = Provider<AraChatUiState>((ref) {
-  ref.watch(chatProvider);
-  return ref.read(chatProvider.notifier).uiState;
-});

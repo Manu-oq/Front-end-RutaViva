@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/authenticated_network_image.dart';
 
 class VibeCard extends StatelessWidget {
   final String category;
@@ -24,27 +25,26 @@ class VibeCard extends StatelessWidget {
       child: Container(
         height: 400,
         margin: const EdgeInsets.only(bottom: 24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(32),
-          image: DecorationImage(
-            image: NetworkImage(imagePath),
-            fit: BoxFit.cover,
-          ),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(32)),
+        clipBehavior: Clip.antiAlias,
         child: Stack(
+          fit: StackFit.expand,
           children: [
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(32),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      AppColors.volcanicObsidian.withValues(alpha: 0.8),
-                    ],
-                  ),
+            AuthenticatedNetworkImage(
+              imageUrl: imagePath,
+              fit: BoxFit.cover,
+              errorBuilder: (_) =>
+                  ColoredBox(color: AppColors.forest.withValues(alpha: 0.22)),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    AppColors.volcanicObsidian.withValues(alpha: 0.8),
+                  ],
                 ),
               ),
             ),

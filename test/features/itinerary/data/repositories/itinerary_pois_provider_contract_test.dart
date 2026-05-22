@@ -6,11 +6,11 @@ void main() {
   test('PoiModel parses itinerary filtered POI payload with visit rules', () {
     final poi = PoiModel.fromJson({
       'id': 'uuid',
-      'nombre': 'Nombre del lugar',
-      'descripcion': 'Descripción del lugar',
-      'tipo_acceso': 'publico',
-      'telefono_publico': null,
-      'email_publico': null,
+      'name': 'Nombre del lugar',
+      'description': 'Descripción del lugar',
+      'access_type': 'public',
+      'contact_phone': null,
+      'contact_email': null,
       'multimedia_urls': <String, dynamic>{},
       'opening_hours_text': null,
       'visit_rules': {
@@ -24,7 +24,7 @@ void main() {
       'category_ids': [1, 8],
       'latitude': -39.123,
       'longitude': -72.456,
-      'distancia_metros': null,
+      'distance_meters': null,
     });
 
     expect(poi.categoryIds, equals([1, 8]));

@@ -6,19 +6,19 @@ class DestinationSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SliverPadding(
-      padding: const EdgeInsets.all(24),
+    return const SliverPadding(
+      padding: EdgeInsets.all(24),
       sliver: SliverToBoxAdapter(
         child: Column(
           children: [
-            const SkeletonContainer(
+            SkeletonContainer(
               height: 250,
               borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
             ),
-            const SizedBox(height: 12),
-            const SkeletonContainer(height: 20, width: 150),
-            const SizedBox(height: 12),
-            const SkeletonContainer(height: 60),
+            SizedBox(height: 12),
+            SkeletonContainer(height: 20, width: 150),
+            SizedBox(height: 12),
+            SkeletonContainer(height: 60),
           ],
         ),
       ),

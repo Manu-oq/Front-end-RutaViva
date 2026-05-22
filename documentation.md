@@ -1,6 +1,6 @@
 # Documentación Técnica Viva — Frontend Ruta Viva
 
-> Última actualización integral: **2026-05-03**
+> Última actualización integral: **2026-05-20**
 >
 > Este documento es la memoria técnica acumulativa del frontend. Está pensado como referencia viva para entender cómo está organizada la app Flutter, qué pantallas existen, cómo se conecta con el backend FastAPI y qué decisiones de integración ya quedaron fijadas.
 
@@ -464,27 +464,30 @@ Reglas actuales:
 - Si hay token persistido y se está restaurando sesión, no se fuerza redirect prematuro.
 
 ### ShellRoute y NavigationBar
-Las 5 rutas principales — Home, Mapa, Itinerarios, Favoritos, Perfil — están envueltas en un `ShellRoute` que provee el widget `MistNavigation` (ahora un `NavigationBar` Material 3 con 5 destinos). El `NavigationBar` escucha `GoRouterState.of(context).uri` para marcar el tab activo.
+Las 5 rutas principales — Home, Chat, Mapa, Rutas, Perfil — están envueltas en un `ShellRoute` que provee el widget `MistNavigation` (un `NavigationBar` Material 3 con 5 destinos). El `NavigationBar` escucha `GoRouterState.of(context).uri` para marcar el tab activo.
 
-El `ShellRoute` renderiza el `NavigationBar` en esas 5 pantallas. Las rutas fuera del shell (login, register, onboarding, edit profile, entrepreneur dashboard, create/edit POI, detalle de POI, chat) **no tienen navegación inferior**.
+El `ShellRoute` renderiza el `NavigationBar` en esas 5 pantallas. Las rutas fuera del shell (login, register, onboarding, edit profile, entrepreneur dashboard, bookmarks, create/edit POI, detalle de POI, chat focused, POI dashboard, POI posts) **no tienen navegación inferior**.
 
-Ya no existe `MistNavigation` como 4 botones sueltos; fue reescrito como `NavigationBar` Material 3 con 5 destinos.
+Orden actual de tabs: Inicio → Chat → Mapa → Rutas → Perfil.
 
 Rutas actuales:
 - `/login` — pública, sin shell
 - `/register` — pública, sin shell
 - `/home` — protegida, con shell (antes `/`)
+- `/chat` — protegida, con shell (navbar tab), nombre `chat`. También existe ruta standalone con path `/chat` y nombre `chat_focused` para navegación desde fuera del shell (ej: cambiar lugar en itinerario).
 - `/map` — protegida, con shell
+- `/map/focused` — protegida, sin shell
 - `/onboarding` — protegida, sin shell
 - `/itineraries` — protegida, con shell
 - `/itineraries/:id` — protegida, sin shell
-- `/chat` — protegida, sin shell
 - `/profile` — protegida, con shell
 - `/profile/edit` — protegida, sin shell
 - `/entrepreneur` — protegida, sin shell
+- `/entrepreneur/pois/:id/dashboard` — protegida, sin shell
+- `/entrepreneur/pois/:id/posts` — protegida, sin shell
 - `/pois/create` — protegida, sin shell
 - `/pois/:id/edit` — protegida, sin shell
-- `/bookmarks` — protegida, con shell
+- `/bookmarks` — protegida, sin shell (antes con shell)
 - `/poi-detail/:id` — protegida, sin shell
 
 ---
@@ -662,6 +665,25 @@ Usado por:
 
 Requiere turista autenticado. Devuelve `404` si el itinerario no existe o no pertenece al usuario actual.
 
+### `PATCH /api/v1/itineraries/{id}/steps/{step_id}/reschedule`
+Usado por:
+- `_rescheduleStep` → `ItineraryRepository.rescheduleStep()`
+- Botón "Horario" en cada paso del itinerario
+
+Body: `arrival_time` (ISO8601), `duration_minutes` (opcional). Los pasos siguientes se ajustan automáticamente.
+
+### `PATCH /api/v1/itineraries/{id}/steps/reorder-with-times`
+Usado por:
+- `_onStepsReordered` (drag & drop) → `ItineraryRepository.reorderStepsWithTimes()`
+
+Body: `[{step_id, day_index, position}]`. El backend redistribuye horarios.
+
+### `GET /api/v1/itineraries/{id}/weather`
+Usado por:
+- `ItineraryRepository.getItineraryWeather()`
+
+Refresca el clima por paso. Cada step tiene `ai_context.weather` con `{description, temperature_c, precipitation_probability}`.
+
 ## 10.4 Reviews
 ### `GET /api/v1/reviews/poi/{poi_id}`
 Usado por:
@@ -726,6 +748,46 @@ Formato:
 Respuesta:
 - `url`
 
+## 10.6 Entrepreneur & Posts
+
+### `GET /api/v1/entrepreneur/me/metrics`
+Usado por: `EntrepreneurDashboardPage` — métricas globales del emprendedor.
+
+### `POST /api/v1/users/me/entrepreneur-profile`
+Usado por: `_ActivateEntrepreneurPanel`. Body opcional: `{rut: "12345678-9", admin_data: {...}}`. El RUT es validado con módulo 11 por el backend.
+
+### `GET /api/v1/entrepreneur/pois/{poi_id}/analytics`
+Usado por: `poiAnalyticsProvider` → `PoiDashboardPage`. Devuelve `{visits_count, clicks_count, favorites_count, reviews_count, avg_rating, weekly_visits, monthly_growth}`.
+
+### `GET /api/v1/entrepreneur/pois/{poi_id}/activity`
+Usado por: `poiActivityProvider` → `PoiDashboardPage`. Devuelve timeline de eventos.
+
+### `POST /api/v1/entrepreneur/pois/{poi_id}/posts`
+Usado por: `PoiPostsManagementPage`. Crea post asociado a POI. Body: `{title, content}`.
+
+### `GET /api/v1/entrepreneur/pois/{poi_id}/posts`
+Usado por: `poiPostsProvider`. Lista posts del POI (dueño).
+
+### `PATCH /api/v1/entrepreneur/pois/{poi_id}/posts/{post_id}`
+Edición de post. Body: `{title, content}`.
+
+### `DELETE /api/v1/entrepreneur/pois/{poi_id}/posts/{post_id}`
+Eliminación de post.
+
+### `PUT /api/v1/entrepreneur/pois/{poi_id}/posts/{post_id}/pin`
+Toggle fijar. Body: `{is_pinned: bool}`.
+
+### `PUT /api/v1/entrepreneur/pois/{poi_id}/posts/reorder`
+Drag & drop persistente. Body: `{posts: [{post_id, position}]}`.
+
+### `GET /api/v1/pois/{poi_id}/posts` (PÚBLICO)
+Usado por: `poiPublicPostsProvider` → `PoiPostsView` → `PoiDetailFullPage`.
+Sin auth. Retorna solo `is_published = true`. Muestra "Novedades del lugar" a turistas.
+
+## 10.7 Weather
+### `GET /api/v1/weather/forecast`
+Usado por: `weatherForecastProvider`. Query: `lat`, `lon`, `start_date`, `end_date`. Devuelve array de `WeatherForecastDay`.
+
 ---
 
 ## 11. Modelos frontend principales
@@ -741,36 +803,34 @@ Campos:
 - `id`
 - `email`
 - `isActive`
+- `avatarUrl`
 - `createdAt`
+- `touristProfile`
+- `entrepreneurProfile`
+
+Getters: `displayName`, `isEntrepreneur`.
+
+### `TouristProfileModel`
+Campos: `userId`, `fullName`, `hasOwnTransport`, `systemPreferences`. Getter: `interests`.
+
+### `EntrepreneurProfileModel`
+Campos: `userId`, `rut` (opcional, chileno), `verificationStatus` ("verified"/"unverified"), `adminData`.
 
 ## 11.2 POIs
 ### `PoiModel`
 Representa el contrato backend:
-- `id`
-- `nombre`
-- `descripcion`
-- `tipoAcceso`
-- `telefonoPublico`
-- `emailPublico`
-- `multimediaUrls`
-- `categoryIds`
-- `latitude`
-- `longitude`
-- `distanciaMetros`
+- `id`, `nombre`, `descripcion`, `tipoAcceso`, `telefonoPublico`, `emailPublico`
+- `multimediaUrls`, `openingHoursText`, `visitRules` (VisitRulesModel)
+- `categoryIds`, `latitude`, `longitude`, `distanciaMetros`
+- `verificationStatus` ("pending"|"verified"|"flagged"), `confidenceScore` (0.0 a 1.0)
+- Método `toMapPoint()` convierte a entidad UI.
 
 ### `MapPoint`
 Entidad UI:
-- `id`
-- `name`
-- `coordinates`
-- `categoryIds` (única fuente de categoría; el campo `category` fue eliminado junto con el enum `PointCategory`)
-- `description`
-- `imageUrl`
-- `phone`
-- `email`
-- `distanceMeters`
-- `isLocalAuthentic`
-- `amenities`
+- `id`, `name`, `coordinates`, `categoryIds`, `description`, `imageUrl`
+- `phone`, `email`, `distanceMeters`, `openingHoursText`, `visitRules`
+- `isLocalAuthentic`, `amenities`
+- `verificationStatus`, `confidenceScore`
 
 Resolución de categorías:
 - El label visible se resuelve con la extension `MapPointCategoryX.categoryLabel(Map<int, CategoryModel> names)` que busca el primer ID existente en el mapa. Fallback: `"Sin categoría"`.
@@ -790,19 +850,17 @@ Campos:
 
 ### `ItineraryStepModel`
 Campos:
-- `id`
-- `itineraryId`
-- `poiId`
-- `poiNombre`
-- `poiDescripcion`
-- `stepOrder`
-- `arrivalTime`
-- `departureTime`
-- `aiContext`
+- `id`, `itineraryId`, `poiId`, `poiNombre`, `poiDescripcion`
+- `stepOrder`, `arrivalTime`, `departureTime`
+- `dayIndex`, `dayDate`, `dayLabel`
+- `aiContext` (Map<String, dynamic>?)
+- Método `copyWith()` para optimistic updates en reorder
 
 Getters importantes:
 - `title`: usa `ai_context.title`, luego `poiNombre`, luego `Parada N`.
-- `reason`: usa `ai_context.reason`, luego `poiDescripcion`, luego texto fallback.
+- `reason`: usa `ai_context.reason`, luego `poiDescripcion`, luego texto fallback. Detecta texto placeholder ("reemplazado", "placeholder", "null") y usa `poiDescripcion` como fallback.
+- `tips`: usa `ai_context.tips`, fallback `''`.
+- `recommendedDuration`: usa `ai_context.recommended_duration`, fallback `''`.
 
 ## 11.4 Reviews
 ### `ReviewModel`
@@ -853,6 +911,12 @@ Métodos relevantes:
 ## 12.4.3 Entrepreneur/POIs propios
 - `myPoisProvider`
 - `poiModelDetailProvider`
+- `poiAnalyticsProvider`
+- `poiActivityProvider`
+- `poiPostsProvider`
+- `entrepreneurMetricsProvider`
+- `entrepreneurIncomeProvider`
+- `entrepreneurPostsProvider` (posts globales, legacy)
 
 ## 12.5 Itinerarios
 - `itineraryRepositoryProvider`
@@ -875,7 +939,13 @@ Métodos relevantes:
 - `categoriesByIdProvider: Provider<Map<int, CategoryModel>>` — proveedor síncrono que colapsa el async provider a un mapa vacío en loading/error. Usado para resolver labels de categoría en POIs.
 
 ## 12.10 Global loading
-- `globalLoadingProvider: NotifierProvider<GlobalLoadingNotifier, int>` — contador de loadings activos. Soporta múltiples operaciones simultáneas. El widget `GlobalLoadingOverlay` lo escucha para mostrar/ocultar el overlay semitransparente.
+- `globalLoadingProvider: NotifierProvider<GlobalLoadingNotifier, int>` — contador de loadings activos. Soporta múltiples operaciones simultáneas.
+
+## 12.11 Weather
+- `weatherForecastProvider: FutureProvider.family<List<WeatherForecastDay>, WeatherForecastRequest>` — consulta clima por coordenadas y rango de fechas.
+
+## 12.12 Posts públicos (turista)
+- `poiPublicPostsProvider: FutureProvider.family<List<EntrepreneurPostModel>, String>` — posts públicos de un POI (`GET /pois/{poi_id}/posts`). Usado en `PoiPostsView` dentro del detalle del POI.
 
 ### Tests asociados
 - `test/features/auth/data/repositories/auth_repository_test.dart` — 10 tests
@@ -1003,12 +1073,16 @@ Responsabilidad:
 Pantallas:
 - `EntrepreneurDashboardPage`
 - `EditPoiPage`
+- `PoiDashboardPage` (analíticas por POI)
 
 Responsabilidad:
 - activar perfil emprendedor,
 - listar POIs propios,
 - navegar a creación de POI,
-- editar y eliminar POIs propios.
+- editar y eliminar POIs propios,
+- ver analíticas por POI (visitas, clics, favoritos, reseñas, puntuación),
+- ver actividad reciente del POI,
+- gestionar posts asociados a cada POI.
 
 ---
 
@@ -1039,7 +1113,7 @@ Los repositories transforman `DioException` en `ApiException` para que UI y prov
 
 ## 15.1 Seguridad local
 - `shared_preferences` no es almacenamiento seguro para secretos en producción móvil.
-- No existe refresh token.
+- No existe refresh token; el backend emite solo access token.
 
 ## 15.2 Asociación de imágenes a POIs
 - El upload funciona contra `/media/upload`.
@@ -1048,7 +1122,9 @@ Los repositories transforman `DioException` en `ApiException` para que UI y prov
 
 ## 15.3 Itinerarios históricos
 - El historial y detalle por ID ya están conectados.
-- Faltan acciones avanzadas: eliminar, renombrar, filtrar por fecha/estado y exportar/compartir itinerario.
+- Ya existe edición de horarios (reschedule) por paso.
+- Ya existe reordenamiento con drag & drop.
+- Faltan acciones avanzadas: renombrar, filtrar por fecha/estado y exportar/compartir itinerario.
 
 ## 15.4 Reviews avanzadas
 - Ya se listan, crean, editan y eliminan reviews propias.
@@ -1056,29 +1132,25 @@ Los repositories transforman `DioException` en `ApiException` para que UI y prov
 - Falta moderación, paginación y recálculo histórico más sofisticado del perfil tras eliminar reviews.
 
 ## 15.5 Tests
-Existen ~70 tests unitarios y widget tests en:
-- `test/features/auth/data/repositories/auth_repository_test.dart` (10 tests — serialización TokenModel/UserModel)
-- `test/features/map/data/repositories/poi_repository_test.dart` (7 tests — PoiModel, MapPoint, categoryIds)
-- `test/features/itinerary/data/repositories/itinerary_repository_test.dart` (11 tests — ItineraryModel fromJson/toJson, steps, round-trips)
-- `test/features/auth/presentation/providers/auth_provider_test.dart` (11 tests — AuthState, authProvider lifecycle)
-- `test/features/map/presentation/providers/map_provider_test.dart` (10 tests — MapState, mapProvider)
-- `test/features/itinerary/presentation/providers/itinerary_provider_test.dart` (6 tests — ItineraryState, rehidratación desde shared_preferences)
-- `test/core/router/app_router_test.dart` (13 tests — guards de navegación, redirects)
-
-Todos usan serialización pura y `ProviderContainer` con overrides manuales. No hay mocks de Dio todavía.
+Existen ~70 tests unitarios y widget tests (85 ejecutados). No hay tests de widgets conectados ni mocks de Dio.
 
 ## 15.6 UX de carga y errores
-- Loading global overlay implementado (`GlobalLoadingOverlay`) con semitransparencia y spinner, controlado por `globalLoadingProvider` (contador).
-- Skeletons agregados en: Map (6 chips), Reviews (resumen + 3 tarjetas), Itinerary detail (4 pasos), Itinerary history (4 tarjetas).
-- Error states con botón Reintentar en reviews.
-- Banner de error persistente (rojo con botón de cierre) en login y register (reemplaza SnackBar anterior).
-- RefreshIndicator en POI detail, Profile e Itinerary detail.
+- Loading global overlay, skeletons (Map, Reviews, Itineraries), error states con retry, banner persistente, RefreshIndicator implementados.
+- Manejo de errores 429 (rate limit) y 500 (server error) con mensajes friendly.
+- Pull-to-refresh por gesto en el mapa.
 - Aún quedan pantallas sin skeleton: Home, Profile y Bookmarks.
 
 ## 15.7 Roles
 - La UI ya distingue turista vs emprendedor mediante `entrepreneur_profile`.
-- Existe panel emprendedor básico para POIs propios.
-- Falta autorización fina por roles, onboarding específico emprendedor, métricas y claim de POIs importados.
+- Activación emprendedor con RUT chileno opcional.
+- Panel emprendedor con analíticas por POI, actividad y gestión de posts.
+- Falta claim de POIs importados y onboarding específico emprendedor.
+
+## 15.8 Posts
+- Posts asociados a POI específico (no al panel general).
+- Gestión completa: crear, editar, eliminar, fijar, ocultar, drag & drop.
+- Límite visual de 6 posts por POI (frontend).
+- Falta programación de posts (scheduled_at ya existe en el modelo pero no en UI).
 
 ---
 
@@ -1191,35 +1263,40 @@ flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8000/api/v1 --dart-defin
 ## 18. Estado final al cierre de esta actualización
 Hoy el frontend puede:
 
-- registrar turistas,
+- registrar turistas con Términos y Condiciones obligatorios,
 - iniciar sesión,
 - persistir JWT localmente,
 - restaurar sesión al abrir la app,
 - proteger rutas privadas,
 - inyectar bearer token automáticamente,
-- cargar POIs reales en mapa,
-- abrir detalle de POI,
+- cargar POIs reales en mapa con filtros animados por categoría,
+- abrir detalle de POI con badge de verificación (verified/pending/flagged),
+- ver posts públicos del lugar en el detalle de POI ("Novedades del lugar"),
 - cargar y crear reviews,
 - subir imágenes al backend local,
-- generar itinerarios reales,
-- mostrar pasos de itinerario con nombres y descripciones reales de POIs,
+- generar itinerarios reales con fechas configurables (diálogo rápido + calendario completo),
+- mostrar pasos de itinerario con nombres, descripciones y clima por paso,
+- editar horarios de pasos (reschedule con time picker + duración),
+- reordenar pasos con drag & drop,
+- cambiar lugar de un paso (navegación al chat con sesión iniciada),
 - resolver URLs relativas de media,
-- manejar errores backend de forma legible,
-- navegar con NavigationBar Material 3 entre las 5 pantallas principales,
-- cargar categorías dinámicamente desde backend (data-driven, sin enums hardcodeados),
+- manejar errores backend de forma legible (incluyendo 429 rate limit y 500 genéricos),
+- navegar con NavigationBar Material 3 entre 5 tabs: Inicio, Chat, Mapa, Rutas, Perfil,
+- cargar categorías dinámicamente desde backend (data-driven),
 - persistir el último itinerario en shared_preferences,
-- mostrar skeletons durante carga en Map, Reviews e Itinerarios,
+- mostrar skeletons durante carga,
 - overlay global de loading para operaciones async,
-- error states con retry en reviews y banner persistente en login/register,
-- pull-to-refresh en POI detail, Profile e Itinerary detail,
-- y ejecutar ~70 tests unitarios y widget tests (flutter analyze limpio, 73/73 tests pasando).
-
-La siguiente etapa natural sería:
-- agregar skeletons faltantes (Home, Profile, Bookmarks),
-- agregar tests de widgets conectados y mocks de Dio,
-- endurecer almacenamiento seguro de token,
-- agregar refresh token si el backend lo implementa,
-- y moderación/paginación de reviews.
+- error states con retry y banner persistente en login/register,
+- pull-to-refresh en POI detail, Profile, Itinerary detail y Mapa (gesto),
+- activar perfil emprendedor con RUT chileno opcional,
+- gestionar POIs propios (crear, editar, eliminar),
+- dashboard de analíticas por POI (visitas, favoritos, reseñas, promedio, rendimiento),
+- timeline de actividad reciente del POI,
+- gestionar posts por POI (crear, editar, eliminar, fijar, ocultar, drag & drop, límite 6),
+- editar perfil turista y preferencias,
+- guardar/quitar favoritos,
+- chat con Ara para generar y modificar itinerarios,
+- y ejecutar 85 tests unitarios y widget tests (flutter analyze limpio, 85/85 tests pasando).
 
 
 ---
@@ -1377,3 +1454,235 @@ La siguiente etapa natural sería:
 - UX mejorada con skeletons, loading global, error states y pull-to-refresh.
 - Último itinerario sobrevive a reinicios de app.
 - 73 tests pasando, flutter analyze limpio.
+
+
+---
+
+### [2026-05-20] Dashboard emprendedor por POI, posts asociados y mejoras UX mapa
+
+#### Objetivo
+- Separar "administrar" de "analizar" en el panel emprendedor.
+- Crear un dashboard de analíticas por cada punto de interés (visitas, clics, favoritos, reseñas, puntuación).
+- Reestructurar el sistema de posts para que pertenezcan a un POI (no al panel general).
+- Corregir bug de navegación: mapa enfocado no reseteaba estado al volver al mapa shell.
+- Refinar barra de búsqueda y filtros del mapa con animaciones y mejor jerarquía visual.
+- Agregar Términos y Condiciones en registro de usuario con checkbox obligatorio.
+- Reubicar botón "Mi ubicación" del mapa de la barra superior a la esquina inferior derecha.
+- Implementar pull-to-refresh por gesto en el mapa para recargar POIs.
+
+#### Cambios realizados
+
+**Navegación — bug fix**
+- `map_screen.dart:48-53`: `initState` ahora detecta cuando el mapa shell (`/map`) se reentra con estado no-global (`focusedPoiId != null`) y fuerza `loadNearby()` para resetear al modo de exploración.
+
+**Search bar — refinamiento UX**
+- `_MapHeader` en `map_screen.dart`: GlassContainer con más padding vertical, TextField con `focusedBorder` visible, hint style mejorado, botón submit envuelto en `SizedBox(44x44)` para mejor touch target, botón refresh migrado a `filledTonal`.
+- Jerarquía visual: botón buscar (filled/primary) > refresh (filledTonal).
+
+**Filtros del mapa — animaciones**
+- `_MapFilterChip`: reescrito con `AnimatedScale` (+5% scale en chip activo, `Curves.easeOutBack`), `AnimatedContainer` para transiciones suaves de color/borde/shadow.
+- `_MapCategoryFilters` envuelto en `AnimatedOpacity` + `AnimatedSlide` para fade-in/slide desde arriba.
+
+**Posts — reestructuración**
+- `EntrepreneurPostModel`: agregados `poiId`, `poiName`, `isPinned`, `scheduledAt`.
+- `EntrepreneurRepository`: nuevos métodos `getPoiPosts()`, `createPoiPost()`, `updatePoiPost()`, `deletePoiPost()`, `pinPoiPost()`, `getPoiAnalytics()`, `getPoiActivity()`.
+- `_PostsSection`: selector de POI en creación de posts mediante `DropdownButtonFormField`.
+- `_PlaceCard`: agregado botón "Analíticas" que navega al dashboard por POI.
+
+**Dashboard por POI — nueva página**
+- Nueva ruta `/entrepreneur/pois/:id/dashboard` con nombre `poi_dashboard`.
+- Archivo `poi_dashboard_page.dart` (~1050 líneas).
+- Secciones: SliverAppBar con título/categoría, tarjetas de estadísticas (visitas, clics, favoritos, reseñas, promedio), rendimiento temporal (visitas esta semana, crecimiento mensual), actividad reciente (timeline), sección de opiniones (reusa `ReviewsSection`), posts del lugar con CRUD completo.
+
+**Términos y Condiciones**
+- Nuevo widget `lib/core/widgets/terms_and_conditions.dart` con texto genérico fácilmente reemplazable (`kTermsAndConditionsText`).
+- `RegisterPage` ahora incluye `TermsAndConditionsSection` entre intereses y botón de crear cuenta.
+- Checkbox "He leído y acepto los términos y condiciones" obligatorio para habilitar el registro.
+- Error específico si se intenta registrar sin aceptar.
+
+**Mapa — botón "Mi ubicación"**
+- Removido de `_MapHeader` (barra de búsqueda superior).
+- Agregado a la columna de botones flotantes en esquina inferior derecha, debajo de zoom in/out.
+- Mejor accesibilidad con una mano, patrón estándar (Google Maps, Waze, Uber).
+
+**Mapa — pull-to-refresh**
+- Zona de gesture en la parte superior del mapa (80px) que detecta drag vertical hacia abajo.
+- Indicador visual: ícono de refresh que aparece y crece en opacidad proporcional al arrastre.
+- Al superar 60px de arrastre y soltar, ejecuta `_onPullRefresh()` que recarga POIs cercanos.
+- Solo activo en modo global (no en vista enfocada de un solo POI).
+
+**Modelos nuevos**
+- `PoiAnalyticsModel`: `visitsCount`, `clicksCount`, `favoritesCount`, `reviewsCount`, `avgRating`, `weeklyVisits`, `monthlyGrowth`.
+- `PoiActivityEvent`: `type`, `timestamp`, `data` (mapa flexible).
+
+#### Archivos modificados/creados
+- `lib/core/widgets/terms_and_conditions.dart` — NUEVO widget reutilizable
+- `lib/features/auth/presentation/pages/register_page.dart` — T&C integrado
+- `lib/core/router/app_routes.dart` — agregada ruta `poiDashboard`
+- `lib/core/router/app_router.dart` — agregada ruta e import para `PoiDashboardPage`
+- `lib/features/map/presentation/pages/map_screen.dart` — navigation fix, search bar, filters, locate button move, pull-to-refresh
+- `lib/features/entrepreneur/data/models/entrepreneur_models.dart` — `EntrepreneurPostModel` extendido, `PoiAnalyticsModel`, `PoiActivityEvent`
+- `lib/features/entrepreneur/data/repositories/entrepreneur_repository.dart` — nuevos providers y métodos
+- `lib/features/entrepreneur/presentation/pages/entrepreneur_dashboard_page.dart` — `_PostEditDialog`, botón analíticas, POI selector en posts
+- `lib/features/entrepreneur/presentation/pages/poi_dashboard_page.dart` — NUEVO (~1050 líneas)
+
+#### Estado resultante
+- Panel emprendedor ahora permite ver analíticas por POI individual.
+- Posts pueden asociarse a un POI específico.
+- Mapa shell resetea correctamente al volver de vista enfocada.
+- Barra de búsqueda y filtros con animaciones suaves.
+- Registro de usuario con T&C obligatorios.
+- Botón "Mi ubicación" en posición estándar (abajo derecha).
+- Pull-to-refresh por gesto en el mapa.
+- `flutter analyze`: 0 errores, 1 warning benigno.
+- `flutter test`: 85/85 pasando.
+
+#### Endpoints esperados del backend (para sincronizar)
+```
+GET    /api/v1/entrepreneur/pois/{poi_id}/analytics
+  → { visits_count, clicks_count, favorites_count, reviews_count, avg_rating, weekly_visits, monthly_growth }
+
+GET    /api/v1/entrepreneur/pois/{poi_id}/activity
+  → [{ type: "new_review"|"new_favorite"|"new_post"|"new_visit", timestamp: ISO8601, data: {...} }]
+
+GET    /api/v1/entrepreneur/pois/{poi_id}/posts
+  → [{ id, poi_id, poi_name, title, content, is_published, is_pinned, scheduled_at, created_at }]
+
+POST   /api/v1/entrepreneur/pois/{poi_id}/posts
+  Body: { title, content }
+  → EntrepreneurPostModel
+
+PATCH  /api/v1/entrepreneur/pois/{poi_id}/posts/{post_id}
+  Body: { title, content }
+  → EntrepreneurPostModel
+
+DELETE /api/v1/entrepreneur/pois/{poi_id}/posts/{post_id}
+  → 204 No Content
+
+PUT    /api/v1/entrepreneur/pois/{poi_id}/posts/{post_id}/pin
+  Body: { is_pinned: bool }
+  → EntrepreneurPostModel
+```
+
+
+---
+
+### [2026-05-20] Itinerario: reschedule, reorder, fix navegación, clima por paso
+
+#### Objetivo
+- Permitir editar horarios y duración de cada parada del itinerario.
+- Reordenar paradas con drag & drop dentro del día.
+- Corregir navegación del botón "Cambiar lugar".
+- Corregir descripciones placeholder después de cambiar un lugar.
+- Mostrar clima por paso (desde `ai_context.weather` del backend).
+
+#### Cambios realizados
+- `ItineraryRepository.rescheduleStep()`: `PATCH /itineraries/{id}/steps/{step_id}/reschedule`.
+- `ItineraryRepository.reorderStepsWithTimes()`: `PATCH /itineraries/{id}/steps/reorder-with-times`.
+- `ItineraryRepository.getItineraryWeather()`: `GET /itineraries/{id}/weather`.
+- `_RescheduleDialog`: time picker + duración.
+- `ReorderableListView` con drag handle + `_ReorderProxyDecorator`.
+- `_changeStep`: ahora inicia sesión antes de navegar al chat.
+- `ItineraryStepModel.reason`: detecta texto placeholder y usa `poiDescripcion`.
+- `_StepWeatherChip`: chip con temp y precipitación desde `ai_context.weather`.
+- `ItineraryStepModel.copyWith()` para optimistic updates en drag & drop.
+
+#### Archivos modificados
+- `itinerary_model.dart` — `reason` mejorado, `copyWith` agregado
+- `itinerary_repository.dart` — 3 nuevos endpoints
+- `itinerary_detail_page.dart` — reschedule UI, reorder UI, fix navegación, weather chip
+
+
+---
+
+### [2026-05-20] Posts por POI, navegación, UX mapa
+
+#### Objetivo
+- Mover gestión de posts fuera del dashboard general a una página por POI.
+- Reemplazar tab Guardados por Chat con Ara en la barra de navegación.
+- Limpiar home header de botones redundantes.
+- Mejorar search bar y filtros del mapa.
+- Arreglar calendario de fechas (finde real, quitar "3 días").
+- Fix edit profile navigation.
+- Fix estado de posts tras CRUD (optimistic update).
+
+#### Cambios realizados
+- Eliminado `_PostsSection` del dashboard general.
+- Agregado ícono de posts (`campaign_rounded`) en `_PlaceCard`.
+- Nueva página `PoiPostsManagementPage` (`/entrepreneur/pois/:id/posts`) con CRUD, drag & drop, límite 6, optimistic state.
+- Navbar: tabs Inicio, Chat, Mapa, Rutas, Perfil. `ChatScreen` movido al ShellRoute, `BookmarksPage` sacado del shell.
+- `HomeHeader`: removidos botones "Mis rutas" y "Chat con Ara".
+- Mapa: removido botón refresh de la barra, search button con lupa afuera del TextField, sin ícono duplicado.
+- Calendario: diálogo rápido con presets (Mañana, Finde real, 7 días), botón "Abrir calendario" como segunda opción.
+- `EditProfilePage`: `pop()` → `goNamed('profile')`, `pushNamedSafe` → `pushNamed` en account_settings.
+- `PoiPostsManagementPage`: optimistic local state tras create/edit/delete/pin.
+
+#### Archivos modificados/creados
+- `poi_posts_page.dart` — NUEVO (~650 líneas)
+- `entrepreneur_dashboard_page.dart` — removido `_PostsSection`, agregado `onPosts` en `_PlaceCard`
+- `mist_navigation.dart` — tabs actualizados
+- `app_router.dart` — chat en shell, bookmarks standalone, ruta poi_posts
+- `app_routes.dart` — nueva ruta poi_posts
+- `home_header.dart` — limpiado
+- `map_screen.dart` — search bar, refresh removido
+- `chat_input_field.dart` — diálogo de fechas con finde real
+- `edit_profile_page.dart` — fix navegación
+- `account_settings.dart` — `pushNamed` para edit profile
+- `poi_posts_page.dart` — optimistic state sync
+
+
+---
+
+### [2026-05-20] Fix rutas GoRouter y navegación cross-shell
+
+#### Objetivo
+- Eliminar crash `duplicated page keys` al navegar desde rutas standalone a rutas del ShellRoute.
+- Auditoría completa de todas las navegaciones `pushNamed`/`pushNamedSafe`.
+
+#### Cambios realizados
+- Ruta `/chat` standalone con nombre `chat_focused` (sin shell, para navegación desde itinerario).
+- `_changeStep`: navega a `chat_focused` en vez de `chat` (shell).
+- `itinerary_detail_page.dart:onHistory`: `pushNamedSafe` → `goNamed('itineraryHistory')`.
+- `bookmarks_page.dart:onAction`: `pushNamedSafe('map')` → `goNamed('map')`.
+- Import `go_router` en bookmarks_page.
+
+#### Archivos modificados
+- `app_router.dart` — ruta `chat_focused`
+- `itinerary_detail_page.dart` — fix navegaciones
+- `bookmarks_page.dart` — fix navegación + import
+
+
+---
+
+### [2026-05-20] Sincronización backend: modelos y contratos
+
+#### Objetivo
+- Adaptar frontend a cambios de contrato del backend (Mayo 2026).
+
+#### Cambios realizados
+- `MapPoint` + `PoiModel`: agregados `verificationStatus`, `confidenceScore`.
+- `PoiDetailFullPage`: badge visual de verificación (verde/amarillo/rojo) en `_TitleCard`.
+- `EntrepreneurProfileModel`: agregados `rut`, `verificationStatus`.
+- `_ActivateEntrepreneurPanel`: campo de RUT chileno opcional en activación.
+- `AuthRepository.activateEntrepreneurProfile()`: acepta `rut` opcional.
+- `ApiException._friendlyDetail`: manejo 429 (rate limit) y 500 genéricos.
+- `EntrepreneurRepository.reorderPoiPosts()`: `PUT /entrepreneur/pois/{id}/posts/reorder`.
+- `poi_posts_page.dart`: drag & drop conectado al endpoint.
+
+#### Archivos modificados
+- `map_point.dart` — nuevos campos
+- `poi_model.dart` — parsing + toMapPoint
+- `poi_detail_full_page.dart` — `_VerificationBadge`, `_DetailPill` con `color`
+- `user_model.dart` — `EntrepreneurProfileModel` extendido
+- `entrepreneur_dashboard_page.dart` — RUT field
+- `auth_repository.dart` — `rut` param
+- `auth_provider.dart` — `rut` param
+- `api_exception.dart` — 429 + 500 handling
+- `entrepreneur_repository.dart` — `reorderPoiPosts`
+- `poi_posts_page.dart` — connected reorder
+
+#### Estado resultante
+- `flutter analyze`: 0 errores.
+- `flutter test`: 85/85 pasando.
+- Frontend sincronizado con contratos backend Mayo 2026.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           

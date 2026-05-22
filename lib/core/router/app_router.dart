@@ -6,6 +6,8 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/bookmarks/presentation/pages/bookmarks_page.dart';
 import '../../features/chat_ai/presentation/pages/chat_screen.dart';
 import '../../features/entrepreneur/presentation/pages/entrepreneur_dashboard_page.dart';
+import '../../features/entrepreneur/presentation/pages/poi_dashboard_page.dart';
+import '../../features/entrepreneur/presentation/pages/poi_posts_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/widgets/mist_navigation.dart';
 import '../../features/itinerary/presentation/pages/itinerary_detail_page.dart';
@@ -70,9 +72,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: AppRoutes.chat,
-        name: AppRouteNames.chat,
-        builder: (context, state) => const ChatScreen(),
+        path: AppRoutes.bookmarks,
+        name: AppRouteNames.bookmarks,
+        builder: (context, state) => const BookmarksPage(),
       ),
       GoRoute(
         path: AppRoutes.editProfile,
@@ -80,9 +82,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const EditProfilePage(),
       ),
       GoRoute(
+        path: AppRoutes.chat,
+        name: 'chat_focused',
+        builder: (context, state) => const ChatScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.entrepreneur,
         name: AppRouteNames.entrepreneur,
         builder: (context, state) => const EntrepreneurDashboardPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.poiDashboard,
+        name: AppRouteNames.poiDashboard,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return PoiDashboardPage(poiId: id);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.poiPosts,
+        name: AppRouteNames.poiPosts,
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return PoiPostsManagementPage(poiId: id);
+        },
       ),
       GoRoute(
         path: AppRoutes.createPoi,
@@ -124,6 +147,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const HomePage(),
           ),
           GoRoute(
+            path: AppRoutes.chat,
+            name: AppRouteNames.chat,
+            builder: (context, state) => const ChatScreen(),
+          ),
+          GoRoute(
             path: AppRoutes.map,
             name: AppRouteNames.map,
             builder: (context, state) => const MapScreen(),
@@ -132,11 +160,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.itineraryHistory,
             name: AppRouteNames.itineraryHistory,
             builder: (context, state) => const ItineraryHistoryPage(),
-          ),
-          GoRoute(
-            path: AppRoutes.bookmarks,
-            name: AppRouteNames.bookmarks,
-            builder: (context, state) => const BookmarksPage(),
           ),
           GoRoute(
             path: AppRoutes.profile,

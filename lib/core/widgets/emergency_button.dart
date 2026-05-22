@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/url_launcher_helper.dart';
 
 class EmergencyButton extends StatelessWidget {
   const EmergencyButton({super.key});
@@ -60,7 +61,10 @@ class EmergencyButton extends StatelessWidget {
         number,
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
       ),
-      onTap: () {},
+      onTap: () {
+        Navigator.of(context).pop();
+        UrlLauncherHelper.launchPhone(context, number);
+      },
     );
   }
 
@@ -69,6 +73,7 @@ class EmergencyButton extends StatelessWidget {
     return FloatingActionButton(
       mini: true,
       elevation: 0,
+      tooltip: 'Números de emergencia',
       backgroundColor: Colors.redAccent.shade200,
       onPressed: () => _showEmergencyDialog(context),
       child: const Icon(Icons.sos, color: Colors.white),

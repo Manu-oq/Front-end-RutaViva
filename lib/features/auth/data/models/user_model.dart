@@ -77,13 +77,22 @@ class TouristProfileModel {
 
 class EntrepreneurProfileModel {
   final String userId;
+  final String? rut;
+  final String? verificationStatus;
   final Map<String, dynamic>? adminData;
 
-  const EntrepreneurProfileModel({required this.userId, this.adminData});
+  const EntrepreneurProfileModel({
+    required this.userId,
+    this.rut,
+    this.verificationStatus,
+    this.adminData,
+  });
 
   factory EntrepreneurProfileModel.fromJson(Map<String, dynamic> json) {
     return EntrepreneurProfileModel(
       userId: json['user_id'] as String,
+      rut: json['rut'] as String?,
+      verificationStatus: json['verification_status'] as String?,
       adminData: json['admin_data'] as Map<String, dynamic>?,
     );
   }

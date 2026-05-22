@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/inline_error_widget.dart';
 import '../../../../core/widgets/skeleton_container.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/review_model.dart';
@@ -177,7 +178,7 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
         summary.when(
           data: (value) => _ReviewSummaryCard(summary: value),
           loading: () => const SkeletonContainer(height: 154),
-          error: (error, stackTrace) => _InlineError(
+          error: (error, stackTrace) => InlineErrorWidget(
             message: 'No se pudo cargar el resumen de opiniones.',
             onRetry: _refreshReviews,
           ),
@@ -238,7 +239,7 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
               ),
             ),
           ),
-          error: (error, stackTrace) => _InlineError(
+          error: (error, stackTrace) => InlineErrorWidget(
             message: 'No se pudieron cargar las opiniones.',
             onRetry: _refreshReviews,
           ),
@@ -762,45 +763,6 @@ class _EmptyReviewsCard extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InlineError extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _InlineError({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.error.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: theme.colorScheme.error.withValues(alpha: 0.16),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline_rounded, color: theme.colorScheme.error),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
-          ),
-          TextButton(onPressed: onRetry, child: const Text('Reintentar')),
         ],
       ),
     );

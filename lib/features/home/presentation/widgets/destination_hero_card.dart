@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/authenticated_network_image.dart';
 
 class DestinationHeroCard extends StatelessWidget {
   final String title;
@@ -49,10 +50,10 @@ class DestinationHeroCard extends StatelessWidget {
                         fit: StackFit.expand,
                         children: [
                           hasImage
-                              ? Image.network(
-                                  imageUrl!,
+                              ? AuthenticatedNetworkImage(
+                                  imageUrl: imageUrl!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) =>
+                                  errorBuilder: (_) =>
                                       const _DestinationImageFallback(),
                                 )
                               : const _DestinationImageFallback(),

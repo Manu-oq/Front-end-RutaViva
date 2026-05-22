@@ -152,12 +152,12 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
-  Future<bool> activateEntrepreneurProfile() async {
+  Future<bool> activateEntrepreneurProfile({String? rut}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final user = await ref
           .read(authRepositoryProvider)
-          .activateEntrepreneurProfile();
+          .activateEntrepreneurProfile(rut: rut);
       state = AuthState(user: user, token: state.token);
       return true;
     } catch (error) {

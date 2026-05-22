@@ -47,12 +47,12 @@ void main() {
     });
 
     test('isAuthenticated false when user is null', () {
-      final state = AuthState(token: 'tok');
+      const state = AuthState(token: 'tok');
       expect(state.isAuthenticated, isFalse);
     });
 
     test('isAuthenticated false in default state', () {
-      final state = AuthState();
+      const state = AuthState();
       expect(state.isAuthenticated, isFalse);
     });
 
@@ -82,7 +82,7 @@ void main() {
     });
 
     test('copyWith clearError removes errorMessage', () {
-      final state = AuthState(errorMessage: 'error');
+      const state = AuthState(errorMessage: 'error');
       final updated = state.copyWith(clearError: true);
 
       expect(updated.errorMessage, isNull);
@@ -115,17 +115,14 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(sharedPreferences),
-          authRepositoryProvider.overrideWith(
-            (ref) => _FakeAuthRepository(),
-          ),
+          authRepositoryProvider.overrideWith((ref) => _FakeAuthRepository()),
         ],
       );
       addTearDown(container.dispose);
 
-      final result = await container.read(authProvider.notifier).login(
-        email: 'bad@test.com',
-        password: 'wrong',
-      );
+      final result = await container
+          .read(authProvider.notifier)
+          .login(email: 'bad@test.com', password: 'wrong');
 
       expect(result, isFalse);
       final state = container.read(authProvider);

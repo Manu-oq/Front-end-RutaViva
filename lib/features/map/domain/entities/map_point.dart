@@ -34,6 +34,8 @@ class MapPoint {
   final MapPointVisitRules? visitRules;
   final bool isLocalAuthentic;
   final List<String>? amenities;
+  final String? verificationStatus;
+  final double? confidenceScore;
 
   MapPoint({
     required this.id,
@@ -49,6 +51,8 @@ class MapPoint {
     this.visitRules,
     this.isLocalAuthentic = true,
     this.amenities,
+    this.verificationStatus,
+    this.confidenceScore,
   });
 }
 

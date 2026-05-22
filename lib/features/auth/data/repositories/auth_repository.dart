@@ -111,11 +111,13 @@ class AuthRepository {
     }
   }
 
-  Future<UserModel> activateEntrepreneurProfile() async {
+  Future<UserModel> activateEntrepreneurProfile({String? rut}) async {
     try {
       await _client.post<Map<String, dynamic>>(
         '/users/me/entrepreneur-profile',
         data: {
+          // ignore: use_null_aware_elements
+          if (rut != null) 'rut': rut,
           'admin_data': {'activated_from': 'frontend'},
         },
       );

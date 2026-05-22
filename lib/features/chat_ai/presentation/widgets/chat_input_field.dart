@@ -61,30 +61,28 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
   }
 
   Future<void> _pickDates() async {
-    final picked = await showDateRangePicker(
+    final result = await showDialog<_DatePickResult>(
       context: context,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
-      helpText: 'Fechas del viaje',
-      saveText: 'Usar fechas',
+      builder: (ctx) =>
+          _DatePickDialog(initialStart: _startDate, initialEnd: _endDate),
     );
-    if (picked == null) return;
-    final days = picked.end.difference(picked.start).inDays + 1;
+    if (result == null) return;
+    _applyDateRange(result.start, result.end);
+  }
+
+  void _applyDateRange(DateTime start, DateTime end) {
+    final startDate = DateTime(start.year, start.month, start.day);
+    final endDate = DateTime(end.year, end.month, end.day);
+    final days = endDate.difference(startDate).inDays + 1;
     if (days > 7) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('El viaje puede tener máximo 7 días.')),
       );
       return;
     }
     setState(() {
-      _startDate = DateTime(
-        picked.start.year,
-        picked.start.month,
-        picked.start.day,
-      );
-      _endDate = DateTime(picked.end.year, picked.end.month, picked.end.day);
+      _startDate = startDate;
+      _endDate = endDate;
     });
   }
 
@@ -92,9 +90,8 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     ref.watch(chatProvider);
-    final chatUiState = ref.watch(chatUiStateProvider);
-
     final notifier = ref.read(chatProvider.notifier);
+    final chatUiState = notifier.uiState;
     final hasActiveSession = notifier.hasActiveSession;
     final inputLocked =
         _isSubmitting ||
@@ -214,6 +211,175 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
   String _shortDate(DateTime value) {
     final day = value.day.toString().padLeft(2, '0');
     final month = value.month.toString().padLeft(2, '0');
+    return '$day/$month';
+  }
+}
+
+class _DatePickResult {
+  final DateTime start;
+  final DateTime end;
+
+  const _DatePickResult({required this.start, required this.end});
+}
+
+class _DatePickDialog extends StatefulWidget {
+  final DateTime initialStart;
+  final DateTime initialEnd;
+
+  const _DatePickDialog({required this.initialStart, required this.initialEnd});
+
+  @override
+  State<_DatePickDialog> createState() => _DatePickDialogState();
+}
+
+class _DatePickDialogState extends State<_DatePickDialog> {
+  late DateTime _start;
+  late DateTime _end;
+
+  @override
+  void initState() {
+    super.initState();
+    _start = widget.initialStart;
+    _end = widget.initialEnd;
+  }
+
+  void _addDays(int days) {
+    setState(() {
+      if (days > 0) {
+        _end = _start.add(Duration(days: days));
+      } else {
+        _start = DateTime.now().add(const Duration(days: 1));
+        _end = _start;
+      }
+    });
+  }
+
+  void _selectWeekend() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    var friday = today;
+    while (friday.weekday != DateTime.friday) {
+      friday = friday.add(const Duration(days: 1));
+    }
+    final sunday = friday.add(const Duration(days: 2));
+    setState(() {
+      _start = friday.isBefore(today)
+          ? today.add(const Duration(days: 1))
+          : friday;
+      _end = sunday;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dayCount = _end.difference(_start).inDays;
+
+    return AlertDialog(
+      title: const Text('Fechas del viaje'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _formatRange(_start, _end),
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              dayCount == 0 ? '1 día' : '${dayCount + 1} días',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.today_rounded, size: 18),
+                  label: const Text('Mañana'),
+                  onPressed: () {
+                    final t = DateTime.now().add(const Duration(days: 1));
+                    setState(() {
+                      _start = DateTime(t.year, t.month, t.day);
+                      _end = _start;
+                    });
+                  },
+                ),
+                ActionChip(
+                  avatar: const Icon(
+                    Icons.calendar_view_week_rounded,
+                    size: 18,
+                  ),
+                  label: const Text('Finde'),
+                  onPressed: _selectWeekend,
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.date_range_rounded, size: 18),
+                  label: const Text('7 días'),
+                  onPressed: () => _addDays(6),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final picked = await showDateRangePicker(
+                  context: context,
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                  initialDateRange: DateTimeRange(start: _start, end: _end),
+                  helpText: 'Fechas del viaje',
+                  saveText: 'Usar fechas',
+                );
+                if (picked == null) return;
+                setState(() {
+                  _start = DateTime(
+                    picked.start.year,
+                    picked.start.month,
+                    picked.start.day,
+                  );
+                  _end = DateTime(
+                    picked.end.year,
+                    picked.end.month,
+                    picked.end.day,
+                  );
+                });
+              },
+              icon: const Icon(Icons.calendar_month_rounded),
+              label: const Text('Abrir calendario'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(
+            context,
+          ).pop(_DatePickResult(start: _start, end: _end)),
+          child: const Text('Usar fechas'),
+        ),
+      ],
+    );
+  }
+
+  String _formatRange(DateTime start, DateTime end) {
+    return _short(start) == _short(end)
+        ? _short(start)
+        : '${_short(start)} — ${_short(end)}';
+  }
+
+  String _short(DateTime d) {
+    final day = d.day.toString().padLeft(2, '0');
+    final month = d.month.toString().padLeft(2, '0');
     return '$day/$month';
   }
 }

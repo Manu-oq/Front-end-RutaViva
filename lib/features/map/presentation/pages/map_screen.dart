@@ -37,6 +37,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Timer? _autoRefreshTimer;
   String? _activeMapSearchQuery;
   bool _isResolvingSearch = false;
+  double _pullRefreshOffset = 0;
+  bool _isPullRefreshing = false;
 
   @override
   void initState() {
@@ -47,7 +49,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _cameraZoom = current.focusedPoiId != null ? 15.0 : 11.0;
     Future.microtask(() {
       final current = ref.read(mapProvider);
-      if (current.points.isEmpty && !current.isLoading) {
+      if (widget.backFallbackRouteName == AppRouteNames.home &&
+          !current.isGlobalMode) {
+        ref.read(mapProvider.notifier).loadNearby(center: current.center);
+      } else if (current.points.isEmpty && !current.isLoading) {
         ref.read(mapProvider.notifier).loadNearby();
       }
     });
@@ -84,7 +89,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final isSearchMode = _activeMapSearchQuery?.trim().isNotEmpty == true;
     final density = _MarkerDensity.fromZoom(_cameraZoom);
     final hasCategoryFilters = mapState.selectedCategoryIds.isNotEmpty;
-    final distance = const Distance();
+    const distance = Distance();
     final radiusMeters = density.radiusMeters(isSearchMode: isSearchMode);
     final maxMarkers = density.maxMarkers(
       hasCategoryFilters: hasCategoryFilters,
@@ -320,6 +325,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         .loadNearby(center: _mapController.camera.center);
   }
 
+  Future<void> _onPullRefresh() async {
+    setState(() => _isPullRefreshing = true);
+    try {
+      ref
+          .read(mapProvider.notifier)
+          .loadNearby(center: _mapController.camera.center);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPullRefreshing = false;
+          _pullRefreshOffset = 0;
+        });
+      }
+    }
+  }
+
   void _focusSearchResult(MapPoint point) {
     ref.read(mapProvider.notifier).selectPoint(point);
     setState(() {
@@ -428,6 +449,54 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               ),
             ],
           ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 80,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onVerticalDragUpdate: (details) {
+                if (!mapState.isGlobalMode) return;
+                setState(() {
+                  _pullRefreshOffset = (_pullRefreshOffset + details.delta.dy)
+                      .clamp(0, 90);
+                });
+              },
+              onVerticalDragEnd: (_) {
+                if (!mapState.isGlobalMode) return;
+                if (_pullRefreshOffset > 60 && !mapState.isLoading) {
+                  _onPullRefresh();
+                } else {
+                  setState(() => _pullRefreshOffset = 0);
+                }
+              },
+              child: _pullRefreshOffset > 0
+                  ? Center(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: _pullRefreshOffset - 28),
+                        child: SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: _isPullRefreshing
+                              ? const CircularProgressIndicator(strokeWidth: 3)
+                              : Icon(
+                                  Icons.refresh_rounded,
+                                  color: Theme.of(context).colorScheme.primary
+                                      .withValues(
+                                        alpha: (_pullRefreshOffset / 90).clamp(
+                                          0.2,
+                                          1.0,
+                                        ),
+                                      ),
+                                  size: 28,
+                                ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
           Positioned.fill(
             child: IgnorePointer(
               child: DecoratedBox(
@@ -457,43 +526,53 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 hasActiveSearch: _activeMapSearchQuery != null,
                 onSearch: _searchMap,
                 onClearSearch: _clearSearch,
-                onRefresh: mapState.isLoading ? null : _refreshNearby,
-                onLocate: _locateUser,
               ),
             ),
           ),
-          if (mapState.isGlobalMode)
-            Positioned(
-              top: 88,
-              left: 16,
-              right: 16,
-              child: SafeArea(
-                child: _MapCategoryFilters(
-                  categories: ref.watch(categoriesProvider),
-                  selectedCategoryIds: mapState.selectedCategoryIds,
-                  isLoading: mapState.isLoading,
-                  onClear: () {
-                    setState(() => _activeMapSearchQuery = null);
-                    _searchController.clear();
-                    ref
-                        .read(mapProvider.notifier)
-                        .clearCategoryFilters(
-                          center: _mapController.camera.center,
-                        );
-                  },
-                  onToggle: (id) {
-                    setState(() => _activeMapSearchQuery = null);
-                    _searchController.clear();
-                    ref
-                        .read(mapProvider.notifier)
-                        .toggleCategoryFilter(
-                          id,
-                          center: _mapController.camera.center,
-                        );
-                  },
+          Positioned(
+            top: 88,
+            left: 16,
+            right: 16,
+            child: AnimatedOpacity(
+              opacity: mapState.isGlobalMode ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOut,
+              child: AnimatedSlide(
+                offset: Offset(0, mapState.isGlobalMode ? 0.0 : -0.12),
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOut,
+                child: IgnorePointer(
+                  ignoring: !mapState.isGlobalMode,
+                  child: SafeArea(
+                    child: _MapCategoryFilters(
+                      categories: ref.watch(categoriesProvider),
+                      selectedCategoryIds: mapState.selectedCategoryIds,
+                      isLoading: mapState.isLoading,
+                      onClear: () {
+                        setState(() => _activeMapSearchQuery = null);
+                        _searchController.clear();
+                        ref
+                            .read(mapProvider.notifier)
+                            .clearCategoryFilters(
+                              center: _mapController.camera.center,
+                            );
+                      },
+                      onToggle: (id) {
+                        setState(() => _activeMapSearchQuery = null);
+                        _searchController.clear();
+                        ref
+                            .read(mapProvider.notifier)
+                            .toggleCategoryFilter(
+                              id,
+                              center: _mapController.camera.center,
+                            );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
+          ),
           if (mapState.errorMessage != null)
             Positioned(
               left: 20,
@@ -569,6 +648,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       _mapController.move(center, newZoom);
                     },
                   ),
+                  const SizedBox(height: 12),
+                  _MapFloatingAction(
+                    icon: Icons.my_location,
+                    tooltip: 'Mi ubicación',
+                    onTap: _locateUser,
+                  ),
                 ],
               ),
             ),
@@ -587,8 +672,6 @@ class _MapHeader extends StatelessWidget {
   final bool hasActiveSearch;
   final VoidCallback onSearch;
   final VoidCallback onClearSearch;
-  final VoidCallback? onRefresh;
-  final VoidCallback onLocate;
 
   const _MapHeader({
     required this.controller,
@@ -598,8 +681,6 @@ class _MapHeader extends StatelessWidget {
     required this.hasActiveSearch,
     required this.onSearch,
     required this.onClearSearch,
-    required this.onRefresh,
-    required this.onLocate,
   });
 
   @override
@@ -608,7 +689,7 @@ class _MapHeader extends StatelessWidget {
     return GlassContainer(
       borderRadius: BorderRadius.circular(26),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+        padding: const EdgeInsets.fromLTRB(6, 8, 8, 8),
         child: Row(
           children: [
             AppBackButton(fallbackRouteName: backFallbackRouteName),
@@ -621,63 +702,61 @@ class _MapHeader extends StatelessWidget {
                 decoration: InputDecoration(
                   isDense: true,
                   hintText: 'Buscar minimarket, comisaría...',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: isLoading
-                      ? const Padding(
-                          padding: EdgeInsets.all(14),
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
+                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  prefixIcon: null,
+                  suffixIcon: hasActiveSearch
+                      ? IconButton(
+                          tooltip: 'Limpiar búsqueda',
+                          onPressed: onClearSearch,
+                          icon: const Icon(Icons.close_rounded),
+                          visualDensity: VisualDensity.compact,
                         )
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (hasActiveSearch)
-                              IconButton(
-                                tooltip: 'Limpiar búsqueda',
-                                onPressed: onClearSearch,
-                                icon: const Icon(Icons.close_rounded),
-                              ),
-                            IconButton.filled(
-                              tooltip: 'Buscar',
-                              onPressed: onSearch,
-                              icon: const Icon(Icons.arrow_forward_rounded),
-                            ),
-                          ],
-                        ),
+                      : null,
                   filled: true,
                   fillColor: theme.colorScheme.surface.withValues(alpha: 0.92),
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 12,
+                    horizontal: 14,
+                    vertical: 13,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(22),
                     borderSide: BorderSide.none,
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.47),
+                      width: 1.5,
+                    ),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(width: 4),
-            IconButton(
-              tooltip: activeSearchQuery == null
-                  ? 'Resetear mapa'
-                  : 'Resetear búsqueda y mapa',
-              onPressed: onRefresh,
-              icon: isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh),
-            ),
-            IconButton.filledTonal(
-              tooltip: 'Mi ubicación',
-              onPressed: onLocate,
-              icon: const Icon(Icons.my_location),
+            const SizedBox(width: 6),
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: IconButton.filled(
+                tooltip: 'Buscar',
+                onPressed: onSearch,
+                icon: isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.search_rounded,
+                        size: 22,
+                        color: Colors.white,
+                      ),
+                padding: const EdgeInsets.all(10),
+              ),
             ),
           ],
         ),
@@ -907,43 +986,54 @@ class _MapFilterChip extends StatelessWidget {
         : theme.colorScheme.surface.withValues(alpha: 0.94);
     final foreground = selected ? Colors.white : theme.colorScheme.onSurface;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(999),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: selected
-                  ? color.withValues(alpha: 0.25)
-                  : theme.colorScheme.outlineVariant,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: theme.colorScheme.shadow.withValues(alpha: 0.10),
-                blurRadius: 18,
-                spreadRadius: -12,
-                offset: const Offset(0, 10),
+    return AnimatedScale(
+      scale: selected ? 1.05 : 1.0,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutBack,
+      child: Semantics(
+        button: true,
+        label: 'Filtro $label, ${selected ? "seleccionado" : "disponible"}',
+        enabled: enabled,
+        child: GestureDetector(
+          onTap: enabled ? onTap : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: selected
+                    ? color.withValues(alpha: 0.32)
+                    : theme.colorScheme.outlineVariant,
+                width: selected ? 1.5 : 1.0,
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 17, color: foreground),
-              const SizedBox(width: 7),
-              Text(
-                label,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: foreground,
-                  fontWeight: FontWeight.w800,
+              boxShadow: [
+                BoxShadow(
+                  color: selected
+                      ? color.withValues(alpha: 0.22)
+                      : theme.colorScheme.shadow.withValues(alpha: 0.08),
+                  blurRadius: selected ? 14 : 18,
+                  spreadRadius: selected ? -6 : -12,
+                  offset: const Offset(0, 10),
                 ),
-              ),
-            ],
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 17, color: foreground),
+                const SizedBox(width: 7),
+                Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: foreground,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

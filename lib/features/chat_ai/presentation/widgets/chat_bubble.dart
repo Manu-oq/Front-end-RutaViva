@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/authenticated_network_image.dart';
 import '../../../categories/presentation/category_style.dart';
 import '../../domain/entities/message_entity.dart';
 
@@ -94,7 +95,7 @@ class ChatBubble extends StatelessWidget {
               _BubbleText(message: message, isUser: isUser),
             if (!isUser && evidenceLevel == 'inferred') ...[
               const SizedBox(height: 10),
-              _EvidencePill(label: 'Recomendación estimada'),
+              const _EvidencePill(label: 'Recomendación estimada'),
             ],
             if (itineraryCard != null) ...[
               const SizedBox(height: 14),
@@ -532,10 +533,10 @@ class _CandidatePoiImage extends StatelessWidget {
         color: color.withValues(alpha: 0.14),
         child: imageUrl == null || imageUrl.isEmpty
             ? Icon(Icons.place_rounded, color: color, size: 30)
-            : Image.network(
-                imageUrl,
+            : AuthenticatedNetworkImage(
+                imageUrl: imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
+                errorBuilder: (context) =>
                     Icon(Icons.place_rounded, color: color, size: 30),
               ),
       ),

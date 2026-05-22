@@ -6,13 +6,18 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/section_card.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/data/repositories/category_repository.dart';
 import '../../data/models/poi_model.dart';
 import '../../data/repositories/poi_repository.dart';
 import '../providers/map_provider.dart';
+import '../widgets/access_type_selector.dart';
+import '../widgets/coordinate_fields.dart';
 import '../widgets/location_picker_sheet.dart';
+import '../widgets/poi_form_background.dart';
+import '../widgets/poi_form_hero.dart';
 
 class EditPoiPage extends ConsumerWidget {
   final String poiId;
@@ -25,7 +30,7 @@ class EditPoiPage extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
 
     return Scaffold(
-      body: _PoiFormBackground(
+      body: PoiFormBackground(
         child: SafeArea(
           child: poi.when(
             data: (poi) => categories.when(
@@ -79,15 +84,15 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.poi.nombre);
+    _nameController = TextEditingController(text: widget.poi.name);
     _descriptionController = TextEditingController(
-      text: widget.poi.descripcion,
+      text: widget.poi.description,
     );
     _phoneController = TextEditingController(
-      text: widget.poi.telefonoPublico ?? '',
+      text: widget.poi.contactPhone ?? '',
     );
     _emailController = TextEditingController(
-      text: widget.poi.emailPublico ?? '',
+      text: widget.poi.contactEmail ?? '',
     );
     _latController = TextEditingController(
       text: widget.poi.latitude.toStringAsFixed(6),
@@ -95,7 +100,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
     _lonController = TextEditingController(
       text: widget.poi.longitude.toStringAsFixed(6),
     );
-    _accessType = widget.poi.tipoAcceso;
+    _accessType = widget.poi.accessType;
     _selectedCategoryIds = {...widget.poi.categoryIds};
   }
 
@@ -127,11 +132,11 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
           .read(poiRepositoryProvider)
           .updatePoi(
             poiId: widget.poi.id,
-            nombre: _nameController.text.trim(),
-            descripcion: _descriptionController.text.trim(),
-            tipoAcceso: _accessType,
-            telefonoPublico: _phoneController.text.trim(),
-            emailPublico: _emailController.text.trim(),
+            name: _nameController.text.trim(),
+            description: _descriptionController.text.trim(),
+            accessType: _accessType,
+            contactPhone: _phoneController.text.trim(),
+            contactEmail: _emailController.text.trim(),
             categoryIds: _selectedCategoryIds.toList()..sort(),
             latitude: double.parse(_latController.text.trim()),
             longitude: double.parse(_lonController.text.trim()),
@@ -183,7 +188,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _FormHero(
+                      PoiFormHero(
                         title: 'Editar lugar',
                         eyebrow: 'Ficha pública',
                         description:
@@ -192,7 +197,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
                         fallbackPathParameters: {'id': widget.poi.id},
                       ),
                       const SizedBox(height: 16),
-                      _FormSection(
+                      SectionCard(
                         title: 'Información principal',
                         icon: Icons.place_rounded,
                         child: Column(
@@ -220,7 +225,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
                               validator: _descriptionValidator,
                             ),
                             const SizedBox(height: 14),
-                            _AccessTypeSelector(
+                            AccessTypeSelector(
                               value: _accessType,
                               onChanged: (value) =>
                                   setState(() => _accessType = value),
@@ -229,7 +234,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _FormSection(
+                      SectionCard(
                         title: 'Categorías',
                         icon: Icons.local_offer_rounded,
                         child: _CategoryList(
@@ -239,10 +244,10 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _FormSection(
+                      SectionCard(
                         title: 'Ubicación',
                         icon: Icons.my_location_rounded,
-                        child: _CoordinateFields(
+                        child: CoordinateFields(
                           latController: _latController,
                           lonController: _lonController,
                           validator: _coordinateValidator,
@@ -250,7 +255,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _FormSection(
+                      SectionCard(
                         title: 'Contacto',
                         icon: Icons.contact_phone_rounded,
                         child: Column(
@@ -449,282 +454,6 @@ class _EditPoiError extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PoiFormBackground extends StatelessWidget {
-  final Widget child;
-
-  const _PoiFormBackground({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            isDark
-                ? theme.colorScheme.surfaceContainerLowest
-                : theme.colorScheme.surface,
-            isDark
-                ? AppColors.deepForest
-                : AppColors.mint.withValues(alpha: 0.42),
-            isDark
-                ? theme.colorScheme.surfaceContainerLowest
-                : theme.colorScheme.surface,
-          ],
-        ),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _FormHero extends StatelessWidget {
-  final String title;
-  final String eyebrow;
-  final String description;
-  final String fallbackRouteName;
-  final Map<String, String> fallbackPathParameters;
-
-  const _FormHero({
-    required this.title,
-    required this.eyebrow,
-    required this.description,
-    required this.fallbackRouteName,
-    this.fallbackPathParameters = const {},
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(34),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.deepForest, AppColors.forest, AppColors.moss],
-        ),
-        boxShadow: AppColors.liftedShadow,
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -34,
-            top: -40,
-            child: Container(
-              width: 142,
-              height: 142,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.1),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppBackButton(
-                fallbackRouteName: fallbackRouteName,
-                fallbackPathParameters: fallbackPathParameters,
-                color: Colors.white,
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.16),
-                  ),
-                ),
-                child: Text(
-                  eyebrow,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                title,
-                style: theme.textTheme.displaySmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  height: 1.05,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                description,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  height: 1.45,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FormSection extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Widget child;
-
-  const _FormSection({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        boxShadow: AppColors.ambientShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: theme.colorScheme.primary, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _AccessTypeSelector extends StatelessWidget {
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  const _AccessTypeSelector({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      decoration: const InputDecoration(
-        labelText: 'Tipo de acceso',
-        prefixIcon: Icon(Icons.door_front_door_outlined),
-      ),
-      items: const [
-        DropdownMenuItem(value: 'publico', child: Text('Público')),
-        DropdownMenuItem(value: 'privado', child: Text('Privado')),
-        DropdownMenuItem(value: 'reserva', child: Text('Con reserva')),
-        DropdownMenuItem(value: 'pagado', child: Text('Pagado')),
-      ],
-      onChanged: (value) {
-        if (value != null) {
-          onChanged(value);
-        }
-      },
-    );
-  }
-}
-
-class _CoordinateFields extends StatelessWidget {
-  final TextEditingController latController;
-  final TextEditingController lonController;
-  final String? Function(String?) validator;
-  final VoidCallback onPick;
-
-  const _CoordinateFields({
-    required this.latController,
-    required this.lonController,
-    required this.validator,
-    required this.onPick,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: theme.colorScheme.primary.withValues(alpha: 0.12),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.location_pin, color: theme.colorScheme.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '${latController.text}, ${lonController.text}',
-                  style: theme.textTheme.labelLarge,
-                ),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: onPick,
-                icon: const Icon(Icons.map_rounded),
-                label: const Text('Elegir en mapa'),
-              ),
-            ],
-          ),
-        ),
-        Offstage(
-          child: Column(
-            children: [
-              TextFormField(controller: latController, validator: validator),
-              TextFormField(controller: lonController, validator: validator),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

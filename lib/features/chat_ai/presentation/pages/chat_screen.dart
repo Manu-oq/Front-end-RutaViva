@@ -54,16 +54,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final messages = ref.watch(chatProvider);
-    final chatUiState = ref.watch(chatUiStateProvider);
+    final chatNotifier = ref.read(chatProvider.notifier);
     final itineraryState = ref.watch(itineraryProvider);
     final theme = Theme.of(context);
-    final actionsLocked =
-        chatUiState == AraChatUiState.sendingMessage ||
-        chatUiState == AraChatUiState.araTyping ||
-        chatUiState == AraChatUiState.generatingItinerary ||
-        chatUiState == AraChatUiState.pollingGeneration;
+    final actionsLocked = chatNotifier.isInputLocked;
 
-    _scrollToBottom();
+    ref.listen(chatProvider, (prev, next) {
+      if (next.length > (prev?.length ?? 0)) {
+        _scrollToBottom();
+      }
+    });
 
     return Scaffold(
       body: Container(

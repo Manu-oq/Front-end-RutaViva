@@ -45,44 +45,48 @@ class VisitRulesModel {
 
 class PoiModel {
   final String id;
-  final String nombre;
-  final String descripcion;
-  final String tipoAcceso;
-  final String? telefonoPublico;
-  final String? emailPublico;
+  final String name;
+  final String description;
+  final String accessType;
+  final String? contactPhone;
+  final String? contactEmail;
   final dynamic multimediaUrls;
   final String? openingHoursText;
   final VisitRulesModel? visitRules;
   final List<int> categoryIds;
   final double latitude;
   final double longitude;
-  final double? distanciaMetros;
+  final double? distanceMeters;
+  final String? verificationStatus;
+  final double? confidenceScore;
 
   const PoiModel({
     required this.id,
-    required this.nombre,
-    required this.descripcion,
-    required this.tipoAcceso,
-    this.telefonoPublico,
-    this.emailPublico,
+    required this.name,
+    required this.description,
+    required this.accessType,
+    this.contactPhone,
+    this.contactEmail,
     this.multimediaUrls,
     this.openingHoursText,
     this.visitRules,
     required this.categoryIds,
     required this.latitude,
     required this.longitude,
-    this.distanciaMetros,
+    this.distanceMeters,
+    this.verificationStatus,
+    this.confidenceScore,
   });
 
   factory PoiModel.fromJson(Map<String, dynamic> json) {
     final rawVisitRules = json['visit_rules'];
     return PoiModel(
       id: json['id'] as String,
-      nombre: json['nombre'] as String,
-      descripcion: json['descripcion'] as String,
-      tipoAcceso: json['tipo_acceso'] as String,
-      telefonoPublico: json['telefono_publico'] as String?,
-      emailPublico: json['email_publico'] as String?,
+      name: json['name'] as String,
+      description: json['description'] as String,
+      accessType: json['access_type'] as String,
+      contactPhone: json['contact_phone'] as String?,
+      contactEmail: json['contact_email'] as String?,
       multimediaUrls: json['multimedia_urls'],
       openingHoursText: json['opening_hours_text'] as String?,
       visitRules: rawVisitRules is Map<String, dynamic>
@@ -93,23 +97,27 @@ class PoiModel {
           .toList(),
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
-      distanciaMetros: (json['distancia_metros'] as num?)?.toDouble(),
+      distanceMeters: (json['distance_meters'] as num?)?.toDouble(),
+      verificationStatus: json['verification_status'] as String?,
+      confidenceScore: (json['confidence_score'] as num?)?.toDouble(),
     );
   }
 
   MapPoint toMapPoint() {
     return MapPoint(
       id: id,
-      name: nombre,
-      description: descripcion,
-      phone: telefonoPublico,
-      email: emailPublico,
+      name: name,
+      description: description,
+      phone: contactPhone,
+      email: contactEmail,
       categoryIds: categoryIds,
       coordinates: LatLng(latitude, longitude),
       imageUrl: ApiConstants.resolveBackendUrl(_firstMediaUrl(multimediaUrls)),
-      distanceMeters: distanciaMetros,
+      distanceMeters: distanceMeters,
       openingHoursText: openingHoursText,
       visitRules: visitRules?.toMapPointVisitRules(),
+      verificationStatus: verificationStatus,
+      confidenceScore: confidenceScore,
     );
   }
 
