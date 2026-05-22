@@ -23,13 +23,72 @@ enum AraChatUiState {
   error,
 }
 
+class TripProgressData {
+  final int totalDays;
+  final int currentDayFocus;
+  final List<DayProgressData> days;
+  final String? lodgingName;
+
+  const TripProgressData({
+    required this.totalDays,
+    required this.currentDayFocus,
+    this.days = const [],
+    this.lodgingName,
+  });
+
+  factory TripProgressData.fromAraProgress(AraProgressModel? p) {
+    if (p == null) {
+      return const TripProgressData(totalDays: 0, currentDayFocus: 0);
+    }
+    return TripProgressData(
+      totalDays: p.totalDays,
+      currentDayFocus: p.currentDayFocus,
+      days: p.days
+          .map(
+            (d) => DayProgressData(
+              label: d.label,
+              date: d.date,
+              dayIndex: d.dayIndex,
+              status: d.status,
+              isFocus: d.isFocus,
+              steps: d.steps,
+            ),
+          )
+          .toList(growable: false),
+      lodgingName: p.lodging?.name,
+    );
+  }
+}
+
+class DayProgressData {
+  final String label;
+  final String date;
+  final int dayIndex;
+  final String status;
+  final bool isFocus;
+  final int steps;
+
+  const DayProgressData({
+    required this.label,
+    required this.date,
+    required this.dayIndex,
+    required this.status,
+    required this.isFocus,
+    required this.steps,
+  });
+}
+
 class ChatNotifier extends Notifier<List<MessageEntity>> {
   String? _sessionId;
   DateTime? _sessionStartDate;
   DateTime? _sessionEndDate;
   bool _isBusy = false;
   AraChatUiState _uiState = AraChatUiState.idle;
+  TripProgressData? _progress;
+  bool _lodgingDisclaimerShown = false;
   final Random _random = Random();
+
+  TripProgressData? get progress => _progress;
 
   @override
   List<MessageEntity> build() {
@@ -59,6 +118,9 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
 
   bool get isBusy => _isBusy;
   AraChatUiState get uiState => _uiState;
+  bool get isGenerating =>
+      _uiState == AraChatUiState.generatingItinerary ||
+      _uiState == AraChatUiState.pollingGeneration;
   bool get isInputLocked =>
       _uiState == AraChatUiState.sendingMessage ||
       _uiState == AraChatUiState.araTyping ||
@@ -247,8 +309,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   Future<bool> _runItineraryGeneration({String? finalInstruction}) async {
     _uiState = AraChatUiState.generatingItinerary;
     var typing = MessageEntity(
-      text:
-          'Ara está armando tu itinerario…\nPuedes seguir navegando mientras preparo la ruta.',
+      text: '${_phaseIcon('searching')} Buscando lugares…',
       isUser: false,
       timestamp: DateTime.now(),
       isTyping: true,
@@ -267,8 +328,8 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
         switch (event) {
           case AraGenerationStatusEvent():
             final message = event.message.trim().isEmpty
-                ? 'Ara está armando tu itinerario…'
-                : event.message.trim();
+                ? '${_phaseIcon(event.phase)} Ara está armando tu itinerario…'
+                : '${_phaseIcon(event.phase)} ${event.message.trim()}';
             final nextTyping = MessageEntity(
               text: message,
               isUser: false,
@@ -298,7 +359,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
         for (final message in state)
           if (!identical(message, typing)) message,
         MessageEntity(
-          text: 'Listo. Preparé tu itinerario personalizado.',
+          text: '✅ Listo. Preparé tu itinerario personalizado.',
           isUser: false,
           timestamp: DateTime.now(),
           itineraryCard: MessageItineraryCard(
@@ -317,7 +378,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
         for (final message in state)
           if (!identical(message, typing)) message,
         MessageEntity(
-          text: readable,
+          text: '❌ $readable',
           isUser: false,
           timestamp: DateTime.now(),
           actions: const [
@@ -331,6 +392,17 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
       ];
       return false;
     }
+  }
+
+  String _phaseIcon(String phase) {
+    return switch (phase) {
+      'searching' => '🔍',
+      'weather' => '🌤',
+      'generating' => '🧠',
+      'validating' => '✓',
+      'saving' => '💾',
+      _ => '🔄',
+    };
   }
 
   List<MessageEntity> _localThinkingMessages() {
@@ -357,6 +429,11 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     final normalizedStatus = session.status.trim().toLowerCase();
     final isStepReplacementCompleted = normalizedStatus == 'step_replaced';
     _syncSearchCenterIfNeeded(session);
+
+    if (session.progress != null) {
+      _progress = TripProgressData.fromAraProgress(session.progress);
+    }
+
     final updatedItinerary = session.updatedItinerary;
     if (updatedItinerary != null) {
       ref.read(itineraryProvider.notifier).setCurrent(updatedItinerary);
@@ -381,6 +458,16 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
 
     _uiState = AraChatUiState.idle;
     _isBusy = false;
+
+    final hasLodgingCandidates = session.candidatePois.any(
+      (c) => c.poiRole == 'lodging',
+    );
+    final showLodgingDisclaimer =
+        hasLodgingCandidates && !_lodgingDisclaimerShown;
+    if (showLodgingDisclaimer) {
+      _lodgingDisclaimerShown = true;
+    }
+
     state = [
       for (final message in state)
         if (!message.isTyping) message,
@@ -402,6 +489,9 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
           candidatePois: isStepReplacementCompleted
               ? const []
               : _buildCandidatePois(session.candidatePois),
+          disclaimerText: showLodgingDisclaimer
+              ? 'Los alojamientos son sugerencias para tu itinerario. Las reservas, precios y disponibilidad las gestionas por tu cuenta. Ruta Viva no realiza reservas ni garantiza disponibilidad.'
+              : null,
         ),
     ];
 
@@ -548,6 +638,9 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   @visibleForTesting
   String readableErrorForTest(Object error) => _readableError(error);
 
+  @visibleForTesting
+  String phaseIconForTest(String phase) => _phaseIcon(phase);
+
   String _readableGenerationError(Object error) {
     if (error is ApiException) {
       final friendly = _friendlyAraMessage(error.message);
@@ -579,3 +672,8 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
 final chatProvider = NotifierProvider<ChatNotifier, List<MessageEntity>>(
   ChatNotifier.new,
 );
+
+final chatProgressProvider = Provider<TripProgressData?>((ref) {
+  ref.watch(chatProvider);
+  return ref.read(chatProvider.notifier).progress;
+});

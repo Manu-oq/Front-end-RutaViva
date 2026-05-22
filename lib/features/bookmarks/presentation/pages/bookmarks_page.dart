@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/authenticated_network_image.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../categories/data/models/category_model.dart';
@@ -144,9 +145,11 @@ class _BookmarksScaffold extends StatelessWidget {
           SliverToBoxAdapter(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 860),
+                constraints: BoxConstraints(
+                  maxWidth: AppResponsive.maxContentWidth(context),
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                  padding: AppResponsive.pagePadding(context),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

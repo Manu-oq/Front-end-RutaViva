@@ -66,6 +66,7 @@ class MessageEntity {
   final List<MessageCandidatePoi> candidatePois;
   final String? selectedActionId;
   final bool actionsLocked;
+  final String? disclaimerText;
 
   MessageEntity({
     required this.text,
@@ -79,6 +80,7 @@ class MessageEntity {
     this.candidatePois = const [],
     this.selectedActionId,
     this.actionsLocked = false,
+    this.disclaimerText,
   });
 
   MessageEntity copyWith({

@@ -252,6 +252,83 @@ class AraIntentModel {
   }
 }
 
+class AraLodgingModel {
+  final String? poiId;
+  final String name;
+  final dynamic mode;
+
+  const AraLodgingModel({this.poiId, required this.name, this.mode});
+
+  factory AraLodgingModel.fromJson(Map<String, dynamic> json) {
+    return AraLodgingModel(
+      poiId: json['poi_id']?.toString(),
+      name: (json['name'] ?? '').toString(),
+      mode: json['mode'],
+    );
+  }
+}
+
+class AraDayProgressModel {
+  final String label;
+  final String date;
+  final int dayIndex;
+  final String status;
+  final bool isFocus;
+  final int steps;
+
+  const AraDayProgressModel({
+    required this.label,
+    required this.date,
+    required this.dayIndex,
+    required this.status,
+    required this.isFocus,
+    required this.steps,
+  });
+
+  factory AraDayProgressModel.fromJson(Map<String, dynamic> json) {
+    return AraDayProgressModel(
+      label: (json['label'] ?? '').toString(),
+      date: (json['date'] ?? '').toString(),
+      dayIndex: (json['day_index'] as num? ?? 0).toInt(),
+      status: (json['status'] ?? 'pending').toString(),
+      isFocus: json['is_focus'] == true,
+      steps: (json['steps'] as num? ?? 0).toInt(),
+    );
+  }
+}
+
+class AraProgressModel {
+  final int totalDays;
+  final int currentDayFocus;
+  final List<AraDayProgressModel> days;
+  final AraLodgingModel? lodging;
+
+  const AraProgressModel({
+    required this.totalDays,
+    required this.currentDayFocus,
+    this.days = const [],
+    this.lodging,
+  });
+
+  factory AraProgressModel.fromJson(Map<String, dynamic> json) {
+    final rawLodging = json['lodging'];
+    return AraProgressModel(
+      totalDays: (json['total_days'] as num? ?? 0).toInt(),
+      currentDayFocus: (json['current_day_focus'] as num? ?? 0).toInt(),
+      days: (json['days'] as List<dynamic>? ?? [])
+          .whereType<Map>()
+          .map(
+            (item) =>
+                AraDayProgressModel.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList(growable: false),
+      lodging: rawLodging is Map
+          ? AraLodgingModel.fromJson(Map<String, dynamic>.from(rawLodging))
+          : null,
+    );
+  }
+}
+
 class AraPreferencesModel {
   final List<String> tags;
   final List<String> positivePreferences;
@@ -262,6 +339,8 @@ class AraPreferencesModel {
   final List<String> selectedPoiIds;
   final String? conversationMode;
   final double? routeReadyScore;
+  final AraLodgingModel? lodging;
+  final int? dayFocus;
 
   const AraPreferencesModel({
     this.tags = const [],
@@ -273,9 +352,12 @@ class AraPreferencesModel {
     this.selectedPoiIds = const [],
     this.conversationMode,
     this.routeReadyScore,
+    this.lodging,
+    this.dayFocus,
   });
 
   factory AraPreferencesModel.fromJson(Map<String, dynamic> json) {
+    final rawLodging = json['lodging'];
     return AraPreferencesModel(
       tags: _readStringList(json['tags']),
       positivePreferences: _readStringList(json['positive_preferences']),
@@ -286,6 +368,10 @@ class AraPreferencesModel {
       selectedPoiIds: _readStringList(json['selected_poi_ids']),
       conversationMode: json['conversation_mode']?.toString(),
       routeReadyScore: _readDoubleValue(json['route_ready_score']),
+      lodging: rawLodging is Map
+          ? AraLodgingModel.fromJson(Map<String, dynamic>.from(rawLodging))
+          : null,
+      dayFocus: (json['day_focus'] as num?)?.toInt(),
     );
   }
 }
@@ -345,6 +431,7 @@ class AraSessionModel {
   final String? activeItineraryId;
   final AraDestinationContextModel? destinationContext;
   final AraWeatherModel? weather;
+  final AraProgressModel? progress;
 
   const AraSessionModel({
     required this.sessionId,
@@ -358,12 +445,14 @@ class AraSessionModel {
     this.activeItineraryId,
     this.destinationContext,
     this.weather,
+    this.progress,
   });
 
   factory AraSessionModel.fromJson(Map<String, dynamic> json) {
     final rawIntent = json['intent'];
     final rawPreferences = json['preferences'];
     final rawWeather = json['weather'];
+    final rawProgress = json['progress'];
     return AraSessionModel(
       sessionId: (json['session_id'] ?? '').toString(),
       status: (json['status'] ?? 'clarifying').toString(),
@@ -405,6 +494,9 @@ class AraSessionModel {
       ),
       weather: rawWeather is Map
           ? AraWeatherModel.fromJson(Map<String, dynamic>.from(rawWeather))
+          : null,
+      progress: rawProgress is Map
+          ? AraProgressModel.fromJson(Map<String, dynamic>.from(rawProgress))
           : null,
     );
   }

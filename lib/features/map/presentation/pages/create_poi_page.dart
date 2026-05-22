@@ -130,6 +130,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
       body: PoiFormBackground(
         child: SafeArea(
           child: CustomScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             slivers: [
               SliverToBoxAdapter(
                 child: Center(

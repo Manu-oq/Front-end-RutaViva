@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/utils/app_durations.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/utils/location_handler.dart';
@@ -554,11 +555,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             right: 16,
             child: AnimatedOpacity(
               opacity: mapState.isGlobalMode ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 280),
+              duration: AppDurations.long,
               curve: Curves.easeOut,
               child: AnimatedSlide(
                 offset: Offset(0, mapState.isGlobalMode ? 0.0 : -0.12),
-                duration: const Duration(milliseconds: 280),
+                duration: AppDurations.long,
                 curve: Curves.easeOut,
                 child: IgnorePointer(
                   ignoring: !mapState.isGlobalMode,
@@ -1007,7 +1008,7 @@ class _MapFilterChip extends StatelessWidget {
 
     return AnimatedScale(
       scale: selected ? 1.05 : 1.0,
-      duration: const Duration(milliseconds: 220),
+      duration: AppDurations.short,
       curve: Curves.easeOutBack,
       child: Semantics(
         button: true,
@@ -1016,7 +1017,7 @@ class _MapFilterChip extends StatelessWidget {
         child: GestureDetector(
           onTap: enabled ? onTap : null,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 240),
+            duration: AppDurations.medium,
             curve: Curves.easeOut,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(

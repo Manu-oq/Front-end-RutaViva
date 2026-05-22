@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../data/models/geocoding_result_model.dart';
 import '../../data/repositories/geocoding_repository.dart';
 
@@ -114,7 +115,11 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final height = MediaQuery.of(context).size.height * 0.86;
+    final height = AppResponsive.value<double>(
+      context,
+      mobile: MediaQuery.of(context).size.height * 0.90,
+      desktop: 700,
+    );
 
     return Container(
       height: height,

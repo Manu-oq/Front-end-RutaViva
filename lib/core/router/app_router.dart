@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
@@ -20,7 +20,22 @@ import '../../features/map/presentation/pages/poi_detail_full_page.dart';
 import '../../features/onboarding/presentation/pages/vibe_selection_page.dart';
 import '../../features/user_profile/presentation/pages/edit_profile_page.dart';
 import '../../features/user_profile/presentation/pages/profile_screen.dart';
+import '../utils/app_durations.dart';
 import 'app_routes.dart';
+
+Page<dynamic> _fadeTransitionPage({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return CustomTransitionPage(
+    key: key,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(opacity: animation, child: child);
+    },
+    transitionDuration: AppDurations.medium,
+  );
+}
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authRefresh = _GoRouterRefreshStream();
@@ -57,86 +72,123 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.login,
         name: AppRouteNames.login,
-        builder: (context, state) => const LoginPage(),
+        pageBuilder: (context, state) =>
+            _fadeTransitionPage(key: state.pageKey, child: const LoginPage()),
       ),
       GoRoute(
         path: AppRoutes.register,
         name: AppRouteNames.register,
-        builder: (context, state) => const RegisterPage(),
+        pageBuilder: (context, state) => _fadeTransitionPage(
+          key: state.pageKey,
+          child: const RegisterPage(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.onboarding,
         name: AppRouteNames.onboarding,
-        builder: (context, state) => const VibeSelectionPage(),
+        pageBuilder: (context, state) => _fadeTransitionPage(
+          key: state.pageKey,
+          child: const VibeSelectionPage(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.itineraryDetail,
         name: AppRouteNames.itineraryDetail,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return ItineraryDetailPage(itineraryId: id);
+          return _fadeTransitionPage(
+            key: state.pageKey,
+            child: ItineraryDetailPage(itineraryId: id),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.bookmarks,
         name: AppRouteNames.bookmarks,
-        builder: (context, state) => const BookmarksPage(),
+        pageBuilder: (context, state) => _fadeTransitionPage(
+          key: state.pageKey,
+          child: const BookmarksPage(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.editProfile,
         name: AppRouteNames.editProfile,
-        builder: (context, state) => const EditProfilePage(),
+        pageBuilder: (context, state) => _fadeTransitionPage(
+          key: state.pageKey,
+          child: const EditProfilePage(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.entrepreneur,
         name: AppRouteNames.entrepreneur,
-        builder: (context, state) => const EntrepreneurDashboardPage(),
+        pageBuilder: (context, state) => _fadeTransitionPage(
+          key: state.pageKey,
+          child: const EntrepreneurDashboardPage(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.poiDashboard,
         name: AppRouteNames.poiDashboard,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return PoiDashboardPage(poiId: id);
+          return _fadeTransitionPage(
+            key: state.pageKey,
+            child: PoiDashboardPage(poiId: id),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.poiPosts,
         name: AppRouteNames.poiPosts,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return PoiPostsManagementPage(poiId: id);
+          return _fadeTransitionPage(
+            key: state.pageKey,
+            child: PoiPostsManagementPage(poiId: id),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.createPoi,
         name: AppRouteNames.createPoi,
-        builder: (context, state) => const CreatePoiPage(),
+        pageBuilder: (context, state) => _fadeTransitionPage(
+          key: state.pageKey,
+          child: const CreatePoiPage(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.editPoi,
         name: AppRouteNames.editPoi,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return EditPoiPage(poiId: id);
+          return _fadeTransitionPage(
+            key: state.pageKey,
+            child: EditPoiPage(poiId: id),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.poiDetail,
         name: AppRouteNames.poiDetail,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id']!;
-          return PoiDetailFullPage(poiId: id);
+          return _fadeTransitionPage(
+            key: state.pageKey,
+            child: PoiDetailFullPage(poiId: id),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.focusedMap,
         name: AppRouteNames.focusedMap,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final fallbackRouteName = state.extra is String
               ? state.extra! as String
               : AppRouteNames.chat;
-          return MapScreen(backFallbackRouteName: fallbackRouteName);
+          return _fadeTransitionPage(
+            key: state.pageKey,
+            child: MapScreen(backFallbackRouteName: fallbackRouteName),
+          );
         },
       ),
       ShellRoute(

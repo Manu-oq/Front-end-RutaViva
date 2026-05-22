@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/app_durations.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/app_feedback.dart';
 import '../../../../core/widgets/authenticated_network_image.dart';
 import '../../../categories/presentation/category_style.dart';
 import '../../domain/entities/message_entity.dart';
@@ -13,6 +16,7 @@ class ChatBubble extends StatelessWidget {
   final List<MessageCandidatePoi> candidatePois;
   final String? selectedActionId;
   final bool actionsLocked;
+  final String? disclaimerText;
   final ValueChanged<MessageAction>? onAction;
   final ValueChanged<String>? onOpenItinerary;
   final ValueChanged<MessageCandidatePoi>? onOpenPoi;
@@ -30,6 +34,7 @@ class ChatBubble extends StatelessWidget {
     this.candidatePois = const [],
     this.selectedActionId,
     this.actionsLocked = false,
+    this.disclaimerText,
     this.onAction,
     this.onOpenItinerary,
     this.onOpenPoi,
@@ -47,7 +52,9 @@ class ChatBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 8),
         padding: const EdgeInsets.all(18),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.82,
+          maxWidth: AppResponsive.isDesktop(context)
+              ? 600
+              : MediaQuery.of(context).size.width * 0.82,
         ),
         decoration: BoxDecoration(
           color: isUser
@@ -97,6 +104,13 @@ class ChatBubble extends StatelessWidget {
               const SizedBox(height: 10),
               const _EvidencePill(label: 'Recomendación estimada'),
             ],
+            if (disclaimerText != null) ...[
+              const SizedBox(height: 12),
+              AppFeedbackBanner(
+                message: disclaimerText!,
+                type: AppFeedbackType.info,
+              ),
+            ],
             if (itineraryCard != null) ...[
               const SizedBox(height: 14),
               _ItineraryChatCard(
@@ -116,40 +130,18 @@ class ChatBubble extends StatelessWidget {
             ],
             if (actions.isNotEmpty) ...[
               const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: actions
-                    .map(
-                      (action) => ActionChip(
-                        label: Text(action.label),
-                        avatar: _isSelected(action)
-                            ? const Icon(Icons.check_rounded, size: 16)
-                            : null,
-                        onPressed: actionsLocked || onAction == null
-                            ? null
-                            : () => onAction!(action),
-                      ),
-                    )
-                    .toList(),
+              _ActionList(
+                actions: actions,
+                actionsLocked: actionsLocked,
+                onAction: onAction,
+                selectedActionId: selectedActionId,
+                theme: theme,
               ),
             ],
           ],
         ),
       ),
     );
-  }
-
-  bool _isSelected(MessageAction action) {
-    final selected = selectedActionId;
-    if (selected == null || selected.isEmpty) {
-      return false;
-    }
-    final id = action.id.trim();
-    if (id.isNotEmpty) {
-      return selected == id;
-    }
-    return selected == action.prompt;
   }
 }
 
@@ -226,7 +218,7 @@ class _CandidatePoiListState extends State<_CandidatePoiList> {
                   const SizedBox(width: 4),
                   AnimatedRotation(
                     turns: _expanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 180),
+                    duration: AppDurations.short,
                     child: Icon(
                       Icons.keyboard_arrow_down_rounded,
                       color: theme.colorScheme.primary,
@@ -259,7 +251,7 @@ class _CandidatePoiListState extends State<_CandidatePoiList> {
           crossFadeState: _expanded
               ? CrossFadeState.showSecond
               : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 180),
+          duration: AppDurations.short,
           sizeCurve: Curves.easeOut,
         ),
         if (!_expanded)
@@ -650,6 +642,90 @@ class _ItineraryChatCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ActionList extends StatelessWidget {
+  final List<MessageAction> actions;
+  final bool actionsLocked;
+  final ValueChanged<MessageAction>? onAction;
+  final String? selectedActionId;
+  final ThemeData theme;
+
+  const _ActionList({
+    required this.actions,
+    required this.actionsLocked,
+    this.onAction,
+    this.selectedActionId,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: actions.map((action) {
+        final isSelected = _isActionSelected(action);
+        final type = action.type;
+
+        return switch (type) {
+          'generate' => FilledButton.icon(
+            onPressed: actionsLocked || onAction == null
+                ? null
+                : () => onAction!(action),
+            icon: isSelected
+                ? const Icon(Icons.check_rounded, size: 16)
+                : const Icon(Icons.auto_awesome_rounded, size: 16),
+            label: Text(action.label),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          'lodging' => FilledButton.tonalIcon(
+            onPressed: actionsLocked || onAction == null
+                ? null
+                : () => onAction!(action),
+            icon: isSelected
+                ? const Icon(Icons.check_rounded, size: 16)
+                : const Icon(Icons.hotel_rounded, size: 16),
+            label: Text(action.label),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          'navigation' => OutlinedButton(
+            onPressed: actionsLocked || onAction == null
+                ? null
+                : () => onAction!(action),
+            child: Text(action.label),
+          ),
+          _ => ActionChip(
+            label: Text(action.label),
+            avatar: isSelected
+                ? const Icon(Icons.check_rounded, size: 16)
+                : null,
+            onPressed: actionsLocked || onAction == null
+                ? null
+                : () => onAction!(action),
+          ),
+        };
+      }).toList(),
+    );
+  }
+
+  bool _isActionSelected(MessageAction action) {
+    final selected = selectedActionId;
+    if (selected == null || selected.isEmpty) return false;
+    final id = action.id.trim();
+    if (id.isNotEmpty) return selected == id;
+    return selected == action.prompt;
   }
 }
 

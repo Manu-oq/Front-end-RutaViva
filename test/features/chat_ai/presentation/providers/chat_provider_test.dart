@@ -413,4 +413,169 @@ void main() {
       expect(result.length, equals(1));
     });
   });
+
+  group('TripProgressData', () {
+    test('fromAraProgress con null retorna datos vacios', () {
+      final result = TripProgressData.fromAraProgress(null);
+
+      expect(result.totalDays, equals(0));
+      expect(result.currentDayFocus, equals(0));
+      expect(result.days, isEmpty);
+      expect(result.lodgingName, isNull);
+    });
+
+    test('fromAraProgress convierte correctamente dias y lodging', () {
+      const progress = AraProgressModel(
+        totalDays: 3,
+        currentDayFocus: 0,
+        days: [
+          AraDayProgressModel(
+            label: 'Viernes 22',
+            date: '2026-05-22',
+            dayIndex: 0,
+            status: 'in_progress',
+            isFocus: true,
+            steps: 2,
+          ),
+          AraDayProgressModel(
+            label: 'Sabado 23',
+            date: '2026-05-23',
+            dayIndex: 1,
+            status: 'pending',
+            isFocus: false,
+            steps: 0,
+          ),
+        ],
+        lodging: AraLodgingModel(
+          poiId: 'abc',
+          name: 'Hotel Patagonia',
+          mode: 'all_days',
+        ),
+      );
+
+      final result = TripProgressData.fromAraProgress(progress);
+
+      expect(result.totalDays, equals(3));
+      expect(result.currentDayFocus, equals(0));
+      expect(result.days.length, equals(2));
+      expect(result.days[0].label, equals('Viernes 22'));
+      expect(result.days[0].status, equals('in_progress'));
+      expect(result.days[0].isFocus, isTrue);
+      expect(result.days[0].steps, equals(2));
+      expect(result.days[1].label, equals('Sabado 23'));
+      expect(result.days[1].status, equals('pending'));
+      expect(result.days[1].isFocus, isFalse);
+      expect(result.lodgingName, equals('Hotel Patagonia'));
+    });
+  });
+
+  group('isGenerating getter', () {
+    test('isGenerating es false en estado idle inicial', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+
+      expect(notifier.isGenerating, isFalse);
+    });
+  });
+
+  group('_phaseIcon', () {
+    test('searching retorna lupa', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+
+      expect(notifier.phaseIconForTest('searching'), equals('🔍'));
+    });
+
+    test('weather retorna nube', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+
+      expect(notifier.phaseIconForTest('weather'), equals('🌤'));
+    });
+
+    test('generating retorna cerebro', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+
+      expect(notifier.phaseIconForTest('generating'), equals('🧠'));
+    });
+
+    test('validating retorna check', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+
+      expect(notifier.phaseIconForTest('validating'), equals('✓'));
+    });
+
+    test('saving retorna disco', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+
+      expect(notifier.phaseIconForTest('saving'), equals('💾'));
+    });
+
+    test('fase desconocida retorna default', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+
+      expect(notifier.phaseIconForTest('unknown'), equals('🔄'));
+    });
+  });
+
+  group('chatProgressProvider', () {
+    test('retorna null cuando el notifier no tiene progress', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final progress = container.read(chatProgressProvider);
+
+      expect(progress, isNull);
+    });
+  });
+
+  group('TripProgressData dias con distintos status', () {
+    test('completed y skipped se parsean correctamente', () {
+      const progress = AraProgressModel(
+        totalDays: 2,
+        currentDayFocus: 1,
+        days: [
+          AraDayProgressModel(
+            label: 'Viernes',
+            date: '2026-05-22',
+            dayIndex: 0,
+            status: 'completed',
+            isFocus: false,
+            steps: 3,
+          ),
+          AraDayProgressModel(
+            label: 'Sabado',
+            date: '2026-05-23',
+            dayIndex: 1,
+            status: 'skipped',
+            isFocus: false,
+            steps: 0,
+          ),
+        ],
+      );
+
+      final result = TripProgressData.fromAraProgress(progress);
+
+      expect(result.days[0].status, equals('completed'));
+      expect(result.days[1].status, equals('skipped'));
+    });
+  });
 }

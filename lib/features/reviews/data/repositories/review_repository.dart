@@ -40,7 +40,7 @@ class ReviewRepository {
   Future<ReviewModel> create({
     required String poiId,
     required int ratingStars,
-    required String textContent,
+    String? textContent,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
@@ -48,7 +48,8 @@ class ReviewRepository {
         data: {
           'poi_id': poiId,
           'rating_stars': ratingStars,
-          'text_content': textContent,
+          if (textContent != null && textContent.trim().isNotEmpty)
+            'text_content': textContent.trim(),
         },
       );
       return ReviewModel.fromJson(response.data!);
@@ -71,12 +72,16 @@ class ReviewRepository {
   Future<ReviewModel> update({
     required String reviewId,
     required int ratingStars,
-    required String textContent,
+    String? textContent,
   }) async {
     try {
       final response = await _client.put<Map<String, dynamic>>(
         '/reviews/$reviewId',
-        data: {'rating_stars': ratingStars, 'text_content': textContent},
+        data: {
+          'rating_stars': ratingStars,
+          if (textContent != null && textContent.trim().isNotEmpty)
+            'text_content': textContent.trim(),
+        },
       );
       return ReviewModel.fromJson(response.data!);
     } on DioException catch (error) {

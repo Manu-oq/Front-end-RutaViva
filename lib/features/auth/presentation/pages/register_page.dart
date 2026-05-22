@@ -111,6 +111,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         top: false,
         child: Center(
           child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: AppResponsive.compactPagePadding(context),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),

@@ -84,6 +84,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: AppResponsive.compactPagePadding(context),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 480),

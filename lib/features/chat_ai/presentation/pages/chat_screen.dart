@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/utils/responsive.dart';
+import '../../../../core/utils/app_durations.dart';
 import '../../../itinerary/presentation/providers/itinerary_provider.dart';
 import '../../../map/domain/entities/map_point.dart';
 import '../../../map/presentation/providers/map_provider.dart';
@@ -12,6 +13,7 @@ import '../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/chat_header.dart';
 import '../widgets/chat_input_field.dart';
+import '../widgets/trip_progress_bar.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -46,7 +48,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 250),
+        duration: AppDurations.scroll,
         curve: Curves.easeOut,
       );
     });
@@ -66,6 +68,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _scrollToBottom();
       }
     });
+
+    final chatNotifier2 = ref.read(chatProvider.notifier);
+    final hasSession = chatNotifier2.hasActiveSession;
 
     return Scaffold(
       body: Container(
@@ -88,6 +93,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: Column(
                 children: [
                   const ChatHeader(),
+                  const TripProgressBar(),
                   if (itineraryState.current != null)
                     Padding(
                       padding: EdgeInsets.fromLTRB(
@@ -124,6 +130,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           candidatePois: msg.candidatePois,
                           selectedActionId: msg.selectedActionId,
                           actionsLocked: msg.actionsLocked,
+                          disclaimerText: msg.disclaimerText,
                           onAction: actionsLocked
                               ? null
                               : (action) => _handleAction(context, ref, action),
@@ -142,6 +149,47 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       },
                     ),
                   ),
+                  if (hasSession && !chatNotifier.isGenerating)
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 14 : 20,
+                        vertical: 4,
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: actionsLocked
+                              ? null
+                              : () async {
+                                  final completed = await ref
+                                      .read(chatProvider.notifier)
+                                      .generateItinerary();
+                                  if (completed && context.mounted) {
+                                    final itinerary = ref
+                                        .read(itineraryProvider)
+                                        .current;
+                                    if (itinerary != null) {
+                                      context.pushNamedSafe(
+                                        AppRouteNames.itineraryDetail,
+                                        pathParameters: {'id': itinerary.id},
+                                      );
+                                    }
+                                  }
+                                },
+                          icon: const Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 20,
+                          ),
+                          label: const Text('Que lo arme Ara'),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   Padding(
                     padding: EdgeInsets.all(isMobile ? 14 : 20),
                     child: const ChatInputField(),

@@ -97,9 +97,11 @@ class _PoiDetailBody extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 860),
+                  constraints: BoxConstraints(
+                    maxWidth: AppResponsive.maxContentWidth(context),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+                    padding: AppResponsive.pagePadding(context),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

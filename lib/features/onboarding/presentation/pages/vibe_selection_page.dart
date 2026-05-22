@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/app_feedback.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../map/presentation/providers/map_provider.dart';
 import '../providers/interests_provider.dart';
@@ -18,6 +20,7 @@ class VibeSelectionPage extends ConsumerStatefulWidget {
 class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
   bool _isSearching = false;
   String? _selectedVibeQuery;
+  String? _errorMessage;
 
   Future<void> _searchAndOpenMap(String query) async {
     if (_isSearching) {
@@ -27,6 +30,7 @@ class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
     setState(() {
       _isSearching = true;
       _selectedVibeQuery = query;
+      _errorMessage = null;
     });
 
     await ref.read(mapProvider.notifier).semanticSearch(query: query);
@@ -38,9 +42,7 @@ class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
     setState(() => _isSearching = false);
     final error = ref.read(mapProvider).errorMessage;
     if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
+      setState(() => _errorMessage = error);
       return;
     }
 
@@ -63,8 +65,13 @@ class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
     final selectedInterests = ref.watch(interestsProvider);
 
     return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+        padding: AppResponsive.value<EdgeInsets>(
+          context,
+          mobile: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          desktop: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -86,6 +93,14 @@ class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
+            if (_errorMessage != null) ...[
+              AppFeedbackBanner(
+                message: _errorMessage!,
+                type: AppFeedbackType.error,
+                onDismiss: () => setState(() => _errorMessage = null),
+              ),
+              const SizedBox(height: 16),
+            ],
             VibeCard(
               category: 'Naturaleza y silencio',
               title: 'Bosques, cascadas y senderos tranquilos',

@@ -182,6 +182,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
   Widget build(BuildContext context) {
     final isMobile = AppResponsive.isMobile(context);
     return CustomScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
         SliverToBoxAdapter(
           child: Center(

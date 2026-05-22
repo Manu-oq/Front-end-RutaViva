@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../utils/app_durations.dart';
 import '../utils/responsive.dart';
 
 enum AppFeedbackType { error, warning, info, success }
@@ -32,9 +33,7 @@ class AppFeedbackBanner extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       child: AnimatedSwitcher(
-        duration: AppResponsive.shouldReduceMotion
-            ? Duration.zero
-            : const Duration(milliseconds: 180),
+        duration: AppDurations.short,
         child: Container(
           key: ValueKey('$type-$message'),
           width: double.infinity,

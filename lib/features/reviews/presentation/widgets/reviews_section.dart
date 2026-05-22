@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_feedback.dart';
 import '../../../../core/widgets/inline_error_widget.dart';
 import '../../../../core/widgets/skeleton_container.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -21,6 +22,8 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
   final _controller = TextEditingController();
   int _rating = 5;
   bool _isSubmitting = false;
+  String? _feedbackMessage;
+  AppFeedbackType _feedbackType = AppFeedbackType.error;
 
   @override
   void dispose() {
@@ -59,9 +62,7 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
       final message = error is ApiException
           ? error.message
           : 'No se pudo publicar la opinión.';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      _showFeedback(message, AppFeedbackType.error);
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -101,9 +102,7 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
       final message = error is ApiException
           ? error.message
           : 'No se pudo actualizar la opinión.';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      _showFeedback(message, AppFeedbackType.error);
     }
   }
 
@@ -146,15 +145,24 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
       final message = error is ApiException
           ? error.message
           : 'No se pudo eliminar la opinión.';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      _showFeedback(message, AppFeedbackType.error);
     }
   }
 
   void _refreshReviews() {
     ref.invalidate(reviewsByPoiProvider(widget.poiId));
     ref.invalidate(reviewSummaryByPoiProvider(widget.poiId));
+  }
+
+  void _showFeedback(String message, AppFeedbackType type) {
+    setState(() {
+      _feedbackMessage = message;
+      _feedbackType = type;
+    });
+  }
+
+  void _dismissFeedback() {
+    setState(() => _feedbackMessage = null);
   }
 
   @override
@@ -167,6 +175,14 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_feedbackMessage != null) ...[
+          AppFeedbackBanner(
+            message: _feedbackMessage!,
+            type: _feedbackType,
+            onDismiss: _dismissFeedback,
+          ),
+          const SizedBox(height: 14),
+        ],
         Text(
           'Comparte tu experiencia y revisa lo que otros viajeros recomiendan antes de ir.',
           style: theme.textTheme.bodyMedium?.copyWith(

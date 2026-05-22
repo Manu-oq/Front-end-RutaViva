@@ -249,6 +249,7 @@ class _EntrepreneurDashboard extends ConsumerWidget {
           ref.invalidate(entrepreneurIncomeProvider);
         },
         child: CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
