@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:ruta_viva/core/error/api_exception.dart';
 import 'package:ruta_viva/features/chat_ai/data/models/ara_session_model.dart';
 import 'package:ruta_viva/features/chat_ai/domain/entities/message_entity.dart';
 import 'package:ruta_viva/features/chat_ai/presentation/providers/chat_provider.dart';
@@ -71,6 +72,22 @@ void main() {
       final notifier = container.read(chatProvider.notifier);
 
       expect(notifier.isBusy, isFalse);
+    });
+  });
+
+  group('mensajes de error UX', () {
+    test('convierte invalid candidate selection a mensaje usable', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+
+      final message = notifier.readableErrorForTest(
+        const ApiException(message: 'Invalid candidate selection.'),
+      );
+
+      expect(message, isNot(contains('Invalid candidate selection')));
+      expect(message, contains('No pude seleccionar ese lugar'));
     });
   });
 

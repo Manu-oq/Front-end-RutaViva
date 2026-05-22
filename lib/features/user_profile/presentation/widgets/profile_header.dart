@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 
 class ProfileHeader extends StatelessWidget {
   final String displayName;
@@ -24,12 +25,15 @@ class ProfileHeader extends StatelessWidget {
         ? displayName.trim().substring(0, 1).toUpperCase()
         : 'R';
     final visibleInterests = interests.take(4).toList();
+    final isMobile = AppResponsive.isMobile(context);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 18 : 24),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(34),
+        borderRadius: BorderRadius.circular(
+          AppResponsive.cardRadius(context) + 4,
+        ),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -52,12 +56,13 @@ class ProfileHeader extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              Flex(
+                direction: isMobile ? Axis.vertical : Axis.horizontal,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 74,
-                    height: 74,
+                    width: isMobile ? 64 : 74,
+                    height: isMobile ? 64 : 74,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white.withValues(alpha: 0.16),
@@ -76,7 +81,7 @@ class ProfileHeader extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const Spacer(),
+                  if (isMobile) const SizedBox(height: 12) else const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -113,11 +118,15 @@ class ProfileHeader extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 'Hola, $displayName',
-                style: theme.textTheme.displaySmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  height: 1.05,
-                ),
+                style:
+                    (isMobile
+                            ? theme.textTheme.headlineMedium
+                            : theme.textTheme.displaySmall)
+                        ?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          height: 1.05,
+                        ),
               ),
               const SizedBox(height: 10),
               Text(

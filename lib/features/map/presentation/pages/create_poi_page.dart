@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/error_banner.dart';
 import '../../../../core/widgets/inline_error_widget.dart';
 import '../../../../core/widgets/section_card.dart';
 import 'package:latlong2/latlong.dart';
@@ -37,6 +39,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
   String? _uploadedImageUrl;
   final Set<int> _selectedCategoryIds = {};
   bool _isSubmitting = false;
+  String? _formErrorMessage;
 
   @override
   void initState() {
@@ -66,13 +69,16 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
       return;
     }
     if (_selectedCategoryIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona al menos una categoría.')),
-      );
+      setState(() {
+        _formErrorMessage = 'Selecciona al menos una categoría.';
+      });
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _formErrorMessage = null;
+    });
     try {
       final poi = await ref
           .read(poiRepositoryProvider)
@@ -107,9 +113,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
       final message = error is ApiException
           ? error.message
           : 'No se pudo crear el lugar.';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      setState(() => _formErrorMessage = message);
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -120,6 +124,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesProvider);
+    final isMobile = AppResponsive.isMobile(context);
 
     return Scaffold(
       body: PoiFormBackground(
@@ -129,9 +134,16 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
               SliverToBoxAdapter(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 860),
+                    constraints: BoxConstraints(
+                      maxWidth: AppResponsive.maxContentWidth(context),
+                    ),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                      padding: AppResponsive.value<EdgeInsets>(
+                        context,
+                        mobile: const EdgeInsets.fromLTRB(16, 14, 16, 96),
+                        tablet: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                        desktop: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                      ),
                       child: Form(
                         key: _formKey,
                         child: Column(
@@ -144,7 +156,15 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
                                   'Ayuda a otros viajeros a descubrir rincones, servicios o experiencias de La Araucanía.',
                               fallbackRouteName: AppRouteNames.profile,
                             ),
-                            const SizedBox(height: 16),
+                            SizedBox(height: isMobile ? 14 : 16),
+                            if (_formErrorMessage != null) ...[
+                              ErrorBanner(
+                                message: _formErrorMessage!,
+                                onDismiss: () =>
+                                    setState(() => _formErrorMessage = null),
+                              ),
+                              SizedBox(height: isMobile ? 14 : 16),
+                            ],
                             SectionCard(
                               title: 'Información principal',
                               icon: Icons.place_rounded,

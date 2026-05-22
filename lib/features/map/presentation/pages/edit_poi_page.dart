@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/error_banner.dart';
+import '../../../../core/widgets/inline_error_widget.dart';
 import '../../../../core/widgets/section_card.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../categories/data/models/category_model.dart';
@@ -80,6 +83,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
   late String _accessType;
   late final Set<int> _selectedCategoryIds;
   bool _isSubmitting = false;
+  String? _formErrorMessage;
 
   @override
   void initState() {
@@ -120,13 +124,16 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
       return;
     }
     if (_selectedCategoryIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona al menos una categoría.')),
-      );
+      setState(() {
+        _formErrorMessage = 'Selecciona al menos una categoría.';
+      });
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _formErrorMessage = null;
+    });
     try {
       final poi = await ref
           .read(poiRepositoryProvider)
@@ -163,9 +170,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
       final message = error is ApiException
           ? error.message
           : 'No se pudo actualizar el lugar.';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      setState(() => _formErrorMessage = message);
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -175,14 +180,22 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppResponsive.isMobile(context);
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 860),
+              constraints: BoxConstraints(
+                maxWidth: AppResponsive.maxContentWidth(context),
+              ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                padding: AppResponsive.value<EdgeInsets>(
+                  context,
+                  mobile: const EdgeInsets.fromLTRB(16, 14, 16, 96),
+                  tablet: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                  desktop: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -196,7 +209,15 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
                         fallbackRouteName: AppRouteNames.poiDetail,
                         fallbackPathParameters: {'id': widget.poi.id},
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: isMobile ? 14 : 16),
+                      if (_formErrorMessage != null) ...[
+                        ErrorBanner(
+                          message: _formErrorMessage!,
+                          onDismiss: () =>
+                              setState(() => _formErrorMessage = null),
+                        ),
+                        SizedBox(height: isMobile ? 14 : 16),
+                      ],
                       SectionCard(
                         title: 'Información principal',
                         icon: Icons.place_rounded,
@@ -410,11 +431,18 @@ class _EditPoiError extends StatelessWidget {
     final theme = Theme.of(context);
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: BoxConstraints(
+          maxWidth: AppResponsive.value<double>(
+            context,
+            mobile: double.infinity,
+            tablet: 520,
+            desktop: 560,
+          ),
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: AppResponsive.pagePadding(context),
           child: Container(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(AppResponsive.cardPadding(context)),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(30),
@@ -451,11 +479,7 @@ class _EditPoiError extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: onRetry,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Reintentar'),
-                ),
+                InlineErrorWidget(message: message, onRetry: onRetry),
               ],
             ),
           ),

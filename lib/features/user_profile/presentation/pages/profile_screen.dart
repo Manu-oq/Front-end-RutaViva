@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../widgets/account_settings.dart';
 import '../widgets/profile_header.dart';
@@ -49,9 +50,11 @@ class ProfileScreen extends ConsumerWidget {
                 sliver: SliverToBoxAdapter(
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 860),
+                      constraints: BoxConstraints(
+                        maxWidth: AppResponsive.maxContentWidth(context),
+                      ),
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+                        padding: AppResponsive.pagePadding(context),
                         child: Column(
                           children: [
                             ProfileHeader(

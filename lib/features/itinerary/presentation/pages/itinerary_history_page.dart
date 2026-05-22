@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_back_button.dart';
+import '../../../../core/widgets/inline_error_widget.dart';
 import '../../../../core/widgets/skeleton_container.dart';
 import '../../data/models/itinerary_model.dart';
 import '../../data/repositories/itinerary_repository.dart';
@@ -17,6 +19,7 @@ class ItineraryHistoryPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final itineraries = ref.watch(itineraryHistoryProvider);
+    final isMobile = AppResponsive.isMobile(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -50,9 +53,16 @@ class ItineraryHistoryPage extends ConsumerWidget {
 
             return Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 760),
+                constraints: BoxConstraints(
+                  maxWidth: AppResponsive.maxContentWidth(context),
+                ),
                 child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                  padding: AppResponsive.value<EdgeInsets>(
+                    context,
+                    mobile: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                    tablet: const EdgeInsets.fromLTRB(20, 16, 20, 104),
+                    desktop: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                  ),
                   itemBuilder: (context, index) {
                     final itinerary = items[index];
                     return _ItineraryCard(
@@ -69,12 +79,19 @@ class ItineraryHistoryPage extends ConsumerWidget {
           },
           loading: () => Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
+              constraints: BoxConstraints(
+                maxWidth: AppResponsive.maxContentWidth(context),
+              ),
               child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                itemBuilder: (context, index) => const SkeletonContainer(
-                  height: 142,
-                  borderRadius: BorderRadius.all(Radius.circular(26)),
+                padding: AppResponsive.value<EdgeInsets>(
+                  context,
+                  mobile: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                  tablet: const EdgeInsets.fromLTRB(20, 16, 20, 104),
+                  desktop: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                ),
+                itemBuilder: (context, index) => SkeletonContainer(
+                  height: isMobile ? 128 : 142,
+                  borderRadius: const BorderRadius.all(Radius.circular(26)),
                 ),
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 14),
@@ -84,18 +101,15 @@ class ItineraryHistoryPage extends ConsumerWidget {
           ),
           error: (error, stackTrace) => Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
+              constraints: BoxConstraints(
+                maxWidth: AppResponsive.maxContentWidth(context),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: _HistoryStateCard(
-                  icon: Icons.warning_amber_rounded,
-                  title: 'No se pudo cargar el historial',
-                  text: '$error',
-                  action: ElevatedButton.icon(
-                    onPressed: () => ref.invalidate(itineraryHistoryProvider),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Reintentar'),
-                  ),
+                padding: AppResponsive.pagePadding(context),
+                child: InlineErrorWidget(
+                  message:
+                      'No se pudo cargar el historial. Intenta nuevamente.',
+                  onRetry: () => ref.invalidate(itineraryHistoryProvider),
                 ),
               ),
             ),
@@ -291,9 +305,11 @@ class _EmptyItineraryHistory extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
+        constraints: BoxConstraints(
+          maxWidth: AppResponsive.maxContentWidth(context),
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: AppResponsive.pagePadding(context),
           child: _HistoryStateCard(
             icon: Icons.route_outlined,
             title: 'Aún no tienes itinerarios guardados',
@@ -327,12 +343,13 @@ class _HistoryStateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(26),
+      padding: EdgeInsets.all(isMobile ? 20 : 26),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(AppResponsive.cardRadius(context)),
         boxShadow: AppColors.ambientShadow,
       ),
       child: Column(
@@ -346,9 +363,19 @@ class _HistoryStateCard extends StatelessWidget {
             child: Icon(icon),
           ),
           const SizedBox(height: 18),
-          Text(title, style: theme.textTheme.headlineMedium),
+          Text(
+            title,
+            style: isMobile
+                ? theme.textTheme.titleLarge
+                : theme.textTheme.headlineMedium,
+          ),
           const SizedBox(height: 8),
-          Text(text, style: theme.textTheme.bodyLarge),
+          Text(
+            text,
+            style: isMobile
+                ? theme.textTheme.bodyMedium
+                : theme.textTheme.bodyLarge,
+          ),
           const SizedBox(height: 20),
           action,
         ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/error_banner.dart';
 import '../../../../core/widgets/terms_and_conditions.dart';
@@ -96,6 +97,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
+    final isMobile = AppResponsive.isMobile(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -109,7 +111,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         top: false,
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+            padding: AppResponsive.compactPagePadding(context),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: Form(
@@ -119,16 +121,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   children: [
                     Text(
                       'Crea tu cuenta turista',
-                      style: theme.textTheme.displayLarge?.copyWith(
-                        height: 1.0,
-                      ),
+                      style:
+                          (isMobile
+                                  ? theme.textTheme.displaySmall
+                                  : theme.textTheme.displayLarge)
+                              ?.copyWith(height: 1.0),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'Tus intereses ayudan a personalizar búsquedas, rutas e itinerarios.',
                       style: theme.textTheme.bodyLarge,
                     ),
-                    const SizedBox(height: 28),
+                    SizedBox(height: isMobile ? 20 : 28),
                     if (_errorMessage != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16),
@@ -240,7 +244,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     ),
                     const SizedBox(height: 16),
                     const InterestsSelector(),
-                    const SizedBox(height: 32),
+                    SizedBox(height: isMobile ? 22 : 32),
                     TermsAcceptanceCard(
                       enabled: !authState.isLoading,
                       accepted: _acceptedTerms,

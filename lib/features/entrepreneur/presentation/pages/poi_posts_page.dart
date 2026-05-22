@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/app_feedback.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/inline_error_widget.dart';
@@ -27,10 +29,17 @@ class PoiPostsManagementPage extends ConsumerWidget {
       error: (error, _) => Scaffold(
         body: SafeArea(
           child: Center(
-            child: FilledButton.icon(
-              onPressed: () => ref.invalidate(poiModelDetailProvider(poiId)),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Reintentar'),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: AppResponsive.maxContentWidth(context),
+              ),
+              child: Padding(
+                padding: AppResponsive.pagePadding(context),
+                child: InlineErrorWidget(
+                  message: 'No pudimos cargar este lugar.',
+                  onRetry: () => ref.invalidate(poiModelDetailProvider(poiId)),
+                ),
+              ),
             ),
           ),
         ),
@@ -54,6 +63,8 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
   List<EntrepreneurPostModel>? _optimisticPosts;
   List<EntrepreneurPostModel> _lastRenderedPosts = const [];
   bool _isReordering = false;
+  String? _feedbackMessage;
+  AppFeedbackType _feedbackType = AppFeedbackType.error;
 
   Future<void> _openPostDialog({EntrepreneurPostModel? post}) async {
     final titleController = TextEditingController(text: post?.title ?? '');
@@ -99,15 +110,16 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
       ref.invalidate(poiPostsProvider(widget.poiId));
       ref.invalidate(poiPublicPostsProvider(widget.poiId));
       if (!mounted) return;
-      setState(() => _optimisticPosts = null);
+      setState(() {
+        _optimisticPosts = null;
+        _feedbackMessage = null;
+      });
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Post guardado.')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos guardar el post.')),
-      );
+      _showFeedback('No pudimos guardar el post. Revisa los datos.');
     }
   }
 
@@ -119,15 +131,16 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
       ref.invalidate(poiPostsProvider(widget.poiId));
       ref.invalidate(poiPublicPostsProvider(widget.poiId));
       if (!mounted) return;
-      setState(() => _optimisticPosts = null);
+      setState(() {
+        _optimisticPosts = null;
+        _feedbackMessage = null;
+      });
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Post eliminado.')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos eliminar el post.')),
-      );
+      _showFeedback('No pudimos eliminar el post. Intenta nuevamente.');
     }
   }
 
@@ -143,12 +156,13 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
       ref.invalidate(poiPostsProvider(widget.poiId));
       ref.invalidate(poiPublicPostsProvider(widget.poiId));
       if (!mounted) return;
-      setState(() => _optimisticPosts = null);
+      setState(() {
+        _optimisticPosts = null;
+        _feedbackMessage = null;
+      });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos actualizar el post.')),
-      );
+      _showFeedback('No pudimos actualizar el post. Intenta nuevamente.');
     }
   }
 
@@ -187,6 +201,7 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
       setState(() {
         _optimisticPosts = refreshed;
         _isReordering = false;
+        _feedbackMessage = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Orden de posts actualizado.')),
@@ -198,10 +213,18 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
         _optimisticPosts = previous;
         _isReordering = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos actualizar el orden.')),
-      );
+      _showFeedback('No pudimos actualizar el orden. Intenta nuevamente.');
     }
+  }
+
+  void _showFeedback(
+    String message, {
+    AppFeedbackType type = AppFeedbackType.error,
+  }) {
+    setState(() {
+      _feedbackMessage = message;
+      _feedbackType = type;
+    });
   }
 
   List<EntrepreneurPostModel> _displayItems(List<EntrepreneurPostModel> items) {
@@ -237,6 +260,7 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final posts = ref.watch(poiPostsProvider(widget.poiId));
+    final isMobile = AppResponsive.isMobile(context);
 
     return Scaffold(
       body: RefreshIndicator(
@@ -285,9 +309,16 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
             SliverToBoxAdapter(
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
+                  constraints: BoxConstraints(
+                    maxWidth: AppResponsive.maxContentWidth(context),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+                    padding: AppResponsive.value<EdgeInsets>(
+                      context,
+                      mobile: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                      tablet: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+                      desktop: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+                    ),
                     child: posts.when(
                       data: (items) {
                         final displayItems = _displayItems(items);
@@ -295,10 +326,16 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            Flex(
+                              direction: isMobile
+                                  ? Axis.vertical
+                                  : Axis.horizontal,
+                              crossAxisAlignment: isMobile
+                                  ? CrossAxisAlignment.start
+                                  : CrossAxisAlignment.center,
                               children: [
-                                Expanded(
-                                  child: Column(
+                                if (isMobile)
+                                  Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
@@ -317,7 +354,33 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
                                         style: theme.textTheme.bodyMedium,
                                       ),
                                     ],
+                                  )
+                                else
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Posts del lugar',
+                                          style: theme.textTheme.headlineSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          canAdd
+                                              ? '${displayItems.length} de $maxPosts publicaciones'
+                                              : 'Límite de $maxPosts publicaciones alcanzado',
+                                          style: theme.textTheme.bodyMedium,
+                                        ),
+                                      ],
+                                    ),
                                   ),
+                                SizedBox(
+                                  width: isMobile ? 0 : 12,
+                                  height: isMobile && canAdd ? 12 : 0,
                                 ),
                                 if (canAdd)
                                   FilledButton.icon(
@@ -331,6 +394,15 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
                               ],
                             ),
                             const SizedBox(height: 16),
+                            if (_feedbackMessage != null) ...[
+                              AppFeedbackBanner(
+                                message: _feedbackMessage!,
+                                type: _feedbackType,
+                                onDismiss: () =>
+                                    setState(() => _feedbackMessage = null),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
                             if (_isReordering) _reorderStatus(context),
                             if (displayItems.isEmpty)
                               const EmptyStateWidget(

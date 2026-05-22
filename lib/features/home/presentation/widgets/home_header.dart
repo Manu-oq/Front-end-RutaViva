@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../map/presentation/providers/map_provider.dart';
 
@@ -12,16 +13,19 @@ class HomeHeader extends ConsumerWidget {
     final user = ref.watch(authProvider).user;
     final mapState = ref.watch(mapProvider);
     final displayName = _firstName(user?.displayName ?? user?.email);
+    final isMobile = AppResponsive.isMobile(context);
 
     return SliverToBoxAdapter(
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
+          constraints: BoxConstraints(
+            maxWidth: AppResponsive.maxContentWidth(context),
+          ),
           child: Padding(
-            padding: const EdgeInsets.only(
-              top: 80,
-              left: 24,
-              right: 24,
+            padding: EdgeInsets.only(
+              top: isMobile ? 56 : 80,
+              left: isMobile ? 16 : 24,
+              right: isMobile ? 16 : 24,
               bottom: 8,
             ),
             child: Column(
@@ -49,17 +53,23 @@ class HomeHeader extends ConsumerWidget {
                 const SizedBox(height: 14),
                 Text(
                   'Descubre La Araucanía',
-                  style: theme.textTheme.displayLarge?.copyWith(
-                    color: theme.colorScheme.primary,
-                    height: 0.9,
-                  ),
+                  style:
+                      (isMobile
+                              ? theme.textTheme.displayMedium
+                              : theme.textTheme.displayLarge)
+                          ?.copyWith(
+                            color: theme.colorScheme.primary,
+                            height: isMobile ? 0.98 : 0.9,
+                          ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: isMobile ? 12 : 16),
                 Text(
                   mapState.points.isEmpty
                       ? 'Ara está buscando lugares para inspirar tu próxima ruta.'
                       : 'Ara encontró ${mapState.points.length} lugares para explorar. Abre el chat para armar tu ruta personalizada.',
-                  style: theme.textTheme.bodyLarge,
+                  style: (isMobile
+                      ? theme.textTheme.bodyMedium
+                      : theme.textTheme.bodyLarge),
                 ),
               ],
             ),

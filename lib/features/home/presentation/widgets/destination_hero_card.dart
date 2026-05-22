@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/authenticated_network_image.dart';
 
@@ -26,26 +27,35 @@ class DestinationHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+    final isMobile = AppResponsive.isMobile(context);
+    final radius = AppResponsive.cardRadius(context) + 4;
 
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
+      padding: EdgeInsets.fromLTRB(
+        isMobile ? 16 : 24,
+        isMobile ? 12 : 18,
+        isMobile ? 16 : 24,
+        isMobile ? 14 : 18,
+      ),
       sliver: SliverToBoxAdapter(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
+            constraints: BoxConstraints(
+              maxWidth: AppResponsive.maxContentWidth(context),
+            ),
             child: Container(
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(34),
+                borderRadius: BorderRadius.circular(radius),
                 boxShadow: AppColors.liftedShadow,
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(34),
+                borderRadius: BorderRadius.circular(radius),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
-                      height: 300,
+                      height: isMobile ? 220 : 300,
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
@@ -70,9 +80,9 @@ class DestinationHeroCard extends StatelessWidget {
                             ),
                           ),
                           Positioned(
-                            left: 20,
-                            right: 20,
-                            bottom: 20,
+                            left: isMobile ? 16 : 20,
+                            right: isMobile ? 16 : 20,
+                            bottom: isMobile ? 16 : 20,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -92,8 +102,11 @@ class DestinationHeroCard extends StatelessWidget {
                                 const SizedBox(height: 12),
                                 Text(
                                   title,
-                                  style: theme.textTheme.headlineLarge
-                                      ?.copyWith(color: Colors.white),
+                                  style:
+                                      (isMobile
+                                              ? theme.textTheme.headlineSmall
+                                              : theme.textTheme.headlineLarge)
+                                          ?.copyWith(color: Colors.white),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -104,32 +117,55 @@ class DestinationHeroCard extends StatelessWidget {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.all(22),
+                      padding: EdgeInsets.all(isMobile ? 16 : 22),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             description,
-                            style: theme.textTheme.bodyLarge,
-                            maxLines: 4,
+                            style: isMobile
+                                ? theme.textTheme.bodyMedium
+                                : theme.textTheme.bodyLarge,
+                            maxLines: isMobile ? 3 : 4,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 22),
-                          Row(
+                          SizedBox(height: isMobile ? 16 : 22),
+                          Flex(
+                            direction: isMobile
+                                ? Axis.vertical
+                                : Axis.horizontal,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Expanded(
-                                child: FilledButton.icon(
+                              if (isMobile)
+                                FilledButton.icon(
                                   onPressed: onSetRoute,
                                   icon: const Icon(Icons.map_outlined),
                                   label: const Text('Ver en mapa'),
+                                )
+                              else
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    onPressed: onSetRoute,
+                                    icon: const Icon(Icons.map_outlined),
+                                    label: const Text('Ver en mapa'),
+                                  ),
                                 ),
+                              SizedBox(
+                                width: isMobile ? 0 : 12,
+                                height: isMobile ? 10 : 0,
                               ),
-                              const SizedBox(width: 12),
-                              IconButton.outlined(
-                                tooltip: 'Ver detalles',
-                                onPressed: onDetails,
-                                icon: const Icon(Icons.arrow_forward),
-                              ),
+                              if (isMobile)
+                                OutlinedButton.icon(
+                                  onPressed: onDetails,
+                                  icon: const Icon(Icons.arrow_forward),
+                                  label: const Text('Ver detalles'),
+                                )
+                              else
+                                IconButton.outlined(
+                                  tooltip: 'Ver detalles',
+                                  onPressed: onDetails,
+                                  icon: const Icon(Icons.arrow_forward),
+                                ),
                             ],
                           ),
                         ],

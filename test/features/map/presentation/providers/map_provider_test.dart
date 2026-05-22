@@ -18,6 +18,8 @@ void main() {
       expect(state.selectedCategoryIds, isEmpty);
       expect(state.focusedPoiId, isNull);
       expect(state.focusedPoint, isNull);
+      expect(state.mapViewPoints, isEmpty);
+      expect(state.hasMapViewOverride, isFalse);
       expect(state.itineraryPoints, isEmpty);
       expect(state.visiblePoints, isEmpty);
       expect(state.isGlobalMode, isTrue);
@@ -102,6 +104,62 @@ void main() {
       final updated = state.copyWith(selectedCategoryIds: {2, 4});
 
       expect(updated.selectedCategoryIds, equals({2, 4}));
+    });
+
+    test('visiblePoints uses map view override without replacing globals', () {
+      final globalPoint = MapPoint(
+        id: 'global',
+        name: 'Global',
+        coordinates: const LatLng(-39, -71),
+        categoryIds: const [1],
+      );
+      final filteredPoint = MapPoint(
+        id: 'filtered',
+        name: 'Filtered',
+        coordinates: const LatLng(-38, -72),
+        categoryIds: const [2],
+      );
+      final state =
+          MapState(
+            points: [globalPoint],
+            center: araucaniaDefaultCenter,
+          ).copyWith(
+            mapViewPoints: [filteredPoint],
+            hasMapViewOverride: true,
+            selectedCategoryIds: {2},
+          );
+
+      expect(state.points, equals([globalPoint]));
+      expect(state.visiblePoints, equals([filteredPoint]));
+      expect(state.selectedCategoryIds, equals({2}));
+      expect(state.isGlobalMode, isTrue);
+    });
+
+    test('copyWith clearMapView returns visible points to globals', () {
+      final globalPoint = MapPoint(
+        id: 'global',
+        name: 'Global',
+        coordinates: const LatLng(-39, -71),
+        categoryIds: const [1],
+      );
+      final filteredPoint = MapPoint(
+        id: 'filtered',
+        name: 'Filtered',
+        coordinates: const LatLng(-38, -72),
+        categoryIds: const [2],
+      );
+      final state = MapState(
+        points: [globalPoint],
+        center: araucaniaDefaultCenter,
+        mapViewPoints: [filteredPoint],
+        hasMapViewOverride: true,
+      );
+
+      final updated = state.copyWith(clearMapView: true);
+
+      expect(updated.mapViewPoints, isEmpty);
+      expect(updated.hasMapViewOverride, isFalse);
+      expect(updated.visiblePoints, equals([globalPoint]));
     });
   });
 

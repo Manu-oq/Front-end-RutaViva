@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../../core/widgets/inline_error_widget.dart';
@@ -51,14 +52,18 @@ class _PoiDashboardError extends ConsumerWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: BoxConstraints(
+              maxWidth: AppResponsive.maxContentWidth(context),
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: AppResponsive.pagePadding(context),
               child: Container(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(AppResponsive.cardPadding(context)),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(
+                    AppResponsive.cardRadius(context),
+                  ),
                   border: Border.all(color: theme.colorScheme.outlineVariant),
                   boxShadow: AppColors.ambientShadow,
                 ),
@@ -119,6 +124,7 @@ class _PoiDashboardBody extends ConsumerWidget {
     final activity = ref.watch(poiActivityProvider(poi.id));
     final names = ref.watch(categoriesByIdProvider);
     final category = _categoryLabel(poi.categoryIds, names);
+    final isMobile = AppResponsive.isMobile(context);
 
     return Scaffold(
       body: RefreshIndicator(
@@ -130,7 +136,7 @@ class _PoiDashboardBody extends ConsumerWidget {
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: 320,
+              expandedHeight: isMobile ? 240 : 320,
               pinned: true,
               elevation: 0,
               backgroundColor: AppColors.deepForest,
@@ -160,9 +166,21 @@ class _PoiDashboardBody extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 900),
+                  constraints: BoxConstraints(
+                    maxWidth: AppResponsive.value<double>(
+                      context,
+                      mobile: double.infinity,
+                      tablet: 860,
+                      desktop: 900,
+                    ),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+                    padding: AppResponsive.value<EdgeInsets>(
+                      context,
+                      mobile: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                      tablet: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+                      desktop: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -289,9 +307,12 @@ class _AnalyticsSection extends ConsumerWidget {
       icon: Icons.analytics_rounded,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 520;
+          final isMobile = AppResponsive.isMobile(context);
+          final isWide = constraints.maxWidth > 620;
           final cardWidth = isWide
               ? (constraints.maxWidth - 16) / 3
+              : isMobile
+              ? constraints.maxWidth
               : (constraints.maxWidth - 8) / 2;
           return Wrap(
             spacing: 8,
@@ -341,8 +362,11 @@ class _AnalyticsSkeleton extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 520;
+        final isMobile = AppResponsive.isMobile(context);
         final cardWidth = isWide
             ? (constraints.maxWidth - 16) / 3
+            : isMobile
+            ? constraints.maxWidth
             : (constraints.maxWidth - 8) / 2;
         return Wrap(
           spacing: 8,

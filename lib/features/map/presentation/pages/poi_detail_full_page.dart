@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/utils/url_launcher_helper.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/section_card.dart';
@@ -463,14 +464,18 @@ class _PoiErrorPage extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: BoxConstraints(
+              maxWidth: AppResponsive.maxContentWidth(context),
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: AppResponsive.pagePadding(context),
               child: Container(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(AppResponsive.cardPadding(context)),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(
+                    AppResponsive.cardRadius(context),
+                  ),
                   border: Border.all(color: theme.colorScheme.outlineVariant),
                   boxShadow: AppColors.ambientShadow,
                 ),

@@ -4,8 +4,10 @@ import '../../../../core/error/api_exception.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/error_banner.dart';
+import '../../../../core/widgets/inline_error_widget.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/entrepreneur_models.dart';
 import '../../data/repositories/entrepreneur_repository.dart';
@@ -119,11 +121,14 @@ class _ActivateEntrepreneurPanelState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
+        constraints: BoxConstraints(
+          maxWidth: AppResponsive.maxContentWidth(context),
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: AppResponsive.pagePadding(context),
           child: Column(
             children: [
               const _HeroCard(
@@ -137,13 +142,15 @@ class _ActivateEntrepreneurPanelState
                 ),
                 action: SizedBox.shrink(),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: isMobile ? 14 : 16),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(18),
+                padding: EdgeInsets.all(isMobile ? 16 : 18),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(26),
+                  borderRadius: BorderRadius.circular(
+                    AppResponsive.cardRadius(context),
+                  ),
                   border: Border.all(color: theme.colorScheme.outlineVariant),
                   boxShadow: AppColors.ambientShadow,
                 ),
@@ -232,6 +239,7 @@ class _EntrepreneurDashboard extends ConsumerWidget {
     final pois = ref.watch(myPoisProvider);
     final metrics = ref.watch(entrepreneurMetricsProvider);
     final income = ref.watch(entrepreneurIncomeProvider);
+    final isMobile = AppResponsive.isMobile(context);
 
     return pois.when(
       data: (items) => RefreshIndicator(
@@ -246,9 +254,21 @@ class _EntrepreneurDashboard extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 900),
+                  constraints: BoxConstraints(
+                    maxWidth: AppResponsive.value<double>(
+                      context,
+                      mobile: double.infinity,
+                      tablet: 860,
+                      desktop: 900,
+                    ),
+                  ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                    padding: AppResponsive.value<EdgeInsets>(
+                      context,
+                      mobile: const EdgeInsets.fromLTRB(16, 14, 16, 96),
+                      tablet: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                      desktop: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -274,13 +294,13 @@ class _EntrepreneurDashboard extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: isMobile ? 14 : 16),
                         _MetricGrid(
                           count: items.length,
                           metrics: metrics,
                           income: income,
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: isMobile ? 14 : 16),
                         _PlacesSection(items: items),
                       ],
                     ),
@@ -316,11 +336,14 @@ class _HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: EdgeInsets.all(isMobile ? 18 : 22),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(34),
+        borderRadius: BorderRadius.circular(
+          AppResponsive.cardRadius(context) + 4,
+        ),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -350,10 +373,14 @@ class _HeroCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             title,
-            style: theme.textTheme.displaySmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-            ),
+            style:
+                (isMobile
+                        ? theme.textTheme.headlineMedium
+                        : theme.textTheme.displaySmall)
+                    ?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -599,54 +626,104 @@ class _PlaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
+    final actions = [
+      IconButton(
+        tooltip: 'Posts',
+        onPressed: onPosts,
+        icon: const Icon(Icons.campaign_rounded),
+      ),
+      IconButton(
+        tooltip: 'Analíticas',
+        onPressed: onAnalytics,
+        icon: const Icon(Icons.analytics_outlined),
+      ),
+      IconButton(
+        tooltip: 'Ver lugar',
+        onPressed: onOpen,
+        icon: const Icon(Icons.visibility_rounded),
+      ),
+      IconButton(
+        tooltip: 'Editar',
+        onPressed: onEdit,
+        icon: const Icon(Icons.edit_rounded),
+      ),
+      IconButton(
+        tooltip: 'Eliminar',
+        onPressed: onDelete,
+        icon: const Icon(Icons.delete_outline_rounded),
+      ),
+    ];
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isMobile ? 14 : 16),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(AppResponsive.cardRadius(context)),
         border: Border.all(color: theme.colorScheme.outlineVariant),
         boxShadow: AppColors.ambientShadow,
       ),
-      child: Row(
+      child: Flex(
+        direction: isMobile ? Axis.vertical : Axis.horizontal,
+        crossAxisAlignment: isMobile
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
-          CircleAvatar(
-            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
-            child: Icon(
-              Icons.storefront_rounded,
-              color: theme.colorScheme.primary,
-            ),
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: theme.colorScheme.primary.withValues(
+                  alpha: 0.1,
+                ),
+                child: Icon(
+                  Icons.storefront_rounded,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 14),
+              if (isMobile) Expanded(child: _PlaceCardText(poi: poi)),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(poi.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text('${poi.categoryIds.length} categorías'),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Posts',
-            onPressed: onPosts,
-            icon: const Icon(Icons.campaign_rounded),
-          ),
-          IconButton(
-            tooltip: 'Analíticas',
-            onPressed: onAnalytics,
-            icon: const Icon(Icons.analytics_outlined),
-          ),
-          IconButton(
-            onPressed: onOpen,
-            icon: const Icon(Icons.visibility_rounded),
-          ),
-          IconButton(onPressed: onEdit, icon: const Icon(Icons.edit_rounded)),
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline_rounded),
-          ),
+          if (isMobile) ...[
+            const SizedBox(height: 10),
+            Wrap(spacing: 4, runSpacing: 4, children: actions),
+          ] else ...[
+            const SizedBox(width: 14),
+            Expanded(child: _PlaceCardText(poi: poi)),
+            ...actions,
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _PlaceCardText extends StatelessWidget {
+  final PoiModel poi;
+
+  const _PlaceCardText({required this.poi});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          poi.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          '${poi.categoryIds.length} categorías',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -659,11 +736,12 @@ class _EmptyPlacesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: EdgeInsets.all(isMobile ? 18 : 22),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(AppResponsive.cardRadius(context)),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
@@ -702,10 +780,18 @@ class _DashboardError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: FilledButton.icon(
-        onPressed: onRetry,
-        icon: const Icon(Icons.refresh_rounded),
-        label: const Text('Reintentar'),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: AppResponsive.maxContentWidth(context),
+        ),
+        child: Padding(
+          padding: AppResponsive.pagePadding(context),
+          child: InlineErrorWidget(
+            message:
+                'No pudimos cargar tu panel emprendedor. Revisa tu conexión e intenta nuevamente.',
+            onRetry: onRetry,
+          ),
+        ),
       ),
     );
   }

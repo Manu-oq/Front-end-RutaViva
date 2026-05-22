@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/app_feedback.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/skeleton_container.dart';
 import '../../../chat_ai/presentation/providers/chat_provider.dart';
@@ -64,6 +66,8 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
   bool _showWeather = false;
   bool _isStartingStepReplacement = false;
   int _selectedDayIndex = 0;
+  String? _feedbackMessage;
+  AppFeedbackType _feedbackType = AppFeedbackType.error;
 
   @override
   void initState() {
@@ -93,6 +97,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
         ? _steps
         : _stepsForDate(selectedDay);
     final outsideRangeSteps = _outsideRangeSteps(days);
+    final isMobile = AppResponsive.isMobile(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -111,10 +116,17 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
           ref.invalidate(itineraryDetailProvider(widget.itinerary.id));
         },
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+          padding: AppResponsive.value<EdgeInsets>(
+            context,
+            mobile: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+            tablet: const EdgeInsets.fromLTRB(20, 8, 20, 104),
+            desktop: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+          ),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
+              constraints: BoxConstraints(
+                maxWidth: AppResponsive.maxContentWidth(context),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -152,7 +164,15 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                       }
                     },
                   ),
-                  const SizedBox(height: 28),
+                  if (_feedbackMessage != null) ...[
+                    SizedBox(height: isMobile ? 14 : 16),
+                    AppFeedbackBanner(
+                      message: _feedbackMessage!,
+                      type: _feedbackType,
+                      onDismiss: () => setState(() => _feedbackMessage = null),
+                    ),
+                  ],
+                  SizedBox(height: isMobile ? 22 : 28),
                   Text('Recorrido sugerido', style: theme.textTheme.titleLarge),
                   const SizedBox(height: 14),
                   _WeatherToggle(
@@ -267,6 +287,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
   }
 
   Future<void> _openSelectedDayOnMap(List<ItineraryStepModel> steps) async {
+    setState(() => _feedbackMessage = null);
     try {
       final selectedIds = steps.map((step) => step.poiId).toSet();
       final points = await ref.read(
@@ -288,13 +309,14 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
       );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos cargar este día en el mapa.')),
+      _showFeedback(
+        'No pudimos cargar este día en el mapa. Intenta nuevamente.',
       );
     }
   }
 
   Future<void> _deleteStep(ItineraryStepModel step) async {
+    setState(() => _feedbackMessage = null);
     try {
       final updated = await ref
           .read(itineraryRepositoryProvider)
@@ -307,9 +329,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
       ).showSnackBar(const SnackBar(content: Text('Parada eliminada.')));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos eliminar la parada.')),
-      );
+      _showFeedback('No pudimos eliminar la parada. Intenta nuevamente.');
     }
   }
 
@@ -384,6 +404,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     TimeOfDay arrivalTime,
     int? durationMinutes,
   ) async {
+    setState(() => _feedbackMessage = null);
     final now = DateTime.now();
     final arrival = DateTime(
       now.year,
@@ -409,9 +430,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
       ).showSnackBar(const SnackBar(content: Text('Horario actualizado.')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos actualizar el horario.')),
-      );
+      _showFeedback('No pudimos actualizar el horario. Intenta nuevamente.');
     }
   }
 
@@ -453,6 +472,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
   }
 
   Future<void> _saveReorder(List<Map<String, dynamic>> payload) async {
+    setState(() => _feedbackMessage = null);
     try {
       final updated = await ref
           .read(itineraryRepositoryProvider)
@@ -466,10 +486,18 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     } catch (_) {
       if (!mounted) return;
       ref.invalidate(itineraryDetailProvider(widget.itinerary.id));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos guardar el orden.')),
-      );
+      _showFeedback('No pudimos guardar el orden. Revisa la conexión.');
     }
+  }
+
+  void _showFeedback(
+    String message, {
+    AppFeedbackType type = AppFeedbackType.error,
+  }) {
+    setState(() {
+      _feedbackMessage = message;
+      _feedbackType = type;
+    });
   }
 
   String _dateRangeLabel(ItineraryModel itinerary) {
@@ -570,11 +598,14 @@ class _ItineraryHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 18 : 24),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(34),
+        borderRadius: BorderRadius.circular(
+          AppResponsive.cardRadius(context) + 4,
+        ),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -603,10 +634,14 @@ class _ItineraryHero extends StatelessWidget {
           const SizedBox(height: 22),
           Text(
             itinerary.title,
-            style: theme.textTheme.displayLarge?.copyWith(
-              color: Colors.white,
-              fontSize: 40,
-            ),
+            style:
+                (isMobile
+                        ? theme.textTheme.headlineMedium
+                        : theme.textTheme.displayLarge)
+                    ?.copyWith(
+                      color: Colors.white,
+                      fontSize: isMobile ? 28 : 40,
+                    ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -616,10 +651,12 @@ class _ItineraryHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Row(
+          Flex(
+            direction: isMobile ? Axis.vertical : Axis.horizontal,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: FilledButton.icon(
+              if (isMobile)
+                FilledButton.icon(
                   onPressed: onMap,
                   icon: const Icon(Icons.map_outlined),
                   label: const Text('Abrir mapa'),
@@ -627,18 +664,42 @@ class _ItineraryHero extends StatelessWidget {
                     backgroundColor: Colors.white,
                     foregroundColor: theme.colorScheme.primary,
                   ),
+                )
+              else
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: onMap,
+                    icon: const Icon(Icons.map_outlined),
+                    label: const Text('Abrir mapa'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: theme.colorScheme.primary,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              IconButton.filledTonal(
-                tooltip: 'Ver historial',
-                onPressed: onHistory,
-                icon: const Icon(Icons.history),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: 0.18),
-                  foregroundColor: Colors.white,
+              SizedBox(width: isMobile ? 0 : 12, height: isMobile ? 10 : 0),
+              if (isMobile)
+                OutlinedButton.icon(
+                  onPressed: onHistory,
+                  icon: const Icon(Icons.history),
+                  label: const Text('Ver historial'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.42),
+                    ),
+                  ),
+                )
+              else
+                IconButton.filledTonal(
+                  tooltip: 'Ver historial',
+                  onPressed: onHistory,
+                  icon: const Icon(Icons.history),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.18),
+                    foregroundColor: Colors.white,
+                  ),
                 ),
-              ),
             ],
           ),
         ],
@@ -1158,10 +1219,12 @@ class _NoItineraryState extends StatelessWidget {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          child: const Padding(
-            padding: EdgeInsets.all(24),
-            child: _EmptyStateCard(
+          constraints: BoxConstraints(
+            maxWidth: AppResponsive.maxContentWidth(context),
+          ),
+          child: Padding(
+            padding: AppResponsive.pagePadding(context),
+            child: const _EmptyStateCard(
               icon: Icons.route_outlined,
               title: 'Aún no hay una ruta generada',
               text:
@@ -1188,33 +1251,40 @@ class _ItineraryDetailSkeleton extends StatelessWidget {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            const SkeletonContainer(height: 28, width: 200),
-            const SizedBox(height: 12),
-            const SkeletonContainer(height: 14),
-            const SizedBox(height: 40),
-            ...List.generate(
-              4,
-              (index) => const Padding(
-                padding: EdgeInsets.only(bottom: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SkeletonContainer(height: 14, width: 140),
-                    SizedBox(height: 12),
-                    SkeletonContainer(
-                      height: 90,
-                      borderRadius: BorderRadius.all(Radius.circular(20)),
-                    ),
-                  ],
-                ),
-              ),
+        padding: AppResponsive.pagePadding(context),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: AppResponsive.maxContentWidth(context),
             ),
-          ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                const SkeletonContainer(height: 28, width: 200),
+                const SizedBox(height: 12),
+                const SkeletonContainer(height: 14),
+                const SizedBox(height: 40),
+                ...List.generate(
+                  4,
+                  (index) => const Padding(
+                    padding: EdgeInsets.only(bottom: 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SkeletonContainer(height: 14, width: 140),
+                        SizedBox(height: 12),
+                        SkeletonContainer(
+                          height: 90,
+                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1237,9 +1307,11 @@ class _ItineraryDetailError extends StatelessWidget {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
+          constraints: BoxConstraints(
+            maxWidth: AppResponsive.maxContentWidth(context),
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: AppResponsive.pagePadding(context),
             child: _EmptyStateCard(
               icon: Icons.warning_amber_rounded,
               title: 'No se pudo cargar el itinerario',
@@ -1266,12 +1338,13 @@ class _EmptyStateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(26),
+      padding: EdgeInsets.all(isMobile ? 20 : 26),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(AppResponsive.cardRadius(context)),
         boxShadow: AppColors.ambientShadow,
       ),
       child: Column(
@@ -1285,9 +1358,19 @@ class _EmptyStateCard extends StatelessWidget {
             child: Icon(icon),
           ),
           const SizedBox(height: 18),
-          Text(title, style: theme.textTheme.headlineMedium),
+          Text(
+            title,
+            style: isMobile
+                ? theme.textTheme.titleLarge
+                : theme.textTheme.headlineMedium,
+          ),
           const SizedBox(height: 8),
-          Text(text, style: theme.textTheme.bodyLarge),
+          Text(
+            text,
+            style: isMobile
+                ? theme.textTheme.bodyMedium
+                : theme.textTheme.bodyLarge,
+          ),
         ],
       ),
     );

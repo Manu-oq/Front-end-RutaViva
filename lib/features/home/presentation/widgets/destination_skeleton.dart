@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/skeleton_container.dart';
 
 class DestinationSkeleton extends StatelessWidget {
@@ -6,19 +7,22 @@ class DestinationSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SliverPadding(
-      padding: EdgeInsets.all(24),
+    final isMobile = AppResponsive.isMobile(context);
+    return SliverPadding(
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
       sliver: SliverToBoxAdapter(
         child: Column(
           children: [
             SkeletonContainer(
-              height: 250,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+              height: isMobile ? 210 : 250,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(32),
+              ),
             ),
-            SizedBox(height: 12),
-            SkeletonContainer(height: 20, width: 150),
-            SizedBox(height: 12),
-            SkeletonContainer(height: 60),
+            const SizedBox(height: 12),
+            const SkeletonContainer(height: 20, width: 150),
+            const SizedBox(height: 12),
+            SkeletonContainer(height: isMobile ? 52 : 60),
           ],
         ),
       ),

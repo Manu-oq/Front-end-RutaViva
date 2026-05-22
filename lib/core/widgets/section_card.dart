@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 import '../theme/app_colors.dart';
 
 class SectionCard extends StatelessWidget {
@@ -16,13 +17,15 @@ class SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final padding = AppResponsive.cardPadding(context);
+    final isMobile = AppResponsive.isMobile(context);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(AppResponsive.cardRadius(context)),
         border: Border.all(color: theme.colorScheme.outlineVariant),
         boxShadow: AppColors.ambientShadow,
       ),
@@ -32,21 +35,27 @@ class SectionCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: isMobile ? 38 : 42,
+                height: isMobile ? 38 : 42,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(isMobile ? 14 : 16),
                 ),
-                child: Icon(icon, color: theme.colorScheme.primary, size: 22),
+                child: Icon(
+                  icon,
+                  color: theme.colorScheme.primary,
+                  size: isMobile ? 20 : 22,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style:
+                      (isMobile
+                              ? theme.textTheme.titleMedium
+                              : theme.textTheme.titleLarge)
+                          ?.copyWith(fontWeight: FontWeight.w900),
                 ),
               ),
             ],

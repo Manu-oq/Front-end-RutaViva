@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/error_banner.dart';
 import '../providers/auth_provider.dart';
@@ -61,6 +62,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final authState = ref.watch(authProvider);
+    final isMobile = AppResponsive.isMobile(context);
     final backgroundColors = isDark
         ? [
             theme.colorScheme.surfaceContainerLowest,
@@ -82,20 +84,25 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: AppResponsive.compactPagePadding(context),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 480),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.terrain, size: 64, color: Colors.white),
-                    const SizedBox(height: 20),
+                    Icon(
+                      Icons.terrain,
+                      size: isMobile ? 48 : 64,
+                      color: Colors.white,
+                    ),
+                    SizedBox(height: isMobile ? 14 : 20),
                     Text(
                       'Bienvenido a Ruta Viva',
-                      style: theme.textTheme.displayLarge?.copyWith(
-                        color: Colors.white,
-                        height: 1.0,
-                      ),
+                      style:
+                          (isMobile
+                                  ? theme.textTheme.displaySmall
+                                  : theme.textTheme.displayLarge)
+                              ?.copyWith(color: Colors.white, height: 1.0),
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -104,7 +111,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         color: Colors.white.withValues(alpha: 0.82),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    SizedBox(height: isMobile ? 22 : 32),
                     if (_errorMessage != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16),
@@ -129,7 +136,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.all(24),
+                        padding: EdgeInsets.all(isMobile ? 18 : 24),
                         child: Form(
                           key: _formKey,
                           child: Column(

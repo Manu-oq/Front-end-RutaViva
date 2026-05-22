@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/app_feedback.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../providers/chat_provider.dart';
 
@@ -15,6 +17,7 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
   late DateTime _startDate;
   late DateTime _endDate;
   bool _isSubmitting = false;
+  String? _feedbackMessage;
 
   @override
   void initState() {
@@ -75,20 +78,22 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
     final endDate = DateTime(end.year, end.month, end.day);
     final days = endDate.difference(startDate).inDays + 1;
     if (days > 7) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El viaje puede tener máximo 7 días.')),
-      );
+      setState(() {
+        _feedbackMessage = 'El viaje puede tener máximo 7 días.';
+      });
       return;
     }
     setState(() {
       _startDate = startDate;
       _endDate = endDate;
+      _feedbackMessage = null;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
     ref.watch(chatProvider);
     final notifier = ref.read(chatProvider.notifier);
     final chatUiState = notifier.uiState;
@@ -107,9 +112,14 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
         : _endDate;
 
     return GlassContainer(
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(isMobile ? 24 : 28),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+        padding: EdgeInsets.fromLTRB(
+          isMobile ? 12 : 14,
+          12,
+          isMobile ? 12 : 14,
+          10,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -196,6 +206,15 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
                       ),
               ],
             ),
+            if (_feedbackMessage != null) ...[
+              const SizedBox(height: 10),
+              AppFeedbackBanner(
+                message: _feedbackMessage!,
+                type: AppFeedbackType.warning,
+                compact: true,
+                onDismiss: () => setState(() => _feedbackMessage = null),
+              ),
+            ],
           ],
         ),
       ),

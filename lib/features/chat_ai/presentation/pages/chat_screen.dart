@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../itinerary/presentation/providers/itinerary_provider.dart';
 import '../../../map/domain/entities/map_point.dart';
 import '../../../map/presentation/providers/map_provider.dart';
@@ -58,6 +59,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final itineraryState = ref.watch(itineraryProvider);
     final theme = Theme.of(context);
     final actionsLocked = chatNotifier.isInputLocked;
+    final isMobile = AppResponsive.isMobile(context);
 
     ref.listen(chatProvider, (prev, next) {
       if (next.length > (prev?.length ?? 0)) {
@@ -80,13 +82,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
+              constraints: BoxConstraints(
+                maxWidth: AppResponsive.maxContentWidth(context),
+              ),
               child: Column(
                 children: [
                   const ChatHeader(),
                   if (itineraryState.current != null)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      padding: EdgeInsets.fromLTRB(
+                        isMobile ? 16 : 20,
+                        0,
+                        isMobile ? 16 : 20,
+                        12,
+                      ),
                       child: _LastItineraryBanner(
                         title: itineraryState.current!.title,
                         isLoading: itineraryState.isLoading,
@@ -99,7 +108,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Expanded(
                     child: ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 14 : 20,
+                      ),
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
                         final msg = messages[index];
@@ -131,9 +142,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       },
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: ChatInputField(),
+                  Padding(
+                    padding: EdgeInsets.all(isMobile ? 14 : 20),
+                    child: const ChatInputField(),
                   ),
                 ],
               ),

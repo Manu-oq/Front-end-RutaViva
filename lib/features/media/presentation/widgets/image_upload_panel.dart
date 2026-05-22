@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
+import '../../../../core/widgets/app_feedback.dart';
 import '../../../../core/widgets/authenticated_network_image.dart';
 import '../../../map/data/repositories/poi_repository.dart';
 import '../../../map/presentation/providers/map_provider.dart';
@@ -21,6 +23,8 @@ class _ImageUploadPanelState extends ConsumerState<ImageUploadPanel> {
   final _picker = ImagePicker();
   bool _isUploading = false;
   String? _uploadedUrl;
+  String? _feedbackMessage;
+  AppFeedbackType _feedbackType = AppFeedbackType.error;
 
   Future<void> _pickAndUpload() async {
     if (_isUploading) {
@@ -35,7 +39,10 @@ class _ImageUploadPanelState extends ConsumerState<ImageUploadPanel> {
       return;
     }
 
-    setState(() => _isUploading = true);
+    setState(() {
+      _isUploading = true;
+      _feedbackMessage = null;
+    });
     try {
       final bytes = await pickedFile.readAsBytes();
       final url = await ref
@@ -52,12 +59,11 @@ class _ImageUploadPanelState extends ConsumerState<ImageUploadPanel> {
       if (!mounted) {
         return;
       }
-      setState(() => _uploadedUrl = updatedPoi.toMapPoint().imageUrl ?? url);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Imagen agregada. Gracias por mejorar este lugar.'),
-        ),
-      );
+      setState(() {
+        _uploadedUrl = updatedPoi.toMapPoint().imageUrl ?? url;
+        _feedbackMessage = 'Imagen agregada. Gracias por mejorar este lugar.';
+        _feedbackType = AppFeedbackType.success;
+      });
     } catch (error) {
       if (!mounted) {
         return;
@@ -65,9 +71,10 @@ class _ImageUploadPanelState extends ConsumerState<ImageUploadPanel> {
       final message = error is ApiException
           ? error.message
           : 'No se pudo subir la imagen.';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      setState(() {
+        _feedbackMessage = message;
+        _feedbackType = AppFeedbackType.error;
+      });
     } finally {
       if (mounted) {
         setState(() => _isUploading = false);
@@ -92,6 +99,15 @@ class _ImageUploadPanelState extends ConsumerState<ImageUploadPanel> {
         const SizedBox(height: 14),
         if (_uploadedUrl != null) ...[
           _UploadedPreview(url: _uploadedUrl!),
+          const SizedBox(height: 14),
+        ],
+        if (_feedbackMessage != null) ...[
+          AppFeedbackBanner(
+            message: _feedbackMessage!,
+            type: _feedbackType,
+            onDismiss: () => setState(() => _feedbackMessage = null),
+            compact: true,
+          ),
           const SizedBox(height: 14),
         ],
         _UploadDropZone(isUploading: _isUploading, onTap: _pickAndUpload),
@@ -170,6 +186,7 @@ class _UploadDropZone extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
 
     return Material(
       color: Colors.transparent,
@@ -178,7 +195,7 @@ class _UploadDropZone extends StatelessWidget {
         onTap: isUploading ? null : onTap,
         child: Ink(
           width: double.infinity,
-          padding: const EdgeInsets.all(18),
+          padding: EdgeInsets.all(isMobile ? 14 : 18),
           decoration: BoxDecoration(
             color: theme.colorScheme.primary.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(26),
@@ -186,7 +203,11 @@ class _UploadDropZone extends StatelessWidget {
               color: theme.colorScheme.primary.withValues(alpha: 0.16),
             ),
           ),
-          child: Row(
+          child: Flex(
+            direction: isMobile ? Axis.vertical : Axis.horizontal,
+            crossAxisAlignment: isMobile
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.center,
             children: [
               Container(
                 width: 52,
@@ -205,9 +226,9 @@ class _UploadDropZone extends StatelessWidget {
                         color: theme.colorScheme.primary,
                       ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
+              SizedBox(width: isMobile ? 0 : 14, height: isMobile ? 12 : 0),
+              if (isMobile)
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -226,8 +247,30 @@ class _UploadDropZone extends StatelessWidget {
                       ),
                     ),
                   ],
+                )
+              else
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isUploading ? 'Subiendo imagen...' : 'Agregar foto',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        isUploading
+                            ? 'Esto tomará solo un momento.'
+                            : 'Elige una imagen desde tu galería.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
               Icon(
                 Icons.chevron_right_rounded,
                 color: theme.colorScheme.onSurfaceVariant,

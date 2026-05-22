@@ -279,7 +279,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     if (!mounted) return;
     var stateAfterSearch = ref.read(mapProvider);
-    if (stateAfterSearch.points.isEmpty) {
+    if (stateAfterSearch.visiblePoints.isEmpty) {
       try {
         final locations = await ref
             .read(geocodingRepositoryProvider)
@@ -293,8 +293,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           });
           await notifier.semanticSearch(query: query, center: nextCenter);
           stateAfterSearch = ref.read(mapProvider);
-          if (stateAfterSearch.points.isEmpty) {
-            await notifier.loadNearby(center: nextCenter, radius: 16000);
+          if (stateAfterSearch.visiblePoints.isEmpty) {
+            await notifier.loadMapViewNearby(center: nextCenter, radius: 16000);
           }
         }
       } catch (_) {
@@ -304,8 +304,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     if (!mounted) return;
     final finalState = ref.read(mapProvider);
-    if (finalState.points.isNotEmpty) {
-      final first = finalState.points.first.coordinates;
+    final finalVisiblePoints = finalState.visiblePoints;
+    if (finalVisiblePoints.isNotEmpty) {
+      final first = finalVisiblePoints.first.coordinates;
       final targetZoom = _cameraZoom < 13 ? 13.0 : _cameraZoom;
       _mapController.move(first, targetZoom);
       setState(() {
@@ -330,9 +331,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Future<void> _onPullRefresh() async {
     setState(() => _isPullRefreshing = true);
     try {
-      ref
-          .read(mapProvider.notifier)
-          .loadNearby(center: _mapController.camera.center);
+      final mapState = ref.read(mapProvider);
+      final notifier = ref.read(mapProvider.notifier);
+      if (mapState.selectedCategoryIds.isNotEmpty) {
+        await notifier.loadCategoryFilteredNearby(
+          center: _mapController.camera.center,
+          categoryIds: mapState.selectedCategoryIds,
+        );
+      } else {
+        await notifier.loadNearby(center: _mapController.camera.center);
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -372,7 +380,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         return;
       }
 
-      ref.read(mapProvider.notifier).loadNearby(center: center);
+      final notifier = ref.read(mapProvider.notifier);
+      if (mapState.selectedCategoryIds.isNotEmpty) {
+        notifier.loadCategoryFilteredNearby(
+          center: center,
+          categoryIds: mapState.selectedCategoryIds,
+        );
+      } else {
+        notifier.loadNearby(center: center);
+      }
     });
   }
 

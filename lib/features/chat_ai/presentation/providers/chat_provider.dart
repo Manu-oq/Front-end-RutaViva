@@ -541,20 +541,38 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   }
 
   String _readableError(Object error) {
-    if (error is ApiException) return error.message;
+    if (error is ApiException) return _friendlyAraMessage(error.message);
     return 'No pude continuar la conversación. Intenta nuevamente.';
   }
 
+  @visibleForTesting
+  String readableErrorForTest(Object error) => _readableError(error);
+
   String _readableGenerationError(Object error) {
     if (error is ApiException) {
-      final normalized = error.message.toLowerCase();
+      final friendly = _friendlyAraMessage(error.message);
+      final normalized = friendly.toLowerCase();
       if (normalized.contains('failed') ||
           normalized.contains('generation failed')) {
         return 'No pude armar el itinerario esta vez. Intenta ajustar tu búsqueda o vuelve a intentarlo.';
       }
-      return error.message;
+      return friendly;
     }
     return 'No pude armar el itinerario esta vez. Intenta ajustar tu búsqueda o vuelve a intentarlo.';
+  }
+
+  String _friendlyAraMessage(String message) {
+    final normalized = message.toLowerCase();
+    if (normalized.contains('invalid candidate selection')) {
+      return 'No pude seleccionar ese lugar automáticamente. Elige una opción disponible o escribe tu solicitud con más detalle.';
+    }
+    if (normalized.contains('candidate') && normalized.contains('invalid')) {
+      return 'No pude usar esa opción del asistente. Prueba seleccionando nuevamente o escribe lo que quieres hacer.';
+    }
+    if (normalized.contains('unprocessable entity')) {
+      return 'No pude procesar esa solicitud. Revisa la información y vuelve a intentarlo.';
+    }
+    return message;
   }
 }
 

@@ -13,6 +13,8 @@ class MapState {
   /// Temporary map views must not mutate this list; Home and other global
   /// surfaces rely on it staying intact.
   final List<MapPoint> points;
+  final List<MapPoint> mapViewPoints;
+  final bool hasMapViewOverride;
   final List<MapPoint> itineraryPoints;
   final MapPoint? focusedPoint;
   final MapPoint? selectedPoint;
@@ -26,6 +28,8 @@ class MapState {
   MapState({
     required this.points,
     required this.center,
+    this.mapViewPoints = const [],
+    this.hasMapViewOverride = false,
     this.itineraryPoints = const [],
     Set<int> selectedCategoryIds = const {},
     this.focusedPoint,
@@ -45,11 +49,17 @@ class MapState {
     if (filteredItineraryId != null) {
       return itineraryPoints;
     }
+    if (hasMapViewOverride) {
+      return mapViewPoints;
+    }
     return points;
   }
 
   MapState copyWith({
     List<MapPoint>? points,
+    List<MapPoint>? mapViewPoints,
+    bool? hasMapViewOverride,
+    bool clearMapView = false,
     List<MapPoint>? itineraryPoints,
     MapPoint? focusedPoint,
     MapPoint? selectedPoint,
@@ -66,6 +76,12 @@ class MapState {
   }) {
     return MapState(
       points: points ?? this.points,
+      mapViewPoints: clearMapView
+          ? const []
+          : (mapViewPoints ?? this.mapViewPoints),
+      hasMapViewOverride: clearMapView
+          ? false
+          : (hasMapViewOverride ?? this.hasMapViewOverride),
       itineraryPoints: clearFilteredItinerary
           ? const []
           : (itineraryPoints ?? this.itineraryPoints),
@@ -98,17 +114,16 @@ class MapNotifier extends Notifier<MapState> {
   Future<void> loadNearby({
     LatLng center = araucaniaDefaultCenter,
     double radius = defaultSearchRadiusMeters,
-    Set<int>? categoryIds,
   }) async {
-    final activeCategoryIds = categoryIds ?? state.selectedCategoryIds;
     state = state.copyWith(
       isLoading: true,
       clearError: true,
       center: center,
+      clearMapView: true,
       clearFilteredItinerary: true,
       clearFocusedPoi: true,
       clearSelection: true,
-      selectedCategoryIds: activeCategoryIds,
+      selectedCategoryIds: const {},
     );
     try {
       final pois = await ref
@@ -117,7 +132,6 @@ class MapNotifier extends Notifier<MapState> {
             lat: center.latitude,
             lon: center.longitude,
             radius: radius,
-            categoryIds: activeCategoryIds.toList()..sort(),
           );
       final points = pois.map((poi) => poi.toMapPoint()).toList();
       state = state.copyWith(points: points, isLoading: false, center: center);
@@ -134,11 +148,68 @@ class MapNotifier extends Notifier<MapState> {
     if (!next.add(categoryId)) {
       next.remove(categoryId);
     }
-    return loadNearby(center: center ?? state.center, categoryIds: next);
+    if (next.isEmpty) {
+      return clearCategoryFilters(center: center ?? state.center);
+    }
+    return loadCategoryFilteredNearby(
+      center: center ?? state.center,
+      categoryIds: next,
+    );
   }
 
   Future<void> clearCategoryFilters({LatLng? center}) {
-    return loadNearby(center: center ?? state.center, categoryIds: const {});
+    return loadNearby(center: center ?? state.center);
+  }
+
+  Future<void> loadCategoryFilteredNearby({
+    required Set<int> categoryIds,
+    LatLng center = araucaniaDefaultCenter,
+    double radius = defaultSearchRadiusMeters,
+  }) async {
+    return loadMapViewNearby(
+      center: center,
+      radius: radius,
+      categoryIds: categoryIds,
+    );
+  }
+
+  Future<void> loadMapViewNearby({
+    LatLng center = araucaniaDefaultCenter,
+    double radius = defaultSearchRadiusMeters,
+    Set<int> categoryIds = const {},
+  }) async {
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      center: center,
+      clearFilteredItinerary: true,
+      clearFocusedPoi: true,
+      clearSelection: true,
+      selectedCategoryIds: categoryIds,
+      hasMapViewOverride: true,
+    );
+    try {
+      final pois = await ref
+          .read(poiRepositoryProvider)
+          .searchNearby(
+            lat: center.latitude,
+            lon: center.longitude,
+            radius: radius,
+            categoryIds: categoryIds.toList()..sort(),
+          );
+      final points = pois.map((poi) => poi.toMapPoint()).toList();
+      state = state.copyWith(
+        mapViewPoints: points,
+        hasMapViewOverride: true,
+        isLoading: false,
+        center: center,
+      );
+    } catch (error) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _readableError(error),
+      );
+    }
   }
 
   Future<void> semanticSearch({
@@ -154,6 +225,7 @@ class MapNotifier extends Notifier<MapState> {
       clearFilteredItinerary: true,
       clearFocusedPoi: true,
       clearSelection: true,
+      hasMapViewOverride: true,
       selectedCategoryIds: const {},
     );
     try {
@@ -167,7 +239,8 @@ class MapNotifier extends Notifier<MapState> {
           );
       final points = pois.map((poi) => poi.toMapPoint()).toList();
       state = state.copyWith(
-        points: points,
+        mapViewPoints: points,
+        hasMapViewOverride: true,
         isLoading: false,
         center: searchCenter,
       );
@@ -214,6 +287,7 @@ class MapNotifier extends Notifier<MapState> {
       selectedPoint: point,
       center: point.coordinates,
       focusedPoiId: point.id,
+      clearMapView: true,
       clearFilteredItinerary: true,
       selectedCategoryIds: const {},
       clearError: true,

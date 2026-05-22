@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/authenticated_network_image.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/error_banner.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../onboarding/presentation/widgets/interests_selector.dart';
 
@@ -23,6 +25,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   late final TextEditingController _avatarUrlController;
   late bool _hasOwnTransport;
   late final Set<String> _selectedInterests;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -50,6 +53,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    setState(() => _errorMessage = null);
 
     final success = await ref
         .read(authProvider.notifier)
@@ -79,15 +84,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
     final message =
         ref.read(authProvider).errorMessage ?? 'No se pudo actualizar perfil.';
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    setState(() => _errorMessage = message);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
+    final isMobile = AppResponsive.isMobile(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -113,10 +117,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           ),
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: AppResponsive.pagePadding(context),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
+              constraints: BoxConstraints(
+                maxWidth: AppResponsive.maxContentWidth(context),
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -124,7 +130,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                   children: [
                     Text(
                       'Preferencias reales',
-                      style: theme.textTheme.displayLarge,
+                      style: isMobile
+                          ? theme.textTheme.displaySmall
+                          : theme.textTheme.displayLarge,
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -132,6 +140,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                       style: theme.textTheme.bodyLarge,
                     ),
                     const SizedBox(height: 24),
+                    if (_errorMessage != null) ...[
+                      ErrorBanner(
+                        message: _errorMessage!,
+                        onDismiss: () => setState(() => _errorMessage = null),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     _AvatarPreviewField(controller: _avatarUrlController),
                     const SizedBox(height: 16),
                     TextFormField(

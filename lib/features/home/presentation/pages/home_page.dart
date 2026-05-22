@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/emergency_button.dart';
+import '../../../../core/widgets/inline_error_widget.dart';
 import '../../../categories/data/repositories/category_repository.dart';
 import '../../../map/domain/entities/map_point.dart';
 import '../../../map/presentation/providers/map_provider.dart';
@@ -34,6 +36,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final mapState = ref.watch(mapProvider);
     final names = ref.watch(categoriesByIdProvider);
     final secondaryPoints = mapState.points.skip(1).take(4).toList();
+    final isMobile = AppResponsive.isMobile(context);
 
     return Scaffold(
       body: DecoratedBox(
@@ -84,7 +87,12 @@ class _HomePageState extends ConsumerState<HomePage> {
                       ),
                     ),
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 160),
+                      padding: EdgeInsets.fromLTRB(
+                        isMobile ? 16 : 24,
+                        0,
+                        isMobile ? 16 : 24,
+                        isMobile ? 120 : 160,
+                      ),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate((context, index) {
                           final point = secondaryPoints[index];
@@ -92,8 +100,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Center(
                               child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 760,
+                                constraints: BoxConstraints(
+                                  maxWidth: AppResponsive.maxContentWidth(
+                                    context,
+                                  ),
                                 ),
                                 child: _PoiListTile(point: point),
                               ),
@@ -173,16 +183,22 @@ class _EmptyHomeState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
+    final hasError = errorMessage != null && errorMessage!.trim().isNotEmpty;
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 760),
+        constraints: BoxConstraints(
+          maxWidth: AppResponsive.maxContentWidth(context),
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: AppResponsive.pagePadding(context),
           child: Container(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 20 : 24),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(
+                AppResponsive.cardRadius(context),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,20 +211,25 @@ class _EmptyHomeState extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   'No hay lugares cargados todavía',
-                  style: theme.textTheme.headlineMedium,
+                  style: isMobile
+                      ? theme.textTheme.titleLarge
+                      : theme.textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  errorMessage ??
-                      'Intenta refrescar para buscar lugares nuevamente.',
-                  style: theme.textTheme.bodyMedium,
-                ),
+                if (hasError)
+                  InlineErrorWidget(message: errorMessage!, onRetry: onRetry)
+                else
+                  Text(
+                    'Intenta refrescar para buscar lugares nuevamente.',
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: onRetry,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Reintentar'),
-                ),
+                if (!hasError)
+                  ElevatedButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reintentar'),
+                  ),
               ],
             ),
           ),
