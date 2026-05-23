@@ -56,64 +56,68 @@ class DestinationHeroCard extends StatelessWidget {
                   children: [
                     SizedBox(
                       height: isMobile ? 220 : 300,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          hasImage
-                              ? AuthenticatedNetworkImage(
-                                  imageUrl: imageUrl!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_) =>
-                                      const _DestinationImageFallback(),
-                                )
-                              : const _DestinationImageFallback(),
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.black.withValues(alpha: 0.05),
-                                  Colors.black.withValues(alpha: 0.62),
+                      child: Semantics(
+                        excludeSemantics: true,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            hasImage
+                                ? AuthenticatedNetworkImage(
+                                    imageUrl: imageUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_) =>
+                                        const _DestinationImageFallback(),
+                                  )
+                                : const _DestinationImageFallback(),
+                            DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.black.withValues(alpha: 0.05),
+                                    Colors.black.withValues(alpha: 0.62),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: isMobile ? 16 : 20,
+                              right: isMobile ? 16 : 20,
+                              bottom: isMobile ? 16 : 20,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      _Pill(label: category.toUpperCase()),
+                                      if (distanceLabel != null)
+                                        _Pill(
+                                          label: distanceLabel!,
+                                          icon: Icons.near_me_outlined,
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    title,
+                                    style:
+                                        (isMobile
+                                                ? theme.textTheme.headlineSmall
+                                                : theme.textTheme.headlineLarge)
+                                            ?.copyWith(color: Colors.white),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ],
                               ),
                             ),
-                          ),
-                          Positioned(
-                            left: isMobile ? 16 : 20,
-                            right: isMobile ? 16 : 20,
-                            bottom: isMobile ? 16 : 20,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    _Pill(label: category.toUpperCase()),
-                                    if (distanceLabel != null)
-                                      _Pill(
-                                        label: distanceLabel!,
-                                        icon: Icons.near_me_outlined,
-                                      ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  title,
-                                  style:
-                                      (isMobile
-                                              ? theme.textTheme.headlineSmall
-                                              : theme.textTheme.headlineLarge)
-                                          ?.copyWith(color: Colors.white),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                     Padding(
@@ -134,7 +138,9 @@ class DestinationHeroCard extends StatelessWidget {
                             direction: isMobile
                                 ? Axis.vertical
                                 : Axis.horizontal,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            crossAxisAlignment: isMobile
+                                ? CrossAxisAlignment.stretch
+                                : CrossAxisAlignment.center,
                             children: [
                               if (isMobile)
                                 FilledButton.icon(
