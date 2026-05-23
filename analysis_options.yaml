@@ -19,7 +19,7 @@ linter:
   # section below, it can also be suppressed for a single line of code
   # or a specific dart file by using the `// ignore: name_of_lint` and
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
+  # producing the lint
   rules:
     require_trailing_commas: true
     prefer_const_constructors: true
