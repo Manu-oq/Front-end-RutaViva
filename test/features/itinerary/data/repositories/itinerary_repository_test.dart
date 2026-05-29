@@ -14,8 +14,8 @@ const _itineraryJson = <String, dynamic>{
       'id': 'step-1',
       'itinerary_id': 'itin-xyz-789',
       'poi_id': 'poi-abc-123',
-      'poi_nombre': 'Volcán Villarrica',
-      'poi_descripcion': 'Volcán activo',
+      'poi_name': 'Volcán Villarrica',
+      'poi_description': 'Volcán activo',
       'step_order': 1,
       'arrival_time': '2025-03-01T10:00:00Z',
       'departure_time': '2025-03-01T14:00:00Z',
@@ -35,8 +35,8 @@ const _itineraryJson = <String, dynamic>{
       'id': 'step-2',
       'itinerary_id': 'itin-xyz-789',
       'poi_id': 'poi-def-456',
-      'poi_nombre': null,
-      'poi_descripcion': null,
+      'poi_name': null,
+      'poi_description': null,
       'step_order': 2,
       'arrival_time': null,
       'departure_time': null,
@@ -59,7 +59,36 @@ void main() {
       expect(itinerary.status, equals('active'));
       expect(itinerary.startDate, equals(DateTime(2025, 3, 1)));
       expect(itinerary.endDate, equals(DateTime(2025, 3, 3)));
+      expect(itinerary.isPast, isFalse);
+      expect(itinerary.isEditable, isTrue);
       expect(itinerary.steps.length, equals(2));
+    });
+
+    test('parses backend read-only flags', () {
+      final json = Map<String, dynamic>.from(_itineraryJson)
+        ..['is_past'] = true
+        ..['is_editable'] = false;
+
+      final itinerary = ItineraryModel.fromJson(json);
+
+      expect(itinerary.isPast, isTrue);
+      expect(itinerary.isEditable, isFalse);
+      expect(itinerary.toJson()['is_past'], isTrue);
+      expect(itinerary.toJson()['is_editable'], isFalse);
+    });
+
+    test('falls back to non-editable for completed or cancelled status', () {
+      final completed = ItineraryModel.fromJson({
+        ..._itineraryJson,
+        'status': 'completed',
+      });
+      final cancelled = ItineraryModel.fromJson({
+        ..._itineraryJson,
+        'status': 'cancelled',
+      });
+
+      expect(completed.isEditable, isFalse);
+      expect(cancelled.isEditable, isFalse);
     });
 
     test('parses step with full ai_context', () {
@@ -69,8 +98,8 @@ void main() {
       expect(step.id, equals('step-1'));
       expect(step.itineraryId, equals('itin-xyz-789'));
       expect(step.poiId, equals('poi-abc-123'));
-      expect(step.poiNombre, equals('Volcán Villarrica'));
-      expect(step.poiDescripcion, equals('Volcán activo'));
+      expect(step.poiName, equals('Volcán Villarrica'));
+      expect(step.poiDescription, equals('Volcán activo'));
       expect(step.stepOrder, equals(1));
       expect(step.arrivalTime, equals(DateTime(2025, 3, 1, 10, 0, 0)));
       expect(step.departureTime, equals(DateTime(2025, 3, 1, 14, 0, 0)));
@@ -102,15 +131,15 @@ void main() {
       expect(step.departureTime, isNull);
     });
 
-    test('step fallback uses poiNombre when available without ai_context', () {
+    test('step fallback uses poiName when available without ai_context', () {
       final json = Map<String, dynamic>.from(_itineraryJson);
       json['steps'] = <dynamic>[
         <String, dynamic>{
           'id': 'step-3',
           'itinerary_id': 'itin-xyz-789',
           'poi_id': 'poi-ghi-789',
-          'poi_nombre': 'Lago Villarrica',
-          'poi_descripcion': 'Hermoso lago',
+          'poi_name': 'Lago Villarrica',
+          'poi_description': 'Hermoso lago',
           'step_order': 3,
           'arrival_time': null,
           'departure_time': null,
@@ -207,8 +236,8 @@ void main() {
             'id': 'step-tz',
             'itinerary_id': 'itin-xyz-789',
             'poi_id': 'poi-tz',
-            'poi_nombre': 'Termas',
-            'poi_descripcion': 'Relajo nocturno',
+            'poi_name': 'Termas',
+            'poi_description': 'Relajo nocturno',
             'step_order': 1,
             'arrival_time': '2026-05-18T09:00:00-04:00',
             'departure_time': '2026-05-18T11:00:00-04:00',
@@ -244,6 +273,55 @@ void main() {
       expect(page.page, equals(1));
       expect(page.pageSize, equals(20));
       expect(page.totalPages, equals(3));
+    });
+  });
+
+  group('ItineraryStepWeatherModel', () {
+    test('parses available weather item', () {
+      final item = ItineraryStepWeatherModel.fromJson({
+        'step_id': 'step-1',
+        'poi_id': 'poi-1',
+        'poi_name': 'Mirador',
+        'day_date': '2026-06-02',
+        'weather_available': true,
+        'weather_status': 'available',
+        'weather_message': null,
+        'weather': {
+          'description': 'Soleado',
+          'temperature_c': 20,
+          'precipitation_probability': 10,
+        },
+      });
+
+      expect(item.stepId, equals('step-1'));
+      expect(item.poiId, equals('poi-1'));
+      expect(item.poiName, equals('Mirador'));
+      expect(item.dayDate, equals(DateTime(2026, 6, 2)));
+      expect(item.weatherAvailable, isTrue);
+      expect(item.weatherStatus, equals('available'));
+      expect(item.weatherMessage, isNull);
+      expect(item.weather?.description, equals('Soleado'));
+      expect(item.weather?.temperatureC, equals(20));
+      expect(item.weather?.precipitationProbability, equals(10));
+    });
+
+    test('parses non-available weather statuses without weather object', () {
+      final item = ItineraryStepWeatherModel.fromJson({
+        'step_id': 'step-2',
+        'poi_id': 'poi-2',
+        'poi_name': null,
+        'day_date': null,
+        'weather_available': false,
+        'weather_status': 'out_of_range',
+        'weather_message':
+            'El pronóstico detallado estará disponible más cerca de la fecha del viaje.',
+        'weather': null,
+      });
+
+      expect(item.weatherAvailable, isFalse);
+      expect(item.weatherStatus, equals('out_of_range'));
+      expect(item.weatherMessage, contains('pronóstico detallado'));
+      expect(item.weather, isNull);
     });
   });
 

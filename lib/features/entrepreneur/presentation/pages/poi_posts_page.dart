@@ -170,10 +170,9 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
     final items = _lastRenderedPosts;
     if (_isReordering || items.length <= 1) return;
 
-    final actualNew = newIndex > oldIndex ? newIndex - 1 : newIndex;
     final reordered = [...items];
     final item = reordered.removeAt(oldIndex);
-    reordered.insert(actualNew, item);
+    reordered.insert(newIndex, item);
 
     setState(() {
       _optimisticPosts = reordered;
@@ -233,6 +232,15 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
     return displayItems;
   }
 
+  Future<void> _refreshPosts() async {
+    ref.invalidate(poiPostsProvider(widget.poiId));
+    try {
+      await ref.read(poiPostsProvider(widget.poiId).future);
+    } catch (error) {
+      debugPrint('[POI posts] Refresh failed for ${widget.poiId}: $error');
+    }
+  }
+
   Widget _reorderStatus(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
@@ -264,9 +272,7 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(poiPostsProvider(widget.poiId));
-        },
+        onRefresh: _refreshPosts,
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
@@ -415,7 +421,7 @@ class _PoiPostsBodyState extends ConsumerState<_PoiPostsBody> {
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: displayItems.length,
-                                onReorder: _onReorder,
+                                onReorderItem: _onReorder,
                                 buildDefaultDragHandles: false,
                                 proxyDecorator: (child, index, anim) =>
                                     _ProxyDecorator(

@@ -118,6 +118,21 @@ class _PoiDashboardBody extends ConsumerWidget {
 
   const _PoiDashboardBody({required this.poi});
 
+  Future<void> _refreshDashboard(WidgetRef ref) async {
+    ref.invalidate(poiAnalyticsProvider(poi.id));
+    ref.invalidate(poiActivityProvider(poi.id));
+    ref.invalidate(poiPostsProvider(poi.id));
+    try {
+      await Future.wait([
+        ref.read(poiAnalyticsProvider(poi.id).future),
+        ref.read(poiActivityProvider(poi.id).future),
+        ref.read(poiPostsProvider(poi.id).future),
+      ]);
+    } catch (error) {
+      debugPrint('[POI dashboard] Refresh failed for ${poi.id}: $error');
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final analytics = ref.watch(poiAnalyticsProvider(poi.id));
@@ -128,11 +143,7 @@ class _PoiDashboardBody extends ConsumerWidget {
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(poiAnalyticsProvider(poi.id));
-          ref.invalidate(poiActivityProvider(poi.id));
-          ref.invalidate(poiPostsProvider(poi.id));
-        },
+        onRefresh: () => _refreshDashboard(ref),
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
@@ -235,40 +246,33 @@ class _PoiDashboardTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      height: 40,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Flexible(
-            child: Text(
-              category,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.white.withValues(alpha: 0.84),
-                fontSize: 9.5,
-                height: 1,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          category,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.84),
+            fontSize: 9.5,
+            height: 1,
+            fontWeight: FontWeight.w800,
           ),
-          Flexible(
-            child: Text(
-              poi.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: Colors.white,
-                fontSize: 13.5,
-                height: 1.05,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
+        ),
+        Text(
+          poi.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.white,
+            fontSize: 13.5,
+            height: 1.05,
+            fontWeight: FontWeight.w900,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -540,8 +544,8 @@ class _PerformanceRow extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(16),
@@ -636,8 +640,8 @@ class _ActivityEventTile extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: theme.colorScheme.primary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),

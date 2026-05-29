@@ -8,6 +8,8 @@ void main() {
       final session = AraSessionModel.fromJson({
         'session_id': 'session-1',
         'status': 'clarifying',
+        'start_date': '2026-05-25',
+        'end_date': '2026-05-27',
         'intent': {
           'intents': ['meal'],
           'primary_intent': 'meal',
@@ -47,6 +49,8 @@ void main() {
       });
 
       expect(session.sessionId, equals('session-1'));
+      expect(session.startDate, equals(DateTime(2026, 5, 25)));
+      expect(session.endDate, equals(DateTime(2026, 5, 27)));
       expect(session.intent?.primaryIntent, equals('meal'));
       expect(session.intent?.locations, equals(['Pucón']));
       expect(session.preferences?.tags, contains('vegetariano'));
@@ -67,9 +71,38 @@ void main() {
       });
 
       expect(session.assistantMessage, isNull);
+      expect(session.assistantText, isEmpty);
+    });
+
+    test('parses stream result with itinerary_id and optional itinerary', () {
+      final result = AraGenerateItineraryResponse.fromJson({
+        'session_id': 'session-3',
+        'status': 'completed',
+        'itinerary_id': 'itinerary-123',
+      });
+
+      expect(result.sessionId, equals('session-3'));
+      expect(result.resolvedItineraryId, equals('itinerary-123'));
+      expect(result.itinerary, isNull);
+    });
+
+    test('parses warning event quick replies payload', () {
+      final warning = AraGenerationWarningEvent.fromJson({
+        'message': 'No encontré suficientes lugares.',
+        'quick_replies': [
+          {
+            'id': 'expand-search',
+            'label': 'Sí, amplía la búsqueda',
+            'value': 'Sí, amplía la búsqueda',
+            'type': 'refinement',
+          },
+        ],
+      });
+
+      expect(warning.message, contains('No encontré suficientes lugares'));
       expect(
-        session.assistantText,
-        equals('Ara actualizó tu sesión de viaje.'),
+        warning.quickReplies.single.label,
+        equals('Sí, amplía la búsqueda'),
       );
     });
   });

@@ -419,266 +419,292 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     });
 
     return Scaffold(
-      body: Stack(
-        children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: mapState.center,
-              initialZoom: mapState.focusedPoiId != null ? 15.0 : 11.0,
-              interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all,
-              ),
-              onPositionChanged: (position, hasGesture) {
-                final center = position.center;
-                final zoom = position.zoom;
-                if (hasGesture) {
-                  setState(() {
-                    _cameraCenter = center;
-                    _cameraZoom = zoom;
-                  });
-                  if (ref.read(mapProvider).isGlobalMode) {
-                    _scheduleViewportRefresh(center);
-                  }
-                }
-              },
-            ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompactHeight = constraints.maxHeight < 700;
+          final sidePadding = constraints.maxWidth >= 720 ? 20.0 : 16.0;
+          final topSpacing = isCompactHeight ? 8.0 : 14.0;
+          final overlaySpacing = isCompactHeight ? 10.0 : 14.0;
+
+          return Stack(
             children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.rutaviva.app',
-              ),
-              MarkerLayer(
-                markers: visibleMarkers
-                    .map((marker) {
-                      return Marker(
-                        point: marker.point.coordinates,
-                        width: marker.size,
-                        height: marker.showLabel
-                            ? marker.size + 24
-                            : marker.size,
-                        child: CustomMapMarker(
-                          point: marker.point,
-                          compact: !marker.showLabel,
-                          showLabel: marker.showLabel,
-                          highlighted: marker.highlighted,
-                        ),
-                      );
-                    })
-                    .toList(growable: false),
-              ),
-            ],
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 80,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragUpdate: (details) {
-                if (!mapState.isGlobalMode) return;
-                setState(() {
-                  _pullRefreshOffset = (_pullRefreshOffset + details.delta.dy)
-                      .clamp(0, 90);
-                });
-              },
-              onVerticalDragEnd: (_) {
-                if (!mapState.isGlobalMode) return;
-                if (_pullRefreshOffset > 60 && !mapState.isLoading) {
-                  _onPullRefresh();
-                } else {
-                  setState(() => _pullRefreshOffset = 0);
-                }
-              },
-              child: _pullRefreshOffset > 0
-                  ? Center(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: _pullRefreshOffset - 28),
-                        child: SizedBox(
-                          width: 32,
-                          height: 32,
-                          child: _isPullRefreshing
-                              ? const CircularProgressIndicator(strokeWidth: 3)
-                              : Icon(
-                                  Icons.refresh_rounded,
-                                  color: Theme.of(context).colorScheme.primary
-                                      .withValues(
-                                        alpha: (_pullRefreshOffset / 90).clamp(
-                                          0.2,
-                                          1.0,
-                                        ),
-                                      ),
-                                  size: 28,
-                                ),
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.center,
-                    colors: [
-                      theme.colorScheme.surface.withValues(alpha: 0.26),
-                      Colors.transparent,
-                    ],
+              FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: mapState.center,
+                  initialZoom: mapState.focusedPoiId != null ? 15.0 : 11.0,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all,
                   ),
+                  onPositionChanged: (position, hasGesture) {
+                    final center = position.center;
+                    final zoom = position.zoom;
+                    if (hasGesture) {
+                      setState(() {
+                        _cameraCenter = center;
+                        _cameraZoom = zoom;
+                      });
+                      if (ref.read(mapProvider).isGlobalMode) {
+                        _scheduleViewportRefresh(center);
+                      }
+                    }
+                  },
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.rutaviva.app',
+                  ),
+                  MarkerLayer(
+                    markers: visibleMarkers
+                        .map((marker) {
+                          return Marker(
+                            point: marker.point.coordinates,
+                            width: marker.size,
+                            height: marker.showLabel
+                                ? marker.size + 24
+                                : marker.size,
+                            child: CustomMapMarker(
+                              point: marker.point,
+                              compact: !marker.showLabel,
+                              showLabel: marker.showLabel,
+                              highlighted: marker.highlighted,
+                            ),
+                          );
+                        })
+                        .toList(growable: false),
+                  ),
+                ],
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 80,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onVerticalDragUpdate: (details) {
+                    if (!mapState.isGlobalMode) return;
+                    setState(() {
+                      _pullRefreshOffset =
+                          (_pullRefreshOffset + details.delta.dy).clamp(0, 90);
+                    });
+                  },
+                  onVerticalDragEnd: (_) {
+                    if (!mapState.isGlobalMode) return;
+                    if (_pullRefreshOffset > 60 && !mapState.isLoading) {
+                      _onPullRefresh();
+                    } else {
+                      setState(() => _pullRefreshOffset = 0);
+                    }
+                  },
+                  child: _pullRefreshOffset > 0
+                      ? Center(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              top: _pullRefreshOffset - 28,
+                            ),
+                            child: SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: _isPullRefreshing
+                                  ? const CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                    )
+                                  : Icon(
+                                      Icons.refresh_rounded,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withValues(
+                                            alpha: (_pullRefreshOffset / 90)
+                                                .clamp(0.2, 1.0),
+                                          ),
+                                      size: 28,
+                                    ),
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            top: 18,
-            left: 16,
-            right: 16,
-            child: SafeArea(
-              child: _MapHeader(
-                controller: _searchController,
-                backFallbackRouteName: widget.backFallbackRouteName,
-                isLoading: _isResolvingSearch || mapState.isLoading,
-                activeSearchQuery: _activeMapSearchQuery,
-                hasActiveSearch: _activeMapSearchQuery != null,
-                onSearch: _searchMap,
-                onClearSearch: _clearSearch,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 88,
-            left: 16,
-            right: 16,
-            child: AnimatedOpacity(
-              opacity: mapState.isGlobalMode ? 1.0 : 0.0,
-              duration: AppDurations.long,
-              curve: Curves.easeOut,
-              child: AnimatedSlide(
-                offset: Offset(0, mapState.isGlobalMode ? 0.0 : -0.12),
-                duration: AppDurations.long,
-                curve: Curves.easeOut,
+              Positioned.fill(
                 child: IgnorePointer(
-                  ignoring: !mapState.isGlobalMode,
-                  child: SafeArea(
-                    child: _MapCategoryFilters(
-                      categories: ref.watch(categoriesProvider),
-                      selectedCategoryIds: mapState.selectedCategoryIds,
-                      isLoading: mapState.isLoading,
-                      onClear: () {
-                        setState(() => _activeMapSearchQuery = null);
-                        _searchController.clear();
-                        ref
-                            .read(mapProvider.notifier)
-                            .clearCategoryFilters(
-                              center: _mapController.camera.center,
-                            );
-                      },
-                      onToggle: (id) {
-                        setState(() => _activeMapSearchQuery = null);
-                        _searchController.clear();
-                        ref
-                            .read(mapProvider.notifier)
-                            .toggleCategoryFilter(
-                              id,
-                              center: _mapController.camera.center,
-                            );
-                      },
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.center,
+                        colors: [
+                          theme.colorScheme.surface.withValues(alpha: 0.26),
+                          Colors.transparent,
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
-          if (mapState.errorMessage != null)
-            Positioned(
-              left: 20,
-              right: 20,
-              bottom: 136,
-              child: _MapNotice(
-                icon: Icons.warning_amber_rounded,
-                message: mapState.errorMessage!,
-                actionLabel: 'Reintentar',
-                onAction: mapState.isLoading ? null : _refreshNearby,
-              ),
-            ),
-          if (!mapState.isLoading &&
-              mapState.errorMessage == null &&
-              visiblePoints.isEmpty)
-            Positioned(
-              left: 20,
-              right: 20,
-              bottom: 136,
-              child: _MapNotice(
-                icon: Icons.travel_explore,
-                message:
-                    'No hay lugares para mostrar todavía. Prueba refrescar o buscar desde Inicio.',
-                actionLabel: 'Refrescar',
-                onAction: _refreshNearby,
-              ),
-            ),
-          if (mapState.isGlobalMode &&
-              _activeMapSearchQuery != null &&
-              visiblePoints.isNotEmpty)
-            Positioned(
-              left: 16,
-              right: 92,
-              bottom: 112,
-              child: SafeArea(
-                child: _MapSearchResultsPanel(
-                  points: visiblePoints,
-                  selectedPointId: mapState.selectedPoint?.id,
-                  onSelect: _focusSearchResult,
+              Positioned(
+                top: 0,
+                left: sidePadding,
+                right: sidePadding,
+                child: SafeArea(
+                  bottom: false,
+                  child: Column(
+                    children: [
+                      SizedBox(height: topSpacing),
+                      _MapHeader(
+                        controller: _searchController,
+                        backFallbackRouteName: widget.backFallbackRouteName,
+                        isLoading: _isResolvingSearch || mapState.isLoading,
+                        activeSearchQuery: _activeMapSearchQuery,
+                        hasActiveSearch: _activeMapSearchQuery != null,
+                        onSearch: _searchMap,
+                        onClearSearch: _clearSearch,
+                      ),
+                      AnimatedOpacity(
+                        opacity: mapState.isGlobalMode ? 1.0 : 0.0,
+                        duration: AppDurations.long,
+                        curve: Curves.easeOut,
+                        child: AnimatedSlide(
+                          offset: Offset(
+                            0,
+                            mapState.isGlobalMode ? 0.0 : -0.12,
+                          ),
+                          duration: AppDurations.long,
+                          curve: Curves.easeOut,
+                          child: IgnorePointer(
+                            ignoring: !mapState.isGlobalMode,
+                            child: Padding(
+                              padding: EdgeInsets.only(top: overlaySpacing),
+                              child: _MapCategoryFilters(
+                                categories: ref.watch(categoriesProvider),
+                                selectedCategoryIds:
+                                    mapState.selectedCategoryIds,
+                                isLoading: mapState.isLoading,
+                                onClear: () {
+                                  setState(() => _activeMapSearchQuery = null);
+                                  _searchController.clear();
+                                  ref
+                                      .read(mapProvider.notifier)
+                                      .clearCategoryFilters(
+                                        center: _mapController.camera.center,
+                                      );
+                                },
+                                onToggle: (id) {
+                                  setState(() => _activeMapSearchQuery = null);
+                                  _searchController.clear();
+                                  ref
+                                      .read(mapProvider.notifier)
+                                      .toggleCategoryFilter(
+                                        id,
+                                        center: _mapController.camera.center,
+                                      );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          Positioned(
-            bottom: 34,
-            right: 18,
-            child: SafeArea(
-              child: Column(
-                children: [
-                  _MapFloatingAction(
-                    icon: Icons.add,
-                    tooltip: 'Acercar',
-                    onTap: () {
-                      final newZoom = _mapController.camera.zoom + 1;
-                      final center = _mapController.camera.center;
-                      setState(() {
-                        _cameraCenter = center;
-                        _cameraZoom = newZoom;
-                      });
-                      _mapController.move(center, newZoom);
-                    },
+              Positioned(
+                left: sidePadding,
+                right: sidePadding,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (mapState.errorMessage != null)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: overlaySpacing,
+                                ),
+                                child: _MapNotice(
+                                  icon: Icons.warning_amber_rounded,
+                                  message: mapState.errorMessage!,
+                                  actionLabel: 'Reintentar',
+                                  onAction: mapState.isLoading
+                                      ? null
+                                      : _refreshNearby,
+                                ),
+                              ),
+                            if (!mapState.isLoading &&
+                                mapState.errorMessage == null &&
+                                visiblePoints.isEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: overlaySpacing,
+                                ),
+                                child: _MapNotice(
+                                  icon: Icons.travel_explore,
+                                  message:
+                                      'No hay lugares para mostrar todavía. Prueba refrescar o buscar desde Inicio.',
+                                  actionLabel: 'Refrescar',
+                                  onAction: _refreshNearby,
+                                ),
+                              ),
+                            if (mapState.isGlobalMode &&
+                                _activeMapSearchQuery != null &&
+                                visiblePoints.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  right: constraints.maxWidth >= 720 ? 8 : 0,
+                                  bottom: overlaySpacing,
+                                ),
+                                child: _MapSearchResultsPanel(
+                                  points: visiblePoints,
+                                  selectedPointId: mapState.selectedPoint?.id,
+                                  onSelect: _focusSearchResult,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: overlaySpacing),
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom: isCompactHeight ? 8 : 12,
+                        ),
+                        child: _MapActionRail(
+                          onZoomIn: () {
+                            final newZoom = _mapController.camera.zoom + 1;
+                            final center = _mapController.camera.center;
+                            setState(() {
+                              _cameraCenter = center;
+                              _cameraZoom = newZoom;
+                            });
+                            _mapController.move(center, newZoom);
+                          },
+                          onZoomOut: () {
+                            final newZoom = _mapController.camera.zoom - 1;
+                            final center = _mapController.camera.center;
+                            setState(() {
+                              _cameraCenter = center;
+                              _cameraZoom = newZoom;
+                            });
+                            _mapController.move(center, newZoom);
+                          },
+                          onLocateUser: _locateUser,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  _MapFloatingAction(
-                    icon: Icons.remove,
-                    tooltip: 'Alejar',
-                    onTap: () {
-                      final newZoom = _mapController.camera.zoom - 1;
-                      final center = _mapController.camera.center;
-                      setState(() {
-                        _cameraCenter = center;
-                        _cameraZoom = newZoom;
-                      });
-                      _mapController.move(center, newZoom);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  _MapFloatingAction(
-                    icon: Icons.my_location,
-                    tooltip: 'Mi ubicación',
-                    onTap: _locateUser,
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -756,8 +782,8 @@ class _MapHeader extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             SizedBox(
-              width: 44,
-              height: 44,
+              width: 48,
+              height: 48,
               child: IconButton.filled(
                 tooltip: 'Buscar',
                 onPressed: onSearch,
@@ -1094,10 +1120,49 @@ class _MapFloatingAction extends StatelessWidget {
         ),
         child: IconButton(
           tooltip: tooltip,
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           icon: Icon(icon, color: theme.colorScheme.primary),
           onPressed: onTap,
         ),
       ),
+    );
+  }
+}
+
+class _MapActionRail extends StatelessWidget {
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+  final VoidCallback onLocateUser;
+
+  const _MapActionRail({
+    required this.onZoomIn,
+    required this.onZoomOut,
+    required this.onLocateUser,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _MapFloatingAction(
+          icon: Icons.add,
+          tooltip: 'Acercar',
+          onTap: onZoomIn,
+        ),
+        const SizedBox(height: 12),
+        _MapFloatingAction(
+          icon: Icons.remove,
+          tooltip: 'Alejar',
+          onTap: onZoomOut,
+        ),
+        const SizedBox(height: 12),
+        _MapFloatingAction(
+          icon: Icons.my_location,
+          tooltip: 'Mi ubicación',
+          onTap: onLocateUser,
+        ),
+      ],
     );
   }
 }
@@ -1118,35 +1183,79 @@ class _MapNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620),
-        child: Material(
-          color: theme.colorScheme.surface.withValues(alpha: 0.96),
-          borderRadius: BorderRadius.circular(24),
-          elevation: 0,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  foregroundColor: theme.colorScheme.primary,
-                  child: Icon(icon),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(message, style: theme.textTheme.bodyMedium),
-                ),
-                if (actionLabel != null) ...[
-                  const SizedBox(width: 8),
-                  TextButton(onPressed: onAction, child: Text(actionLabel!)),
-                ],
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 360;
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: Material(
+              color: theme.colorScheme.surface.withValues(alpha: 0.96),
+              borderRadius: BorderRadius.circular(24),
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: compact
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor:
+                                    theme.colorScheme.primaryContainer,
+                                foregroundColor: theme.colorScheme.primary,
+                                child: Icon(icon),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  message,
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (actionLabel != null) ...[
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: onAction,
+                                child: Text(actionLabel!),
+                              ),
+                            ),
+                          ],
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: theme.colorScheme.primaryContainer,
+                            foregroundColor: theme.colorScheme.primary,
+                            child: Icon(icon),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              message,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ),
+                          if (actionLabel != null) ...[
+                            const SizedBox(width: 8),
+                            TextButton(
+                              onPressed: onAction,
+                              child: Text(actionLabel!),
+                            ),
+                          ],
+                        ],
+                      ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

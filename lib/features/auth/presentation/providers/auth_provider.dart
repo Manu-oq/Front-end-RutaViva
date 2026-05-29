@@ -42,13 +42,31 @@ class AuthState {
 class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() {
+    ref.listen<String?>(authTokenProvider, (previous, next) {
+      if (previous != null &&
+          previous.isNotEmpty &&
+          (next == null || next.isEmpty) &&
+          state.isAuthenticated) {
+        state = const AuthState();
+      }
+    });
+
     final storedToken = ref.read(authTokenStorageProvider).readToken();
-    if (storedToken == null || storedToken.isEmpty) {
+    final storedRefreshToken = ref
+        .read(refreshTokenStorageProvider)
+        .readToken();
+    if ((storedToken == null || storedToken.isEmpty) &&
+        (storedRefreshToken == null || storedRefreshToken.isEmpty)) {
       return const AuthState();
     }
 
-    Future.microtask(() => _restoreSession(storedToken));
-    return AuthState(token: storedToken, isLoading: true);
+    if (storedToken != null && storedToken.isNotEmpty) {
+      Future.microtask(() => _restoreSession(storedToken));
+      return AuthState(token: storedToken, isLoading: true);
+    }
+
+    Future.microtask(_restoreSessionFromRefreshToken);
+    return const AuthState(isLoading: true);
   }
 
   Future<void> _restoreSession(String storedToken) async {
@@ -61,11 +79,48 @@ class AuthNotifier extends Notifier<AuthState> {
         return;
       }
       state = AuthState(user: user, token: token);
-    } catch (_) {
-      await ref.read(authTokenStorageProvider).clearToken();
-      ref.read(authTokenProvider.notifier).clearToken();
+    } catch (error) {
+      debugPrint('[Auth] restoreSession failed: $error');
+      await _clearTokens();
       state = const AuthState();
     }
+  }
+
+  Future<void> _restoreSessionFromRefreshToken() async {
+    final storedRefreshToken = ref
+        .read(refreshTokenStorageProvider)
+        .readToken();
+    if (storedRefreshToken == null || storedRefreshToken.isEmpty) {
+      state = const AuthState();
+      return;
+    }
+
+    try {
+      final token = await ref
+          .read(authRepositoryProvider)
+          .refreshToken(refreshToken: storedRefreshToken);
+      ref.read(authTokenProvider.notifier).setToken(token.accessToken);
+      await ref.read(authTokenStorageProvider).saveToken(token.accessToken);
+      if (token.refreshToken != null && token.refreshToken!.isNotEmpty) {
+        await ref
+            .read(refreshTokenStorageProvider)
+            .saveToken(token.refreshToken!);
+      } else {
+        await ref.read(refreshTokenStorageProvider).clearToken();
+      }
+      final user = await ref.read(authRepositoryProvider).getMe();
+      state = AuthState(user: user, token: token.accessToken);
+    } catch (error) {
+      debugPrint('[Auth] restoreSessionFromRefreshToken failed: $error');
+      await _clearTokens();
+      state = const AuthState();
+    }
+  }
+
+  Future<void> _clearTokens() async {
+    await ref.read(authTokenStorageProvider).clearToken();
+    await ref.read(refreshTokenStorageProvider).clearToken();
+    ref.read(authTokenProvider.notifier).clearToken();
   }
 
   Future<bool> login({required String email, required String password}) async {
@@ -75,12 +130,18 @@ class AuthNotifier extends Notifier<AuthState> {
       final token = await repository.login(email: email, password: password);
       ref.read(authTokenProvider.notifier).setToken(token.accessToken);
       await ref.read(authTokenStorageProvider).saveToken(token.accessToken);
+      if (token.refreshToken != null && token.refreshToken!.isNotEmpty) {
+        await ref
+            .read(refreshTokenStorageProvider)
+            .saveToken(token.refreshToken!);
+      } else {
+        await ref.read(refreshTokenStorageProvider).clearToken();
+      }
       final user = await repository.getMe();
       state = AuthState(user: user, token: token.accessToken);
       return true;
     } catch (error) {
-      await ref.read(authTokenStorageProvider).clearToken();
-      ref.read(authTokenProvider.notifier).clearToken();
+      await _clearTokens();
       state = state.copyWith(
         isLoading: false,
         clearToken: true,
@@ -120,9 +181,14 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
-    await ref.read(authTokenStorageProvider).clearToken();
-    ref.read(authTokenProvider.notifier).clearToken();
-    state = const AuthState();
+    try {
+      await ref.read(authRepositoryProvider).logout();
+    } catch (error) {
+      debugPrint('[Auth] logout request failed: $error');
+    } finally {
+      await _clearTokens();
+      state = const AuthState();
+    }
   }
 
   Future<bool> updateTouristProfile({

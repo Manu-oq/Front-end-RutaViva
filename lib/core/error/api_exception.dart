@@ -141,6 +141,11 @@ class ApiException implements Exception {
     if (statusCode != null && statusCode >= 500) {
       return 'Hubo un error inesperado en el servidor. Intenta de nuevo en unos momentos.';
     }
+    if (statusCode == 409 &&
+        (normalized.contains('itinerary is no longer editable') ||
+            normalized.contains('itinerarynoteditable'))) {
+      return 'Este itinerario ya no se puede editar.';
+    }
     if (normalized.contains('already') ||
         normalized.contains('existe') ||
         normalized.contains('registered') ||

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/error/api_exception.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -124,6 +125,13 @@ class ItineraryHistoryPage extends ConsumerWidget {
     WidgetRef ref,
     ItineraryModel itinerary,
   ) async {
+    if (!itinerary.isEditable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Este itinerario ya no se puede editar.')),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -154,11 +162,21 @@ class ItineraryHistoryPage extends ConsumerWidget {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Itinerario eliminado.')));
-    } catch (_) {
+    } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos eliminar el itinerario.')),
+        SnackBar(
+          content: Text(
+            error is ApiException && error.statusCode == 409
+                ? error.message
+                : 'No pudimos eliminar el itinerario.',
+          ),
+        ),
       );
+      if (error is ApiException && error.statusCode == 409) {
+        ref.invalidate(itineraryHistoryProvider);
+        ref.invalidate(itineraryDetailProvider(itinerary.id));
+      }
     }
   }
 }
@@ -226,24 +244,27 @@ class _ItineraryCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  PopupMenuButton<String>(
-                    tooltip: 'Opciones de itinerario',
-                    onSelected: (value) {
-                      if (value == 'delete') onDelete();
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline_rounded),
-                            SizedBox(width: 8),
-                            Text('Eliminar'),
-                          ],
+                  if (itinerary.isEditable)
+                    PopupMenuButton<String>(
+                      tooltip: 'Opciones de itinerario',
+                      onSelected: (value) {
+                        if (value == 'delete') onDelete();
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete_outline_rounded),
+                              SizedBox(width: 8),
+                              Text('Eliminar'),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    )
+                  else
+                    _ReadOnlyChip(isPast: itinerary.isPast),
                 ],
               ),
               if (itinerary.steps.isNotEmpty) ...[
@@ -264,7 +285,7 @@ class _ItineraryCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        step.poiNombre ?? 'Parada ${step.stepOrder}',
+                        step.poiName ?? 'Parada ${step.stepOrder}',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.primary,
                         ),
@@ -293,6 +314,27 @@ class _ItineraryCard extends StatelessWidget {
     final day = value.day.toString().padLeft(2, '0');
     final month = value.month.toString().padLeft(2, '0');
     return '$day/$month/${value.year}';
+  }
+}
+
+class _ReadOnlyChip extends StatelessWidget {
+  final bool isPast;
+
+  const _ReadOnlyChip({required this.isPast});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Chip(
+      avatar: Icon(
+        isPast ? Icons.history_rounded : Icons.visibility_outlined,
+        size: 16,
+      ),
+      label: Text(isPast ? 'Pasado' : 'Solo lectura'),
+      visualDensity: VisualDensity.compact,
+      backgroundColor: theme.colorScheme.surfaceContainerHighest,
+      side: BorderSide(color: theme.colorScheme.outlineVariant),
+    );
   }
 }
 

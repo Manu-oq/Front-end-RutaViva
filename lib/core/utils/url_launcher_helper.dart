@@ -97,7 +97,9 @@ class UrlLauncherHelper {
       if (launched) {
         return;
       }
-    } catch (_) {}
+    } catch (error) {
+      debugPrint('[UrlLauncher] launch failed for $uri: $error');
+    }
 
     if (!context.mounted) {
       return;

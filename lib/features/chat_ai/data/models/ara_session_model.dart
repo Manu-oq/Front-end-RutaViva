@@ -422,6 +422,8 @@ class AraWeatherModel {
 class AraSessionModel {
   final String sessionId;
   final String status;
+  final DateTime? startDate;
+  final DateTime? endDate;
   final AraChatMessageModel? userMessage;
   final AraChatMessageModel? assistantMessage;
   final List<AraQuickReplyModel> quickReplies;
@@ -436,6 +438,8 @@ class AraSessionModel {
   const AraSessionModel({
     required this.sessionId,
     required this.status,
+    this.startDate,
+    this.endDate,
     this.userMessage,
     this.assistantMessage,
     this.quickReplies = const [],
@@ -456,6 +460,8 @@ class AraSessionModel {
     return AraSessionModel(
       sessionId: (json['session_id'] ?? '').toString(),
       status: (json['status'] ?? 'clarifying').toString(),
+      startDate: _parseDate(json['start_date']),
+      endDate: _parseDate(json['end_date']),
       userMessage: json['user_message'] is Map<String, dynamic>
           ? AraChatMessageModel.fromJson(
               json['user_message'] as Map<String, dynamic>,
@@ -521,6 +527,13 @@ class AraSessionModel {
         AraSearchCenterModel.tryParse(tripDraft?['search_center']);
   }
 
+  static DateTime? _parseDate(dynamic raw) {
+    if (raw == null) return null;
+    final parsed = DateTime.tryParse(raw.toString());
+    if (parsed == null) return null;
+    return DateTime(parsed.year, parsed.month, parsed.day);
+  }
+
   String get assistantText {
     final legacyText = assistantMessage?.content.trim();
     if (legacyText != null && legacyText.isNotEmpty) {
@@ -529,9 +542,6 @@ class AraSessionModel {
     if (candidatePois.isNotEmpty) {
       return 'Encontré ${candidatePois.length} lugares que calzan con tu búsqueda.';
     }
-    if (status.trim().isNotEmpty) {
-      return 'Ara actualizó tu sesión de viaje.';
-    }
     return '';
   }
 }
@@ -539,23 +549,29 @@ class AraSessionModel {
 class AraGenerateItineraryResponse {
   final String sessionId;
   final String status;
-  final ItineraryModel itinerary;
+  final String? itineraryId;
+  final ItineraryModel? itinerary;
 
   const AraGenerateItineraryResponse({
     required this.sessionId,
     required this.status,
+    this.itineraryId,
     required this.itinerary,
   });
 
   factory AraGenerateItineraryResponse.fromJson(Map<String, dynamic> json) {
+    final rawItinerary = json['itinerary'];
     return AraGenerateItineraryResponse(
       sessionId: (json['session_id'] ?? '').toString(),
       status: (json['status'] ?? 'completed').toString(),
-      itinerary: ItineraryModel.fromJson(
-        json['itinerary'] as Map<String, dynamic>,
-      ),
+      itineraryId: json['itinerary_id']?.toString(),
+      itinerary: rawItinerary is Map<String, dynamic>
+          ? ItineraryModel.fromJson(rawItinerary)
+          : null,
     );
   }
+
+  String? get resolvedItineraryId => itinerary?.id ?? itineraryId;
 }
 
 sealed class AraGenerationStreamEvent {
@@ -588,31 +604,52 @@ class AraGenerationErrorEvent extends AraGenerationStreamEvent {
   const AraGenerationErrorEvent(this.message);
 }
 
-class AraItineraryGenerationStatus {
-  final String sessionId;
-  final String status;
-  final String? generatedItineraryId;
-  final ItineraryModel? itinerary;
-  final String? detail;
+class AraGenerationWarningEvent extends AraGenerationStreamEvent {
+  final String message;
+  final List<AraQuickReplyModel> quickReplies;
 
-  const AraItineraryGenerationStatus({
-    required this.sessionId,
-    required this.status,
-    this.generatedItineraryId,
-    this.itinerary,
-    this.detail,
+  const AraGenerationWarningEvent({
+    required this.message,
+    this.quickReplies = const [],
   });
 
-  factory AraItineraryGenerationStatus.fromJson(Map<String, dynamic> json) {
-    final rawItinerary = json['itinerary'];
-    return AraItineraryGenerationStatus(
-      sessionId: (json['session_id'] ?? '').toString(),
-      status: (json['status'] ?? '').toString(),
-      generatedItineraryId: json['generated_itinerary_id']?.toString(),
-      itinerary: rawItinerary is Map<String, dynamic>
-          ? ItineraryModel.fromJson(rawItinerary)
-          : null,
-      detail: json['detail']?.toString(),
+  factory AraGenerationWarningEvent.fromJson(Map<String, dynamic> json) {
+    final replies = (json['quick_replies'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map(
+          (item) =>
+              AraQuickReplyModel.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .toList(growable: false);
+
+    if (replies.isNotEmpty) {
+      return AraGenerationWarningEvent(
+        message: (json['message'] ?? '').toString(),
+        quickReplies: replies,
+      );
+    }
+
+    final actionLabel = json['action_label']?.toString().trim();
+    final actionValue = json['action_value']?.toString().trim();
+    if (actionLabel != null &&
+        actionLabel.isNotEmpty &&
+        actionValue != null &&
+        actionValue.isNotEmpty) {
+      return AraGenerationWarningEvent(
+        message: (json['message'] ?? '').toString(),
+        quickReplies: [
+          AraQuickReplyModel(
+            id: (json['action_id'] ?? actionLabel).toString(),
+            label: actionLabel,
+            value: actionValue,
+            type: (json['action_type'] ?? 'refinement').toString(),
+          ),
+        ],
+      );
+    }
+
+    return AraGenerationWarningEvent(
+      message: (json['message'] ?? '').toString(),
     );
   }
 }

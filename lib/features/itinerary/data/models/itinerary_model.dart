@@ -7,6 +7,8 @@ class ItineraryModel {
   final DateTime? startDate;
   final DateTime? endDate;
   final String status;
+  final bool isPast;
+  final bool isEditable;
   final List<ItineraryStepModel> steps;
 
   const ItineraryModel({
@@ -16,17 +18,27 @@ class ItineraryModel {
     this.startDate,
     this.endDate,
     required this.status,
+    this.isPast = false,
+    bool? isEditable,
     required this.steps,
-  });
+  }) : isEditable =
+           isEditable ??
+           !(isPast || status == 'completed' || status == 'cancelled');
 
   factory ItineraryModel.fromJson(Map<String, dynamic> json) {
+    final status = json['status'] as String;
+    final isPast = json['is_past'] as bool? ?? false;
     return ItineraryModel(
       id: json['id'] as String,
       touristId: json['tourist_id'] as String,
       title: json['title'] as String,
       startDate: _parseDate(json['start_date'] as String?),
       endDate: _parseDate(json['end_date'] as String?),
-      status: json['status'] as String,
+      status: status,
+      isPast: isPast,
+      isEditable:
+          json['is_editable'] as bool? ??
+          !(isPast || status == 'completed' || status == 'cancelled'),
       steps: (json['steps'] as List<dynamic>? ?? [])
           .map(
             (item) => ItineraryStepModel.fromJson(item as Map<String, dynamic>),
@@ -43,6 +55,8 @@ class ItineraryModel {
       'start_date': startDate == null ? null : _dateOnly(startDate!),
       'end_date': endDate == null ? null : _dateOnly(endDate!),
       'status': status,
+      'is_past': isPast,
+      'is_editable': isEditable,
       'steps': steps.map((s) => s.toJson()).toList(),
     };
   }
@@ -71,8 +85,8 @@ class ItineraryStepModel {
   final String id;
   final String itineraryId;
   final String poiId;
-  final String? poiNombre;
-  final String? poiDescripcion;
+  final String? poiName;
+  final String? poiDescription;
   final int stepOrder;
   final DateTime? arrivalTime;
   final DateTime? departureTime;
@@ -87,8 +101,8 @@ class ItineraryStepModel {
     required this.id,
     required this.itineraryId,
     required this.poiId,
-    this.poiNombre,
-    this.poiDescripcion,
+    this.poiName,
+    this.poiDescription,
     required this.stepOrder,
     this.arrivalTime,
     this.departureTime,
@@ -105,9 +119,9 @@ class ItineraryStepModel {
       id: json['id'] as String,
       itineraryId: json['itinerary_id'] as String,
       poiId: json['poi_id'] as String,
-      poiNombre: json['poi_nombre'] as String?,
-      poiDescripcion: PublicTextSanitizer.cleanOptional(
-        json['poi_descripcion'] as String?,
+      poiName: json['poi_name'] as String?,
+      poiDescription: PublicTextSanitizer.cleanOptional(
+        json['poi_description'] as String?,
       ),
       stepOrder: (json['step_order'] as num).toInt(),
       arrivalTime: _parseDateTime(json['arrival_time'] as String?),
@@ -122,7 +136,7 @@ class ItineraryStepModel {
   }
 
   String get title =>
-      aiContext?['title']?.toString() ?? poiNombre ?? 'Parada $stepOrder';
+      aiContext?['title']?.toString() ?? poiName ?? 'Parada $stepOrder';
 
   String get reason {
     final reasonRaw =
@@ -132,7 +146,7 @@ class ItineraryStepModel {
         reasonRaw.contains('reemplazado') ||
         reasonRaw.contains('placeholder') ||
         reasonRaw == 'null') {
-      return poiDescripcion ??
+      return poiDescription ??
           'Lugar seleccionado por Ara para este recorrido.';
     }
     return reasonRaw;
@@ -149,8 +163,8 @@ class ItineraryStepModel {
       'id': id,
       'itinerary_id': itineraryId,
       'poi_id': poiId,
-      'poi_nombre': poiNombre,
-      'poi_descripcion': poiDescripcion,
+      'poi_name': poiName,
+      'poi_description': poiDescription,
       'step_order': stepOrder,
       'arrival_time': arrivalTime?.toLocal().toIso8601String(),
       'departure_time': departureTime?.toLocal().toIso8601String(),
@@ -198,8 +212,8 @@ class ItineraryStepModel {
       id: id,
       itineraryId: itineraryId,
       poiId: poiId,
-      poiNombre: poiNombre,
-      poiDescripcion: poiDescripcion,
+      poiName: poiName,
+      poiDescription: poiDescription,
       stepOrder: stepOrder ?? this.stepOrder,
       arrivalTime: arrivalTime ?? this.arrivalTime,
       departureTime: departureTime ?? this.departureTime,
@@ -268,6 +282,71 @@ class StepVisitModel {
       ),
       source: (json['source'] ?? 'itinerary').toString(),
       note: json['note']?.toString(),
+    );
+  }
+}
+
+class ItineraryStepWeatherModel {
+  final String stepId;
+  final String poiId;
+  final String? poiName;
+  final DateTime? dayDate;
+  final bool weatherAvailable;
+  final String weatherStatus;
+  final String? weatherMessage;
+  final ItineraryWeatherModel? weather;
+
+  const ItineraryStepWeatherModel({
+    required this.stepId,
+    required this.poiId,
+    this.poiName,
+    this.dayDate,
+    required this.weatherAvailable,
+    required this.weatherStatus,
+    this.weatherMessage,
+    this.weather,
+  });
+
+  factory ItineraryStepWeatherModel.fromJson(Map<String, dynamic> json) {
+    return ItineraryStepWeatherModel(
+      stepId: json['step_id'].toString(),
+      poiId: json['poi_id'].toString(),
+      poiName: json['poi_name']?.toString(),
+      dayDate: ItineraryModel._parseDate(json['day_date'] as String?),
+      weatherAvailable: json['weather_available'] as bool? ?? false,
+      weatherStatus: (json['weather_status'] ?? 'unavailable').toString(),
+      weatherMessage: json['weather_message']?.toString(),
+      weather: json['weather'] is Map
+          ? ItineraryWeatherModel.fromJson(
+              Map<String, dynamic>.from(json['weather'] as Map),
+            )
+          : null,
+    );
+  }
+}
+
+class ItineraryWeatherModel {
+  final String? description;
+  final double? temperatureC;
+  final int? precipitationProbability;
+
+  const ItineraryWeatherModel({
+    this.description,
+    this.temperatureC,
+    this.precipitationProbability,
+  });
+
+  factory ItineraryWeatherModel.fromJson(Map<String, dynamic> json) {
+    final temperature = json['temperature_c'];
+    final rain = json['precipitation_probability'];
+    return ItineraryWeatherModel(
+      description: json['description']?.toString(),
+      temperatureC: temperature is num
+          ? temperature.toDouble()
+          : double.tryParse(temperature?.toString() ?? ''),
+      precipitationProbability: rain is num
+          ? rain.round()
+          : int.tryParse(rain?.toString() ?? ''),
     );
   }
 }

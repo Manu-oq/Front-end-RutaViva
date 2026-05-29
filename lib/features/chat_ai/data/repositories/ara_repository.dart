@@ -48,30 +48,19 @@ class AraRepository {
   Future<AraSessionModel> sendMessage({
     required String sessionId,
     required String message,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         '/ara/sessions/$sessionId/messages',
-        data: {'message': message},
+        data: {
+          'message': message,
+          if (startDate != null) 'start_date': _dateOnly(startDate),
+          if (endDate != null) 'end_date': _dateOnly(endDate),
+        },
       );
       return AraSessionModel.fromJson(response.data!);
-    } on DioException catch (error) {
-      throw ApiException.fromDioException(error);
-    }
-  }
-
-  Future<AraGenerateItineraryResponse> generateItinerary({
-    required String sessionId,
-    String? finalInstruction,
-  }) async {
-    try {
-      final response = await _client.post<Map<String, dynamic>>(
-        '/ara/sessions/$sessionId/generate-itinerary',
-        data: finalInstruction == null || finalInstruction.trim().isEmpty
-            ? null
-            : {'final_instruction': finalInstruction.trim()},
-      );
-      return AraGenerateItineraryResponse.fromJson(response.data!);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
@@ -89,7 +78,10 @@ class AraRepository {
             : {'final_instruction': finalInstruction.trim()},
         options: Options(
           responseType: ResponseType.stream,
-          headers: {'Accept': 'text/event-stream'},
+          headers: {
+            'Accept': 'text/event-stream',
+            'Content-Type': 'application/json',
+          },
         ),
       );
 
@@ -119,6 +111,7 @@ class AraRepository {
           'result' => AraGenerationResultEvent(
             AraGenerateItineraryResponse.fromJson(json),
           ),
+          'warning' => AraGenerationWarningEvent.fromJson(json),
           'error' => AraGenerationErrorEvent(
             (json['message'] ?? 'Ara no pudo generar el itinerario.')
                 .toString(),
@@ -147,36 +140,6 @@ class AraRepository {
 
       final event = flushEvent();
       if (event != null) yield event;
-    } on DioException catch (error) {
-      throw ApiException.fromDioException(error);
-    }
-  }
-
-  Future<AraItineraryGenerationStatus> startItineraryGenerationAsync({
-    required String sessionId,
-    String? finalInstruction,
-  }) async {
-    try {
-      final response = await _client.post<Map<String, dynamic>>(
-        '/ara/sessions/$sessionId/generate-itinerary/async',
-        data: finalInstruction == null || finalInstruction.trim().isEmpty
-            ? null
-            : {'final_instruction': finalInstruction.trim()},
-      );
-      return AraItineraryGenerationStatus.fromJson(response.data!);
-    } on DioException catch (error) {
-      throw ApiException.fromDioException(error);
-    }
-  }
-
-  Future<AraItineraryGenerationStatus> getGenerationStatus({
-    required String sessionId,
-  }) async {
-    try {
-      final response = await _client.get<Map<String, dynamic>>(
-        '/ara/sessions/$sessionId/generation-status',
-      );
-      return AraItineraryGenerationStatus.fromJson(response.data!);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }

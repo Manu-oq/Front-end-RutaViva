@@ -1,8 +1,15 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:ruta_viva/core/error/api_exception.dart';
+import 'package:ruta_viva/core/network/dio_client.dart';
+import 'package:ruta_viva/core/storage/local_storage_provider.dart';
 import 'package:ruta_viva/features/chat_ai/data/models/ara_session_model.dart';
+import 'package:ruta_viva/features/chat_ai/data/repositories/ara_repository.dart';
 import 'package:ruta_viva/features/chat_ai/domain/entities/message_entity.dart';
 import 'package:ruta_viva/features/chat_ai/presentation/providers/chat_provider.dart';
 
@@ -21,8 +28,7 @@ void main() {
       expect(greeting.isUser, isFalse);
       expect(greeting.text, contains('Hola'));
       expect(greeting.text, contains('Ara'));
-      expect(greeting.actions, isNotEmpty);
-      expect(greeting.actions.length, equals(3));
+      expect(greeting.actions, isEmpty);
       expect(greeting.actionsLocked, isFalse);
     });
 
@@ -414,6 +420,59 @@ void main() {
     });
   });
 
+  group('Ara v2 generation signals', () {
+    test('turn_type generate_request por si solo no solicita generacion', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+      const session = AraSessionModel(
+        sessionId: 'session-1',
+        status: 'clarifying',
+        assistantMessage: AraChatMessageModel(
+          role: 'assistant',
+          content: 'Dale, puedo armarlo.',
+          metadata: {'turn_type': 'generate_request'},
+        ),
+      );
+
+      expect(notifier.sessionRequestsGenerationForTest(session), isFalse);
+    });
+
+    test('status ready_to_generate solicita generacion', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+      const session = AraSessionModel(
+        sessionId: 'session-1',
+        status: 'ready_to_generate',
+        assistantMessage: AraChatMessageModel(
+          role: 'assistant',
+          content: 'Perfecto, lo armo.',
+        ),
+      );
+
+      expect(notifier.sessionRequestsGenerationForTest(session), isTrue);
+    });
+
+    test('trip_draft ready_to_generate solicita generacion', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+      const session = AraSessionModel(
+        sessionId: 'session-1',
+        status: 'clarifying',
+        preferences: AraPreferencesModel(
+          tripDraft: {'ready_to_generate': true},
+        ),
+      );
+
+      expect(notifier.sessionRequestsGenerationForTest(session), isTrue);
+    });
+  });
+
   group('TripProgressData', () {
     test('fromAraProgress con null retorna datos vacios', () {
       final result = TripProgressData.fromAraProgress(null);
@@ -578,4 +637,299 @@ void main() {
       expect(result.days[1].status, equals('skipped'));
     });
   });
+
+  group('selección de candidate POI', () {
+    test('construye prompt técnico usando UUID cuando existe', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+      const candidate = MessageCandidatePoi(
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        name: 'Pucón Outdoor',
+        actionValue: 'Quiero ir a Pucón Outdoor',
+      );
+
+      final prompt = notifier.buildCandidateSelectionPrompt(candidate);
+
+      expect(
+        prompt,
+        equals('Seleccionar POI 123e4567-e89b-12d3-a456-426614174000'),
+      );
+    });
+
+    test('usa actionValue solo si no hay UUID', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+      const candidate = MessageCandidatePoi(
+        id: '',
+        name: 'Pucón Outdoor',
+        actionValue: 'usar-poi-pucon-outdoor',
+      );
+
+      final prompt = notifier.buildCandidateSelectionPrompt(candidate);
+
+      expect(prompt, equals('usar-poi-pucon-outdoor'));
+    });
+  });
+
+  group('candidate_pois vacíos limpian cards previas', () {
+    test(
+      'elimina candidatePois antiguos cuando la nueva respuesta no trae POIs',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(chatProvider.notifier);
+        container.read(chatProvider.notifier).state = [
+          MessageEntity(
+            text: 'Opciones anteriores',
+            isUser: false,
+            timestamp: DateTime.now(),
+            candidatePois: const [
+              MessageCandidatePoi(id: 'poi-1', name: 'Pucón Outdoor'),
+            ],
+          ),
+        ];
+
+        const session = AraSessionModel(
+          sessionId: 'session-1',
+          status: 'clarifying',
+          assistantMessage: AraChatMessageModel(
+            role: 'assistant',
+            content: 'Perfecto, tomo esa selección.',
+          ),
+          candidatePois: [],
+        );
+
+        await notifier.replaceThinkingWithSessionForTest(session);
+
+        final state = container.read(chatProvider);
+        expect(state.first.candidatePois, isEmpty);
+        expect(state.last.text, equals('Perfecto, tomo esa selección.'));
+        expect(state.last.candidatePois, isEmpty);
+      },
+    );
+  });
+
+  group('streaming_itinerary', () {
+    test(
+      'agrega quick reply Ver progreso y agenda inicio automático',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(chatProvider.notifier);
+        const session = AraSessionModel(
+          sessionId: 'session-1',
+          status: 'streaming_itinerary',
+          assistantMessage: AraChatMessageModel(
+            role: 'assistant',
+            content: 'Perfecto, estoy armando tu itinerario...',
+          ),
+        );
+
+        await notifier.replaceThinkingWithSessionForTest(session);
+
+        final last = container.read(chatProvider).last;
+        expect(last.text, equals('Perfecto, estoy armando tu itinerario...'));
+        expect(last.actions.any((action) => action.isViewProgress), isTrue);
+        expect(notifier.hasPendingStreamingStartForTest, isTrue);
+      },
+    );
+
+    test(
+      'no solicita auto-generation legacy cuando status es streaming_itinerary',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        final notifier = container.read(chatProvider.notifier);
+        const session = AraSessionModel(
+          sessionId: 'session-1',
+          status: 'streaming_itinerary',
+        );
+
+        expect(notifier.sessionRequestsGenerationForTest(session), isFalse);
+      },
+    );
+
+    test('procesa evento status y result del SSE', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final controller = StreamController<AraGenerationStreamEvent>();
+      final container = ProviderContainer(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          araRepositoryProvider.overrideWith(
+            (ref) => _FakeAraRepository(
+              streamFactory: ({required sessionId, finalInstruction}) =>
+                  controller.stream,
+            ),
+          ),
+        ],
+      );
+      addTearDown(() async {
+        if (!controller.isClosed) {
+          await controller.close();
+        }
+        container.dispose();
+      });
+
+      final notifier = container.read(chatProvider.notifier);
+      const session = AraSessionModel(
+        sessionId: 'session-1',
+        status: 'streaming_itinerary',
+        assistantMessage: AraChatMessageModel(
+          role: 'assistant',
+          content: 'Perfecto, estoy armando tu itinerario...',
+        ),
+      );
+
+      await notifier.replaceThinkingWithSessionForTest(session);
+
+      final future = notifier.startPendingStreamingItinerary();
+      await Future<void>.delayed(Duration.zero);
+
+      controller.add(
+        const AraGenerationStatusEvent(
+          phase: 'generating',
+          message: 'Generando itinerario...',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(notifier.streamingProgressForTest?.phase, equals('generating'));
+      final progressMessage = container
+          .read(chatProvider)
+          .lastWhere((message) => message.messageType == 'streaming_progress');
+      expect(progressMessage.progressPhase, equals('generating'));
+
+      controller.add(
+        AraGenerationResultEvent(
+          AraGenerateItineraryResponse.fromJson({
+            'session_id': 'session-1',
+            'status': 'completed',
+            'itinerary': {
+              'id': 'iti-1',
+              'tourist_id': 'tourist-1',
+              'title': 'Ruta Villarrica',
+              'status': 'draft',
+              'steps': [],
+            },
+          }),
+        ),
+      );
+      await controller.close();
+      await future;
+
+      expect(container.read(chatPendingNavigationProvider), equals('iti-1'));
+      expect(
+        container
+            .read(chatProvider)
+            .any((message) => message.messageType == 'streaming_progress'),
+        isFalse,
+      );
+    });
+
+    test('procesa event warning y muestra acciones al usuario', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final controller = StreamController<AraGenerationStreamEvent>();
+      final container = ProviderContainer(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          araRepositoryProvider.overrideWith(
+            (ref) => _FakeAraRepository(
+              streamFactory: ({required sessionId, finalInstruction}) =>
+                  controller.stream,
+            ),
+          ),
+        ],
+      );
+      addTearDown(() async {
+        if (!controller.isClosed) {
+          await controller.close();
+        }
+        container.dispose();
+      });
+
+      final notifier = container.read(chatProvider.notifier);
+      const session = AraSessionModel(
+        sessionId: 'session-1',
+        status: 'streaming_itinerary',
+        assistantMessage: AraChatMessageModel(
+          role: 'assistant',
+          content: 'Perfecto, estoy armando tu itinerario...',
+        ),
+      );
+
+      await notifier.replaceThinkingWithSessionForTest(session);
+      final future = notifier.startPendingStreamingItinerary();
+      await Future<void>.delayed(Duration.zero);
+
+      controller.add(
+        const AraGenerationWarningEvent(
+          message: 'No encontré suficientes lugares. ¿Amplío la búsqueda?',
+          quickReplies: [
+            AraQuickReplyModel(
+              id: 'expand-search',
+              label: 'Sí, amplía la búsqueda',
+              value: 'Sí, amplía la búsqueda',
+              type: 'refinement',
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final state = container.read(chatProvider);
+      final warningMessage = state.lastWhere(
+        (message) => message.actions.isNotEmpty,
+      );
+      expect(warningMessage.text, contains('No encontré suficientes lugares'));
+      expect(
+        warningMessage.actions.single.label,
+        equals('Sí, amplía la búsqueda'),
+      );
+      expect(
+        state.any((message) => message.messageType == 'streaming_progress'),
+        isTrue,
+      );
+
+      await controller.close();
+      await future;
+    });
+  });
+}
+
+class _FakeAraRepository extends AraRepository {
+  final Stream<AraGenerationStreamEvent> Function({
+    required String sessionId,
+    String? finalInstruction,
+  })
+  streamFactory;
+
+  _FakeAraRepository({required this.streamFactory}) : super(DioClient(Dio()));
+
+  @override
+  Stream<AraGenerationStreamEvent> generateItineraryStream({
+    required String sessionId,
+    String? finalInstruction,
+  }) {
+    return streamFactory(
+      sessionId: sessionId,
+      finalInstruction: finalInstruction,
+    );
+  }
 }

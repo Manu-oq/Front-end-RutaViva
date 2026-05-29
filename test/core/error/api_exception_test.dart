@@ -50,6 +50,19 @@ void main() {
     );
   });
 
+  test('maps itinerary not editable conflict to friendly message', () {
+    final exception = fromResponse(
+      statusCode: 409,
+      data: {
+        'error': 'ItineraryNotEditableError',
+        'detail': 'Itinerary is no longer editable.',
+      },
+    );
+
+    expect(exception.message, equals('Este itinerario ya no se puede editar.'));
+    expect(exception.error, equals('ItineraryNotEditableError'));
+  });
+
   test(
     'maps invalid candidate selection to user friendly assistant message',
     () {

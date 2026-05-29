@@ -234,6 +234,21 @@ class _ActivateEntrepreneurPanelState
 class _EntrepreneurDashboard extends ConsumerWidget {
   const _EntrepreneurDashboard();
 
+  Future<void> _refreshDashboard(WidgetRef ref) async {
+    ref.invalidate(myPoisProvider);
+    ref.invalidate(entrepreneurMetricsProvider);
+    ref.invalidate(entrepreneurIncomeProvider);
+    try {
+      await Future.wait([
+        ref.read(myPoisProvider.future),
+        ref.read(entrepreneurMetricsProvider.future),
+        ref.read(entrepreneurIncomeProvider.future),
+      ]);
+    } catch (error) {
+      debugPrint('[Entrepreneur] Dashboard refresh failed: $error');
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pois = ref.watch(myPoisProvider);
@@ -243,11 +258,7 @@ class _EntrepreneurDashboard extends ConsumerWidget {
 
     return pois.when(
       data: (items) => RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(myPoisProvider);
-          ref.invalidate(entrepreneurMetricsProvider);
-          ref.invalidate(entrepreneurIncomeProvider);
-        },
+        onRefresh: () => _refreshDashboard(ref),
         child: CustomScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           physics: const AlwaysScrollableScrollPhysics(),
@@ -442,13 +453,9 @@ class _MetricGrid extends StatelessWidget {
             _MetricCard(
               width: width,
               icon: Icons.payments_rounded,
-              value: income.isLoading
-                  ? '...'
-                  : incomeData?.isPlaceholder == true
-                  ? 'Próx.'
-                  : _formatIncome(incomeData),
+              value: income.isLoading ? '...' : _formatIncome(incomeData),
               label: 'Ganancias',
-              detail: 'cuando exista pasarela',
+              detail: _incomeDetail(incomeData),
             ),
           ],
         );
@@ -457,8 +464,18 @@ class _MetricGrid extends StatelessWidget {
   }
 
   String _formatIncome(EntrepreneurIncomeModel? income) {
-    if (income == null) return 'Próx.';
-    return '${income.currency} ${income.total.round()}';
+    if (income == null || income.status == 'not_configured') return 'Próx.';
+    return '${income.currency} ${income.grossIncome}';
+  }
+
+  String _incomeDetail(EntrepreneurIncomeModel? income) {
+    if (income == null || income.status == 'not_configured') {
+      return 'cuando exista pasarela';
+    }
+    if (income.detail.isNotEmpty) {
+      return income.detail;
+    }
+    return 'Neto ${income.currency} ${income.netIncome} · Pendiente ${income.currency} ${income.pendingIncome}';
   }
 }
 

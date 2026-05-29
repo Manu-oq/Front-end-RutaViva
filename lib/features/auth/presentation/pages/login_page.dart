@@ -148,54 +148,66 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 style: theme.textTheme.headlineMedium,
                               ),
                               const SizedBox(height: 20),
-                              TextFormField(
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                autofillHints: const [AutofillHints.email],
-                                decoration: const InputDecoration(
-                                  labelText: 'Correo electrónico',
-                                  prefixIcon: Icon(Icons.email_outlined),
-                                  border: OutlineInputBorder(),
-                                ),
-                                validator: (value) {
-                                  final email = value?.trim() ?? '';
-                                  if (email.isEmpty) {
-                                    return 'Ingresa tu correo.';
-                                  }
-                                  if (!email.contains('@')) {
-                                    return 'Correo inválido.';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                autofillHints: const [AutofillHints.password],
-                                onFieldSubmitted: (_) => _submit(),
-                                decoration: InputDecoration(
-                                  labelText: 'Contraseña',
-                                  prefixIcon: const Icon(Icons.lock_outline),
-                                  border: const OutlineInputBorder(),
-                                  suffixIcon: IconButton(
-                                    onPressed: () => setState(
-                                      () =>
-                                          _obscurePassword = !_obscurePassword,
+                              AutofillGroup(
+                                child: Column(
+                                  children: [
+                                    TextFormField(
+                                      controller: _emailController,
+                                      keyboardType: TextInputType.emailAddress,
+                                      autofillHints: const [
+                                        AutofillHints.email,
+                                      ],
+                                      decoration: const InputDecoration(
+                                        labelText: 'Correo electrónico',
+                                        prefixIcon: Icon(Icons.email_outlined),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      validator: (value) {
+                                        final email = value?.trim() ?? '';
+                                        if (email.isEmpty) {
+                                          return 'Ingresa tu correo.';
+                                        }
+                                        if (!email.contains('@')) {
+                                          return 'Correo inválido.';
+                                        }
+                                        return null;
+                                      },
                                     ),
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility
-                                          : Icons.visibility_off,
+                                    const SizedBox(height: 16),
+                                    TextFormField(
+                                      controller: _passwordController,
+                                      obscureText: _obscurePassword,
+                                      autofillHints: const [
+                                        AutofillHints.password,
+                                      ],
+                                      onFieldSubmitted: (_) => _submit(),
+                                      decoration: InputDecoration(
+                                        labelText: 'Contraseña',
+                                        prefixIcon: const Icon(
+                                          Icons.lock_outline,
+                                        ),
+                                        border: const OutlineInputBorder(),
+                                        suffixIcon: IconButton(
+                                          onPressed: () => setState(
+                                            () => _obscurePassword =
+                                                !_obscurePassword,
+                                          ),
+                                          icon: Icon(
+                                            _obscurePassword
+                                                ? Icons.visibility
+                                                : Icons.visibility_off,
+                                          ),
+                                        ),
+                                      ),
+                                      validator: (value) {
+                                        if ((value ?? '').isEmpty) {
+                                          return 'Ingresa tu contraseña.';
+                                        }
+                                        return null;
+                                      },
                                     ),
-                                  ),
+                                  ],
                                 ),
-                                validator: (value) {
-                                  if ((value ?? '').isEmpty) {
-                                    return 'Ingresa tu contraseña.';
-                                  }
-                                  return null;
-                                },
                               ),
                               const SizedBox(height: 24),
                               CustomButton(

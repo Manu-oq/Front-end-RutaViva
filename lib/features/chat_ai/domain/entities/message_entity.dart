@@ -12,6 +12,22 @@ class MessageAction {
   });
 
   bool get isGenerate => type == 'generate' || type == 'finalize';
+
+  bool get isViewProgress {
+    final normalizedId = id.trim().toLowerCase();
+    final normalizedLabel = label.trim().toLowerCase();
+    final normalizedPrompt = prompt.trim().toLowerCase();
+    return normalizedId == 'view_progress' ||
+        normalizedLabel == 'ver progreso' ||
+        normalizedPrompt == 'ver progreso';
+  }
+
+  bool get isRetryStreaming {
+    final normalizedId = id.trim().toLowerCase();
+    final normalizedPrompt = prompt.trim().toLowerCase();
+    return normalizedId == 'retry_streaming_itinerary' ||
+        normalizedPrompt == 'retry_streaming_itinerary';
+  }
 }
 
 class MessageItineraryCard {
@@ -67,6 +83,8 @@ class MessageEntity {
   final String? selectedActionId;
   final bool actionsLocked;
   final String? disclaimerText;
+  final String? messageType;
+  final String? progressPhase;
 
   MessageEntity({
     required this.text,
@@ -81,13 +99,24 @@ class MessageEntity {
     this.selectedActionId,
     this.actionsLocked = false,
     this.disclaimerText,
+    this.messageType,
+    this.progressPhase,
   });
 
   MessageEntity copyWith({
     List<MessageAction>? actions,
+    MessageItineraryCard? itineraryCard,
+    bool clearItineraryCard = false,
     List<MessageCandidatePoi>? candidatePois,
     String? selectedActionId,
+    bool clearSelectedActionId = false,
     bool? actionsLocked,
+    String? disclaimerText,
+    bool clearDisclaimerText = false,
+    String? messageType,
+    bool clearMessageType = false,
+    String? progressPhase,
+    bool clearProgressPhase = false,
   }) {
     return MessageEntity(
       text: text,
@@ -97,10 +126,21 @@ class MessageEntity {
       turnType: turnType,
       evidenceLevel: evidenceLevel,
       actions: actions ?? this.actions,
-      itineraryCard: itineraryCard,
+      itineraryCard: clearItineraryCard
+          ? null
+          : (itineraryCard ?? this.itineraryCard),
       candidatePois: candidatePois ?? this.candidatePois,
-      selectedActionId: selectedActionId ?? this.selectedActionId,
+      selectedActionId: clearSelectedActionId
+          ? null
+          : (selectedActionId ?? this.selectedActionId),
       actionsLocked: actionsLocked ?? this.actionsLocked,
+      disclaimerText: clearDisclaimerText
+          ? null
+          : (disclaimerText ?? this.disclaimerText),
+      messageType: clearMessageType ? null : (messageType ?? this.messageType),
+      progressPhase: clearProgressPhase
+          ? null
+          : (progressPhase ?? this.progressPhase),
     );
   }
 }

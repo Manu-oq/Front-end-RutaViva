@@ -30,6 +30,27 @@ class AuthRepository {
     }
   }
 
+  Future<TokenModel> refreshToken({required String refreshToken}) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/auth/refresh',
+        data: {'refresh_token': refreshToken},
+        options: Options(extra: {'skipAuthRefresh': true, 'skipAuth': true}),
+      );
+      return TokenModel.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<void> logout() async {
+    try {
+      await _client.post<void>('/auth/logout');
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
   Future<UserModel> registerTourist({
     required String email,
     required String password,

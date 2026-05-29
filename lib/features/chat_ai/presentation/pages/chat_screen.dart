@@ -26,6 +26,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scrollController = ScrollController();
   bool _isNavigatingFromCandidate = false;
   bool _isOpeningCandidateMap = false;
+  bool _isOpeningItinerary = false;
 
   @override
   void initState() {
@@ -61,6 +62,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final itineraryState = ref.watch(itineraryProvider);
     final theme = Theme.of(context);
     final actionsLocked = chatNotifier.isInputLocked;
+    final hasPendingStreamingStart = chatNotifier.hasPendingStreamingStart;
     final isMobile = AppResponsive.isMobile(context);
 
     ref.listen(chatProvider, (prev, next) {
@@ -105,9 +107,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: _LastItineraryBanner(
                         title: itineraryState.current!.title,
                         isLoading: itineraryState.isLoading,
-                        onOpen: () => context.pushNamedSafe(
-                          AppRouteNames.itineraryDetail,
-                          pathParameters: {'id': itineraryState.current!.id},
+                        onOpen: () => _openItineraryDetail(
+                          context,
+                          itineraryId: itineraryState.current!.id,
                         ),
                       ),
                     ),
@@ -128,16 +130,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           actions: msg.actions,
                           itineraryCard: msg.itineraryCard,
                           candidatePois: msg.candidatePois,
+                          progressPhase: msg.progressPhase,
                           selectedActionId: msg.selectedActionId,
                           actionsLocked: msg.actionsLocked,
                           disclaimerText: msg.disclaimerText,
                           onAction: actionsLocked
                               ? null
                               : (action) => _handleAction(context, ref, action),
-                          onOpenItinerary: (id) => context.pushNamedSafe(
-                            AppRouteNames.itineraryDetail,
-                            pathParameters: {'id': id},
-                          ),
+                          onOpenItinerary: (id) =>
+                              _openItineraryDetail(context, itineraryId: id),
                           onOpenPoi: (candidate) =>
                               _openCandidateDetail(context, candidate),
                           onShowPoiOnMap: (candidate) =>
@@ -149,7 +150,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       },
                     ),
                   ),
-                  if (hasSession && !chatNotifier.isGenerating)
+                  if (hasSession &&
+                      !chatNotifier.isGenerating &&
+                      !hasPendingStreamingStart)
                     Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: isMobile ? 14 : 20,
@@ -161,20 +164,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           onPressed: actionsLocked
                               ? null
                               : () async {
-                                  final completed = await ref
+                                  await ref
                                       .read(chatProvider.notifier)
                                       .generateItinerary();
-                                  if (completed && context.mounted) {
-                                    final itinerary = ref
-                                        .read(itineraryProvider)
-                                        .current;
-                                    if (itinerary != null) {
-                                      context.pushNamedSafe(
-                                        AppRouteNames.itineraryDetail,
-                                        pathParameters: {'id': itinerary.id},
-                                      );
-                                    }
-                                  }
                                 },
                           icon: const Icon(
                             Icons.auto_awesome_rounded,
@@ -261,12 +253,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     WidgetRef ref,
     MessageCandidatePoi candidate,
   ) async {
-    final value = candidate.actionValue?.trim().isNotEmpty == true
-        ? candidate.actionValue!.trim()
-        : 'Quiero ir a ${candidate.name}';
-    await ref
-        .read(chatProvider.notifier)
-        .sendMessage(value, visibleText: 'Quiero ir a ${candidate.name}');
+    await ref.read(chatProvider.notifier).handleCandidateSelection(candidate);
   }
 
   Future<void> _handleAction(
@@ -274,15 +261,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     WidgetRef ref,
     MessageAction action,
   ) async {
+    if (action.isViewProgress) {
+      await ref.read(chatProvider.notifier).startPendingStreamingItinerary();
+      return;
+    }
+    if (action.isRetryStreaming) {
+      await ref.read(chatProvider.notifier).retryStreamingItinerary();
+      return;
+    }
     if (action.type == 'navigation') {
-      final itineraryId = _readItineraryId(action.prompt);
-      if (itineraryId != null) {
-        context.pushNamedSafe(
-          AppRouteNames.itineraryDetail,
-          pathParameters: {'id': itineraryId},
-        );
-        return;
-      }
+      await _openItineraryDetail(
+        context,
+        itineraryId: _resolveItineraryActionId(ref, action),
+      );
+      return;
     }
     final completed = await ref
         .read(chatProvider.notifier)
@@ -291,13 +283,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return;
     }
     if (completed && action.isGenerate) {
-      final itinerary = ref.read(itineraryProvider).current;
-      if (itinerary != null) {
-        context.pushNamedSafe(
-          AppRouteNames.itineraryDetail,
-          pathParameters: {'id': itinerary.id},
+      await _openItineraryDetail(
+        context,
+        itineraryId: _resolveItineraryActionId(ref, action),
+      );
+    }
+  }
+
+  String? _resolveItineraryActionId(WidgetRef ref, MessageAction action) {
+    final actionId = _readItineraryId(action.id);
+    if (actionId != null) {
+      return actionId;
+    }
+
+    final promptId = _readItineraryId(action.prompt);
+    if (promptId != null) {
+      return promptId;
+    }
+
+    return ref.read(itineraryProvider).current?.id;
+  }
+
+  Future<void> _openItineraryDetail(
+    BuildContext context, {
+    String? itineraryId,
+  }) async {
+    final normalizedId = itineraryId?.trim();
+    if (_isOpeningItinerary) {
+      return;
+    }
+    if (normalizedId == null || normalizedId.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No encontramos el itinerario para abrirlo.'),
+        ),
+      );
+      return;
+    }
+
+    _isOpeningItinerary = true;
+    try {
+      await context.pushNamedSafe(
+        AppRouteNames.itineraryDetail,
+        pathParameters: {'id': normalizedId},
+      );
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No pudimos abrir el itinerario. Intenta nuevamente.',
+            ),
+          ),
         );
       }
+    } finally {
+      _isOpeningItinerary = false;
     }
   }
 

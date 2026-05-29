@@ -41,117 +41,125 @@ class ProfileHeader extends StatelessWidget {
         ),
         boxShadow: AppColors.liftedShadow,
       ),
-      child: Stack(
-        children: [
-          const Positioned(
-            right: -34,
-            top: -44,
-            child: _DecorativeOrb(size: 150, opacity: 0.12),
-          ),
-          const Positioned(
-            left: -46,
-            bottom: -58,
-            child: _DecorativeOrb(size: 130, opacity: 0.08),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Flex(
-                direction: isMobile ? Axis.vertical : Axis.horizontal,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: isMobile ? 64 : 74,
-                    height: isMobile ? 64 : 74,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.16),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.28),
-                        width: 1.4,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        initial,
-                        style: theme.textTheme.displaySmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(
+          AppResponsive.cardRadius(context) + 4,
+        ),
+        child: Stack(
+          children: [
+            const Positioned(
+              right: -34,
+              top: -44,
+              child: _DecorativeOrb(size: 150, opacity: 0.12),
+            ),
+            const Positioned(
+              left: -46,
+              bottom: -58,
+              child: _DecorativeOrb(size: 130, opacity: 0.08),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flex(
+                  direction: isMobile ? Axis.vertical : Axis.horizontal,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: isMobile ? 64 : 74,
+                      height: isMobile ? 64 : 74,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.28),
+                          width: 1.4,
                         ),
                       ),
-                    ),
-                  ),
-                  if (isMobile) const SizedBox(height: 12) else const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.verified_rounded,
-                          color: AppColors.sun,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          accountStatus,
-                          style: theme.textTheme.labelMedium?.copyWith(
+                      child: Center(
+                        child: Text(
+                          initial,
+                          style: theme.textTheme.displaySmall?.copyWith(
                             color: Colors.white,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Hola, $displayName',
-                style:
-                    (isMobile
-                            ? theme.textTheme.headlineMedium
-                            : theme.textTheme.displaySmall)
-                        ?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          height: 1.05,
+                    if (isMobile)
+                      const SizedBox(height: 12)
+                    else
+                      const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.18),
                         ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                '$subtitle · $supportingText',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.78),
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  if (visibleInterests.isEmpty)
-                    const _InterestPill(label: 'Explorando intereses')
-                  else
-                    ...visibleInterests.map(
-                      (item) => _InterestPill(label: item),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.verified_rounded,
+                            color: AppColors.sun,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            accountStatus,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                ],
-              ),
-            ],
-          ),
-        ],
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Hola, $displayName',
+                  style:
+                      (isMobile
+                              ? theme.textTheme.headlineMedium
+                              : theme.textTheme.displaySmall)
+                          ?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            height: 1.05,
+                          ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '$subtitle · $supportingText',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.78),
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (visibleInterests.isEmpty)
+                      const _InterestPill(label: 'Explorando intereses')
+                    else
+                      ...visibleInterests.map(
+                        (item) => _InterestPill(label: item),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

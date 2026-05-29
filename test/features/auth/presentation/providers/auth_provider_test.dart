@@ -32,6 +32,36 @@ class _FakeAuthRepository extends AuthRepository {
       statusCode: 401,
     );
   }
+
+  @override
+  Future<TokenModel> refreshToken({required String refreshToken}) async {
+    throw const ApiException(message: 'Refresh inválido', statusCode: 401);
+  }
+
+  @override
+  Future<void> logout() async {
+    throw const ApiException(message: 'Logout inválido', statusCode: 401);
+  }
+}
+
+class _SuccessfulAuthRepository extends AuthRepository {
+  _SuccessfulAuthRepository()
+    : super(DioClient(Dio(), authTokenReader: () => null));
+
+  @override
+  Future<TokenModel> login({
+    required String email,
+    required String password,
+  }) async {
+    return const TokenModel(
+      accessToken: 'new-access-token',
+      tokenType: 'bearer',
+      refreshToken: 'new-refresh-token',
+    );
+  }
+
+  @override
+  Future<UserModel> getMe() async => _testUser;
 }
 
 void main() {
@@ -97,6 +127,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+          authRepositoryProvider.overrideWith((ref) => _FakeAuthRepository()),
         ],
       );
       addTearDown(container.dispose);
@@ -134,6 +165,37 @@ void main() {
       expect(state.user, isNull);
     });
 
+    test('login stores access and refresh tokens', () async {
+      SharedPreferences.setMockInitialValues({});
+      final sharedPreferences = await SharedPreferences.getInstance();
+
+      final container = ProviderContainer(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+          authRepositoryProvider.overrideWith(
+            (ref) => _SuccessfulAuthRepository(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final result = await container
+          .read(authProvider.notifier)
+          .login(email: 'ok@test.com', password: 'secret');
+
+      expect(result, isTrue);
+      expect(
+        sharedPreferences.getString('ruta_viva.auth_token'),
+        equals('new-access-token'),
+      );
+      expect(
+        sharedPreferences.getString('ruta_viva.refresh_token'),
+        equals('new-refresh-token'),
+      );
+      expect(container.read(authTokenProvider), equals('new-access-token'));
+      expect(container.read(authProvider).isAuthenticated, isTrue);
+    });
+
     test('logout clears state', () async {
       SharedPreferences.setMockInitialValues({});
       final sharedPreferences = await SharedPreferences.getInstance();
@@ -141,6 +203,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+          authRepositoryProvider.overrideWith((ref) => _FakeAuthRepository()),
         ],
       );
       addTearDown(container.dispose);
@@ -161,6 +224,8 @@ void main() {
       expect(state.isAuthenticated, isFalse);
       expect(state.errorMessage, isNull);
       expect(state.isLoading, isFalse);
+      expect(sharedPreferences.getString('ruta_viva.auth_token'), isNull);
+      expect(sharedPreferences.getString('ruta_viva.refresh_token'), isNull);
     });
   });
 }

@@ -10,16 +10,27 @@ class AppBreakpoints {
 class AppResponsive {
   const AppResponsive._();
 
+  static Size screenSize(BuildContext context) => MediaQuery.sizeOf(context);
+
   static bool isMobile(BuildContext context) =>
-      MediaQuery.sizeOf(context).width < AppBreakpoints.mobile;
+      screenSize(context).width < AppBreakpoints.mobile;
 
   static bool isTablet(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
+    final width = screenSize(context).width;
     return width >= AppBreakpoints.mobile && width < AppBreakpoints.tablet;
   }
 
   static bool isDesktop(BuildContext context) =>
-      MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet;
+      screenSize(context).width >= AppBreakpoints.tablet;
+
+  static bool isLandscape(BuildContext context) =>
+      MediaQuery.orientationOf(context) == Orientation.landscape;
+
+  static bool isCompactHeight(BuildContext context) =>
+      screenSize(context).height < 700;
+
+  static EdgeInsets safePadding(BuildContext context) =>
+      MediaQuery.paddingOf(context);
 
   static T value<T>(
     BuildContext context, {

@@ -84,6 +84,11 @@ class _PoiDetailBody extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(poiDetailProvider(poi.id));
+          try {
+            await ref.read(poiDetailProvider(poi.id).future);
+          } catch (error) {
+            debugPrint('[POI] Refresh failed for ${poi.id}: $error');
+          }
         },
         child: CustomScrollView(
           slivers: [

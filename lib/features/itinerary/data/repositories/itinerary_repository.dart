@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/network/api_provider.dart';
 import '../../../../core/network/dio_client.dart';
@@ -22,6 +21,16 @@ final itineraryDetailProvider = FutureProvider.family<ItineraryModel, String>((
 ) async {
   return ref.watch(itineraryRepositoryProvider).getItineraryById(itineraryId);
 });
+
+final itineraryWeatherProvider =
+    FutureProvider.family<List<ItineraryStepWeatherModel>, String>((
+      ref,
+      itineraryId,
+    ) async {
+      return ref
+          .watch(itineraryRepositoryProvider)
+          .getItineraryWeather(itineraryId);
+    });
 
 class ItineraryRepository {
   final DioClient _client;
@@ -194,7 +203,7 @@ class ItineraryRepository {
     try {
       final response = await _client.patch<dynamic>(
         '/itineraries/$itineraryId/steps/reorder-with-times',
-        data: steps,
+        data: {'steps': steps},
       );
       return _parseItineraryOrFetch(response.data, itineraryId);
     } on DioException catch (error) {
@@ -223,12 +232,21 @@ class ItineraryRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getItineraryWeather(String itineraryId) async {
+  Future<List<ItineraryStepWeatherModel>> getItineraryWeather(
+    String itineraryId,
+  ) async {
     try {
-      final response = await _client.get<Map<String, dynamic>>(
+      final response = await _client.get<List<dynamic>>(
         '/itineraries/$itineraryId/weather',
       );
-      return response.data ?? const {};
+      return (response.data ?? const [])
+          .whereType<Map>()
+          .map(
+            (item) => ItineraryStepWeatherModel.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
+          )
+          .toList(growable: false);
     } on DioException catch (error) {
       throw ApiException.fromDioException(error);
     }
@@ -299,7 +317,7 @@ class ItineraryRepository {
   Future<ItineraryExportModel> getSharedItinerary(String publicId) async {
     try {
       final response = await _client.get<Map<String, dynamic>>(
-        '${ApiConstants.backendOrigin}/share/$publicId',
+        '/share/$publicId',
       );
       return ItineraryExportModel.fromJson(response.data!);
     } on DioException catch (error) {

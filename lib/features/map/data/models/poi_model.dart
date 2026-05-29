@@ -86,9 +86,7 @@ class PoiModel {
     return PoiModel(
       id: json['id'] as String,
       name: json['name'] as String,
-      description: PublicTextSanitizer.cleanDescription(
-        json['description'] as String?,
-      ),
+      description: (json['description'] ?? '').toString(),
       accessType: json['access_type'] as String,
       contactPhone: json['contact_phone'] as String?,
       contactEmail: json['contact_email'] as String?,

@@ -137,12 +137,12 @@ void main() {
   });
 
   group('EntrepreneurMetricsModel.fromJson', () {
-    test('parsea todos los campos con claves principales', () {
+    test('parsea todos los campos con claves principales del back', () {
       final json = <String, dynamic>{
-        'places_count': 5,
-        'visits_count': 120,
-        'reviews_count': 45,
-        'favorites_count': 30,
+        'total_pois': 5,
+        'total_visits': 120,
+        'total_reviews': 45,
+        'total_bookmarks': 30,
       };
 
       final metrics = EntrepreneurMetricsModel.fromJson(json);

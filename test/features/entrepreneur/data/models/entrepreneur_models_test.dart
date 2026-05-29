@@ -94,15 +94,19 @@ void main() {
 
     test('fromJson prioriza claves principales sobre alternativas', () {
       final json = <String, dynamic>{
-        'places_count': 5,
-        'pois_count': 99,
-        'places': 88,
-        'visits_count': 100,
-        'visits': 999,
-        'reviews_count': 50,
-        'reviews': 888,
-        'favorites_count': 25,
-        'favorites': 777,
+        'total_pois': 5,
+        'places_count': 99,
+        'pois_count': 88,
+        'places': 77,
+        'total_visits': 100,
+        'visits_count': 999,
+        'visits': 888,
+        'total_reviews': 50,
+        'reviews_count': 777,
+        'reviews': 666,
+        'total_bookmarks': 25,
+        'favorites_count': 555,
+        'favorites': 444,
       };
 
       final metrics = EntrepreneurMetricsModel.fromJson(json);
@@ -115,10 +119,10 @@ void main() {
 
     test('fromJson maneja valores double redondeando a int', () {
       final json = <String, dynamic>{
-        'places_count': 3.7,
-        'visits_count': 150.2,
-        'reviews_count': 42.9,
-        'favorites_count': 10.1,
+        'total_pois': 3.7,
+        'total_visits': 150.2,
+        'total_reviews': 42.9,
+        'total_bookmarks': 10.1,
       };
 
       final metrics = EntrepreneurMetricsModel.fromJson(json);
@@ -131,49 +135,51 @@ void main() {
   });
 
   group('EntrepreneurIncomeModel', () {
-    test('fromJson parsea campos basicos', () {
-      final json = <String, dynamic>{'total': 150000.0, 'currency': 'USD'};
-
-      final income = EntrepreneurIncomeModel.fromJson(json);
-
-      expect(income.total, equals(150000.0));
-      expect(income.currency, equals('USD'));
-      expect(income.isPlaceholder, isTrue);
-    });
-
-    test('fromJson usa amount como alternativa a total', () {
-      final json = <String, dynamic>{'amount': 75000.5};
-
-      final income = EntrepreneurIncomeModel.fromJson(json);
-
-      expect(income.total, equals(75000.5));
-    });
-
-    test('fromJson usa income como alternativa a total', () {
-      final json = <String, dynamic>{'income': 50000.0};
-
-      final income = EntrepreneurIncomeModel.fromJson(json);
-
-      expect(income.total, equals(50000.0));
-    });
-
-    test('fromJson usa CLP como moneda por defecto', () {
-      final json = <String, dynamic>{'total': 100000.0};
-
-      final income = EntrepreneurIncomeModel.fromJson(json);
-
-      expect(income.currency, equals('CLP'));
-    });
-
-    test('fromJson detecta is_placeholder como false', () {
+    test('fromJson parsea contrato oficial del back', () {
       final json = <String, dynamic>{
-        'total': 100000.0,
-        'is_placeholder': false,
+        'gross_income': 150000,
+        'net_income': 120000,
+        'pending_income': 30000,
+        'currency': 'USD',
+        'status': 'configured',
+        'detail': 'Transferencia semanal',
       };
 
       final income = EntrepreneurIncomeModel.fromJson(json);
 
-      expect(income.isPlaceholder, isFalse);
+      expect(income.grossIncome, equals(150000));
+      expect(income.netIncome, equals(120000));
+      expect(income.pendingIncome, equals(30000));
+      expect(income.currency, equals('USD'));
+      expect(income.status, equals('configured'));
+      expect(income.detail, equals('Transferencia semanal'));
+    });
+
+    test('fromJson usa defaults cuando faltan campos', () {
+      final json = <String, dynamic>{};
+
+      final income = EntrepreneurIncomeModel.fromJson(json);
+
+      expect(income.grossIncome, equals(0));
+      expect(income.netIncome, equals(0));
+      expect(income.pendingIncome, equals(0));
+      expect(income.currency, equals('CLP'));
+      expect(income.status, equals('not_configured'));
+      expect(income.detail, isEmpty);
+    });
+
+    test('fromJson convierte num a int', () {
+      final json = <String, dynamic>{
+        'gross_income': 75000.9,
+        'net_income': 50000.1,
+        'pending_income': 25000.7,
+      };
+
+      final income = EntrepreneurIncomeModel.fromJson(json);
+
+      expect(income.grossIncome, equals(75000));
+      expect(income.netIncome, equals(50000));
+      expect(income.pendingIncome, equals(25000));
     });
   });
 

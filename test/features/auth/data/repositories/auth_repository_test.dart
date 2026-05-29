@@ -6,6 +6,7 @@ import 'package:ruta_viva/features/auth/data/models/user_model.dart';
 const _tokenJson = <String, dynamic>{
   'access_token': 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.fake',
   'token_type': 'bearer',
+  'refresh_token': 'refresh-token-123',
 };
 
 const _userJson = <String, dynamic>{
@@ -26,7 +27,7 @@ const _userJson = <String, dynamic>{
 
 void main() {
   group('TokenModel.fromJson', () {
-    test('parses access_token and token_type', () {
+    test('parses access_token, token_type and refresh_token', () {
       final token = TokenModel.fromJson(_tokenJson);
 
       expect(
@@ -34,6 +35,7 @@ void main() {
         equals('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.fake'),
       );
       expect(token.tokenType, equals('bearer'));
+      expect(token.refreshToken, equals('refresh-token-123'));
     });
 
     test('defaults token_type to bearer when absent', () {
@@ -42,6 +44,7 @@ void main() {
       });
 
       expect(token.tokenType, equals('bearer'));
+      expect(token.refreshToken, isNull);
     });
   });
 

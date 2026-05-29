@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/error/api_exception.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/router/safe_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -13,9 +14,8 @@ import '../../../../core/widgets/skeleton_container.dart';
 import '../../../chat_ai/presentation/providers/chat_provider.dart';
 import '../../../map/data/repositories/poi_repository.dart';
 import '../../../map/presentation/providers/map_provider.dart';
-import '../../../weather/data/models/weather_forecast_model.dart';
-import '../../../weather/data/repositories/weather_repository.dart';
 import '../../data/models/itinerary_model.dart';
+import '../../data/models/itinerary_reorder_payload.dart';
 import '../../data/repositories/itinerary_repository.dart';
 import '../providers/itinerary_provider.dart';
 import '../widgets/cultural_insight_card.dart';
@@ -98,6 +98,12 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
         : _stepsForDate(selectedDay);
     final outsideRangeSteps = _outsideRangeSteps(days);
     final isMobile = AppResponsive.isMobile(context);
+    final contentPadding = AppResponsive.value<EdgeInsets>(
+      context,
+      mobile: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+      tablet: const EdgeInsets.fromLTRB(20, 8, 20, 104),
+      desktop: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -112,140 +118,205 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(itineraryDetailProvider(widget.itinerary.id));
-        },
-        child: SingleChildScrollView(
-          padding: AppResponsive.value<EdgeInsets>(
-            context,
-            mobile: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-            tablet: const EdgeInsets.fromLTRB(20, 8, 20, 104),
-            desktop: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: AppResponsive.maxContentWidth(context),
+        onRefresh: _refreshItinerary,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                contentPadding.left,
+                contentPadding.top,
+                contentPadding.right,
+                0,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ItineraryHero(
-                    itinerary: widget.itinerary,
-                    stepsCount: _steps.length,
-                    dateLabel: _dateRangeLabel(widget.itinerary),
-                    onHistory: () =>
-                        context.goNamed(AppRouteNames.itineraryHistory),
-                    onMap: () async {
-                      try {
-                        final points = await ref.read(
-                          itineraryPoisProvider(widget.itinerary.id).future,
-                        );
-                        ref
-                            .read(mapProvider.notifier)
-                            .showItineraryPois(
-                              itineraryId: widget.itinerary.id,
-                              points: points,
-                            );
-                        if (!context.mounted) return;
-                        context.pushNamedSafe(
-                          AppRouteNames.focusedMap,
-                          extra: AppRouteNames.itineraryHistory,
-                        );
-                      } catch (_) {
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'No pudimos cargar los lugares de esta ruta en el mapa.',
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _wrapContent(
+                    context,
+                    _ItineraryHero(
+                      itinerary: widget.itinerary,
+                      stepsCount: _steps.length,
+                      dateLabel: _dateRangeLabel(widget.itinerary),
+                      onHistory: () =>
+                          context.goNamed(AppRouteNames.itineraryHistory),
+                      onMap: () async {
+                        try {
+                          final points = await ref.read(
+                            itineraryPoisProvider(widget.itinerary.id).future,
+                          );
+                          ref
+                              .read(mapProvider.notifier)
+                              .showItineraryPois(
+                                itineraryId: widget.itinerary.id,
+                                points: points,
+                              );
+                          if (!context.mounted) return;
+                          context.pushNamedSafe(
+                            AppRouteNames.focusedMap,
+                            extra: AppRouteNames.itineraryHistory,
+                          );
+                        } catch (_) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'No pudimos cargar los lugares de esta ruta en el mapa.',
+                              ),
                             ),
-                          ),
-                        );
-                      }
-                    },
+                          );
+                        }
+                      },
+                    ),
                   ),
+                  if (!widget.itinerary.isEditable) ...[
+                    const SizedBox(height: 14),
+                    _wrapContent(
+                      context,
+                      _ReadOnlyItineraryBanner(isPast: widget.itinerary.isPast),
+                    ),
+                  ],
                   if (_feedbackMessage != null) ...[
                     SizedBox(height: isMobile ? 14 : 16),
-                    AppFeedbackBanner(
-                      message: _feedbackMessage!,
-                      type: _feedbackType,
-                      onDismiss: () => setState(() => _feedbackMessage = null),
+                    _wrapContent(
+                      context,
+                      AppFeedbackBanner(
+                        message: _feedbackMessage!,
+                        type: _feedbackType,
+                        onDismiss: () =>
+                            setState(() => _feedbackMessage = null),
+                      ),
                     ),
                   ],
                   SizedBox(height: isMobile ? 22 : 28),
-                  Text('Recorrido sugerido', style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 14),
-                  _WeatherToggle(
-                    isOpen: _showWeather,
-                    onTap: () => setState(() => _showWeather = !_showWeather),
-                  ),
-                  if (_showWeather) ...[
-                    const SizedBox(height: 12),
-                    _WeatherDashboard(itinerary: widget.itinerary),
-                  ],
-                  const SizedBox(height: 22),
-                  _DaySelector(
-                    days: days,
-                    labels: days.map(_dayChipLabel).toList(growable: false),
-                    selectedIndex: safeSelectedIndex,
-                    onSelected: (index) =>
-                        setState(() => _selectedDayIndex = index),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _DayHeader(
-                          label: selectedDay == null
-                              ? 'Recorrido'
-                              : _fullDayLabel(selectedDay),
+                  _wrapContent(
+                    context,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Recorrido sugerido',
+                          style: theme.textTheme.titleLarge,
                         ),
-                      ),
-                      TextButton.icon(
-                        onPressed: selectedSteps.isEmpty
-                            ? null
-                            : () => _openSelectedDayOnMap(selectedSteps),
-                        icon: const Icon(Icons.map_outlined),
-                        label: const Text('Ver día en mapa'),
-                      ),
-                    ],
+                        const SizedBox(height: 14),
+                        _WeatherToggle(
+                          isOpen: _showWeather,
+                          onTap: () =>
+                              setState(() => _showWeather = !_showWeather),
+                        ),
+                        if (_showWeather) ...[
+                          const SizedBox(height: 12),
+                          _WeatherDashboard(itinerary: widget.itinerary),
+                        ],
+                        const SizedBox(height: 22),
+                        _DaySelector(
+                          days: days,
+                          labels: days
+                              .map(_dayChipLabel)
+                              .toList(growable: false),
+                          selectedIndex: safeSelectedIndex,
+                          onSelected: (index) =>
+                              setState(() => _selectedDayIndex = index),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _DayHeader(
+                                label: selectedDay == null
+                                    ? 'Recorrido'
+                                    : _fullDayLabel(selectedDay),
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: selectedSteps.isEmpty
+                                  ? null
+                                  : () => _openSelectedDayOnMap(selectedSteps),
+                              icon: const Icon(Icons.map_outlined),
+                              label: const Text('Ver día en mapa'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  if (selectedSteps.isEmpty)
-                    const _EmptyDayCard()
-                  else
-                    ReorderableListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
+                ]),
+              ),
+            ),
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: contentPadding.left),
+              sliver: selectedSteps.isEmpty
+                  ? SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(
+                          left: 0,
+                          right: 0,
+                          bottom: 12,
+                        ),
+                        child: _wrapContent(context, const _EmptyDayCard()),
+                      ),
+                    )
+                  : SliverReorderableList(
                       itemCount: selectedSteps.length,
-                      onReorder: _onStepsReordered,
+                      onReorderItem: _onStepsReordered,
                       proxyDecorator: (child, index, animation) =>
                           _ReorderProxyDecorator(
                             animation: animation,
                             child: child,
                           ),
-                      buildDefaultDragHandles: false,
                       itemBuilder: (context, index) {
                         final step = selectedSteps[index];
-                        return _GeneratedStep(
+                        return Padding(
                           key: ValueKey(step.id),
-                          step: step,
-                          onDelete: () => _deleteStep(step),
-                          onChange: () => _changeStep(step),
-                          onReschedule: () => _openRescheduleDialog(step),
+                          padding: EdgeInsets.only(
+                            bottom: index == selectedSteps.length - 1 ? 0 : 10,
+                          ),
+                          child: _wrapContent(
+                            context,
+                            _GeneratedStep(
+                              step: step,
+                              dragIndex: index,
+                              isEditable: widget.itinerary.isEditable,
+                              onDelete: () => _deleteStep(step),
+                              onChange: () => _changeStep(step),
+                              onReschedule: () => _openRescheduleDialog(step),
+                            ),
+                          ),
                         );
                       },
                     ),
-                  if (outsideRangeSteps.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    _OutOfRangeWarning(count: outsideRangeSteps.length),
-                  ],
-                  const SizedBox(height: 80),
-                ],
+            ),
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                contentPadding.left,
+                selectedSteps.isEmpty ? 0 : 12,
+                contentPadding.right,
+                0,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  if (outsideRangeSteps.isNotEmpty)
+                    _wrapContent(
+                      context,
+                      _OutOfRangeWarning(count: outsideRangeSteps.length),
+                    ),
+                  SizedBox(height: contentPadding.bottom),
+                ]),
               ),
             ),
-          ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _wrapContent(BuildContext context, Widget child) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: AppResponsive.maxContentWidth(context),
+        ),
+        child: child,
       ),
     );
   }
@@ -316,6 +387,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
   }
 
   Future<void> _deleteStep(ItineraryStepModel step) async {
+    if (!_ensureEditable()) return;
     setState(() => _feedbackMessage = null);
     try {
       final updated = await ref
@@ -329,11 +401,15 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
       ).showSnackBar(const SnackBar(content: Text('Parada eliminada.')));
     } catch (error) {
       if (!mounted) return;
-      _showFeedback('No pudimos eliminar la parada. Intenta nuevamente.');
+      _handleMutationError(
+        error,
+        fallback: 'No pudimos eliminar la parada. Intenta nuevamente.',
+      );
     }
   }
 
   Future<void> _openRescheduleDialog(ItineraryStepModel step) async {
+    if (!_ensureEditable()) return;
     final initialTime = step.arrivalTime != null
         ? TimeOfDay(
             hour: step.arrivalTime!.hour,
@@ -357,6 +433,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
   }
 
   Future<void> _changeStep(ItineraryStepModel step) async {
+    if (!_ensureEditable()) return;
     if (_isStartingStepReplacement) {
       return;
     }
@@ -399,11 +476,24 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     ref.invalidate(itineraryHistoryProvider);
   }
 
+  Future<void> _refreshItinerary() async {
+    ref.invalidate(itineraryDetailProvider(widget.itinerary.id));
+    ref.invalidate(itineraryWeatherProvider(widget.itinerary.id));
+    try {
+      await ref.read(itineraryDetailProvider(widget.itinerary.id).future);
+    } catch (error) {
+      debugPrint(
+        '[Itinerary] Refresh failed for ${widget.itinerary.id}: $error',
+      );
+    }
+  }
+
   Future<void> _rescheduleStep(
     ItineraryStepModel step,
     TimeOfDay arrivalTime,
     int? durationMinutes,
   ) async {
+    if (!_ensureEditable()) return;
     setState(() => _feedbackMessage = null);
     final now = DateTime.now();
     final arrival = DateTime(
@@ -428,47 +518,71 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Horario actualizado.')));
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      _showFeedback('No pudimos actualizar el horario. Intenta nuevamente.');
+      _handleMutationError(
+        error,
+        fallback: 'No pudimos actualizar el horario. Intenta nuevamente.',
+      );
     }
   }
 
   void _onStepsReordered(int oldIndex, int newIndex) {
+    if (!_ensureEditable()) return;
     final days = _tripDays();
     if (days.isEmpty) return;
     final safeSelected = _selectedDayIndex.clamp(0, days.length - 1);
     final day = days[safeSelected];
     final daySteps = _stepsForDate(day);
-    if (oldIndex >= daySteps.length || newIndex >= daySteps.length) return;
+    if (oldIndex >= daySteps.length || newIndex > daySteps.length) return;
 
-    final actualNewIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    if (oldIndex == newIndex) {
+      return;
+    }
+
     final reorderedIds = daySteps.map((s) => s.id).toList();
     final movedId = reorderedIds.removeAt(oldIndex);
-    reorderedIds.insert(actualNewIndex, movedId);
+    reorderedIds.insert(newIndex, movedId);
 
-    setState(() {
-      _steps = _steps.map((s) {
-        final sDay = _stepDay(s);
-        if (sDay != null && _isSameDay(sDay, day)) {
-          final newPos = reorderedIds.indexOf(s.id);
-          if (newPos >= 0) {
-            return s.copyWith(stepOrder: newPos);
-          }
+    final nextSteps = _steps.map((s) {
+      final sDay = _stepDay(s);
+      if (sDay != null && _isSameDay(sDay, day)) {
+        final newPos = reorderedIds.indexOf(s.id);
+        if (newPos >= 0) {
+          return s.copyWith(stepOrder: newPos + 1);
         }
-        return s;
-      }).toList();
-    });
-
-    final payload = reorderedIds.asMap().entries.map((entry) {
-      return {
-        'step_id': entry.value,
-        'day_index': safeSelected,
-        'position': entry.key,
-      };
+      }
+      return s;
     }).toList();
 
+    setState(() => _steps = nextSteps);
+
+    final payload = buildReorderWithTimesPayload(
+      steps: nextSteps,
+      dayIndexForStep: (step) => _dayIndexForStep(step, days),
+    );
+
     unawaited(_saveReorder(payload));
+  }
+
+  int _dayIndexForStep(ItineraryStepModel step, List<DateTime> days) {
+    final explicitDayIndex = step.dayIndex;
+    if (explicitDayIndex != null && explicitDayIndex > 0) {
+      return explicitDayIndex;
+    }
+
+    final stepDay = _stepDay(step);
+    if (stepDay != null) {
+      final dateIndex = days.indexWhere((day) => _isSameDay(day, stepDay));
+      if (dateIndex >= 0) {
+        return dateIndex + 1;
+      }
+    }
+
+    return 1;
   }
 
   Future<void> _saveReorder(List<Map<String, dynamic>> payload) async {
@@ -483,11 +597,38 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
       if (!mounted) return;
       setState(() => _steps = [...updated.steps]);
       _invalidateItineraryData();
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       ref.invalidate(itineraryDetailProvider(widget.itinerary.id));
-      _showFeedback('No pudimos guardar el orden. Revisa la conexión.');
+      _handleMutationError(
+        error,
+        fallback: 'No pudimos guardar el orden. Revisa la conexión.',
+      );
     }
+  }
+
+  bool _ensureEditable() {
+    if (widget.itinerary.isEditable) {
+      return true;
+    }
+    _showReadOnlyFeedback();
+    return false;
+  }
+
+  void _showReadOnlyFeedback() {
+    _showFeedback(
+      'Este itinerario ya no se puede editar.',
+      type: AppFeedbackType.info,
+    );
+  }
+
+  void _handleMutationError(Object error, {required String fallback}) {
+    if (error is ApiException && error.statusCode == 409) {
+      _showFeedback(error.message, type: AppFeedbackType.info);
+      unawaited(_refreshItinerary());
+      return;
+    }
+    _showFeedback(fallback);
   }
 
   void _showFeedback(
@@ -653,7 +794,9 @@ class _ItineraryHero extends StatelessWidget {
           const SizedBox(height: 24),
           Flex(
             direction: isMobile ? Axis.vertical : Axis.horizontal,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment: isMobile
+                ? CrossAxisAlignment.stretch
+                : CrossAxisAlignment.center,
             children: [
               if (isMobile)
                 FilledButton.icon(
@@ -743,6 +886,22 @@ class _HeroPill extends StatelessWidget {
   }
 }
 
+class _ReadOnlyItineraryBanner extends StatelessWidget {
+  final bool isPast;
+
+  const _ReadOnlyItineraryBanner({required this.isPast});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppFeedbackBanner(
+      type: AppFeedbackType.info,
+      message: isPast
+          ? 'Este itinerario ya pasó y solo está disponible para visualización.'
+          : 'Este itinerario está disponible solo para visualización y ya no se puede editar.',
+    );
+  }
+}
+
 class _WeatherToggle extends StatelessWidget {
   final bool isOpen;
   final VoidCallback onTap;
@@ -767,9 +926,10 @@ class _WeatherDashboard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final start = itinerary.startDate ?? DateTime.now();
-    final end = itinerary.endDate ?? start.add(const Duration(days: 2));
-    final points = ref.watch(itineraryPoisProvider(itinerary.id));
+    final isWeatherNotApplicable =
+        itinerary.isPast ||
+        itinerary.status == 'completed' ||
+        itinerary.status == 'cancelled';
 
     return Container(
       width: double.infinity,
@@ -791,104 +951,236 @@ class _WeatherDashboard extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Pronóstico según las coordenadas principales de esta ruta.',
+            'Información dinámica por parada entregada por Ruta Viva.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 14),
-          points.when(
-            data: (items) {
-              if (items.isEmpty) {
-                return const Text('No hay coordenadas para consultar clima.');
-              }
-              final first = items.first.coordinates;
-              final forecast = ref.watch(
-                weatherForecastProvider(
-                  WeatherForecastRequest(
-                    lat: first.latitude,
-                    lon: first.longitude,
-                    startDate: start,
-                    endDate: end,
+          if (isWeatherNotApplicable)
+            const _WeatherStatusMessage(
+              icon: Icons.history_rounded,
+              message:
+                  'El clima ya no se consulta para itinerarios finalizados o pasados.',
+            )
+          else
+            ref
+                .watch(itineraryWeatherProvider(itinerary.id))
+                .when(
+                  data: (items) {
+                    if (items.isEmpty) {
+                      return const _WeatherStatusMessage(
+                        icon: Icons.cloud_off_outlined,
+                        message: 'No se pudo cargar el clima en este momento.',
+                      );
+                    }
+                    return _AdaptiveItineraryWeatherCards(items: items);
+                  },
+                  loading: () => const LinearProgressIndicator(minHeight: 3),
+                  error: (error, stackTrace) => const _WeatherStatusMessage(
+                    icon: Icons.cloud_off_outlined,
+                    message: 'No se pudo cargar el clima en este momento.',
                   ),
                 ),
-              );
-              return forecast.when(
-                data: (days) {
-                  if (days.isEmpty) {
-                    return const Text('No hay pronóstico disponible.');
-                  }
-                  return Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      for (var i = 0; i < days.length; i++)
-                        _WeatherDayCard(day: days[i], index: i),
-                    ],
-                  );
-                },
-                loading: () => const LinearProgressIndicator(minHeight: 3),
-                error: (error, stackTrace) =>
-                    const Text('No pudimos cargar el clima para estos días.'),
-              );
-            },
-            loading: () => const LinearProgressIndicator(minHeight: 3),
-            error: (error, stackTrace) =>
-                const Text('No pudimos leer los lugares de esta ruta.'),
-          ),
         ],
       ),
     );
   }
 }
 
-class _WeatherDayCard extends StatelessWidget {
-  final WeatherForecastDay day;
-  final int index;
+class _AdaptiveItineraryWeatherCards extends StatelessWidget {
+  final List<ItineraryStepWeatherModel> items;
 
-  const _WeatherDayCard({required this.day, required this.index});
+  const _AdaptiveItineraryWeatherCards({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 10.0;
+        final columns = constraints.maxWidth >= 900
+            ? 3
+            : constraints.maxWidth >= 560
+            ? 2
+            : 1;
+        final availableWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final cardWidth = columns == 1
+            ? availableWidth
+            : (availableWidth - (spacing * (columns - 1))) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final item in items)
+              SizedBox(
+                width: cardWidth,
+                child: _ItineraryWeatherCard(item: item),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ItineraryWeatherCard extends StatelessWidget {
+  final ItineraryStepWeatherModel item;
+
+  const _ItineraryWeatherCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final maxTemp = day.maxTempC?.round();
-    final minTemp = day.minTempC?.round();
-    final rain = day.precipitationProbability;
+    final weather = item.weather;
+    final isAvailable =
+        item.weatherAvailable &&
+        item.weatherStatus == 'available' &&
+        weather != null;
+    final statusMessage = _statusMessage(item);
+
     return Container(
-      width: 164,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.07),
+        color: isAvailable
+            ? theme.colorScheme.primary.withValues(alpha: 0.07)
+            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.12),
+          color: isAvailable
+              ? theme.colorScheme.primary.withValues(alpha: 0.12)
+              : theme.colorScheme.outlineVariant,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.wb_cloudy_outlined, color: theme.colorScheme.primary),
-          const SizedBox(height: 8),
-          Text(
-            day.label ?? 'Día ${index + 1}',
-            style: theme.textTheme.labelLarge,
+          Row(
+            children: [
+              Icon(
+                isAvailable
+                    ? _weatherIcon(weather.description ?? '')
+                    : _statusIcon(item.weatherStatus),
+                color: isAvailable
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  item.poiName ?? 'Parada',
+                  style: theme.textTheme.labelLarge,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-          Text(
-            '${day.date.day.toString().padLeft(2, '0')}/${day.date.month.toString().padLeft(2, '0')}',
-          ),
-          const SizedBox(height: 8),
-          Text(
-            maxTemp == null
-                ? 'Temperatura no disp.'
-                : '${minTemp ?? maxTemp}° / $maxTemp°C',
-          ),
-          Text(
-            rain == null
-                ? '${day.precipitationMm?.toStringAsFixed(1) ?? '—'} mm lluvia'
-                : '$rain% precipitaciones',
-          ),
+          if (item.dayDate != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              _shortDate(item.dayDate!),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          if (isAvailable) ...[
+            Text(weather.description ?? 'Clima disponible'),
+            const SizedBox(height: 4),
+            Text(
+              [
+                if (weather.temperatureC != null)
+                  '${weather.temperatureC!.round()}°C',
+                if (weather.precipitationProbability != null)
+                  '${weather.precipitationProbability}% precipitaciones',
+              ].join(' • '),
+            ),
+          ] else
+            Text(
+              statusMessage,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.35,
+              ),
+            ),
         ],
       ),
+    );
+  }
+
+  static String _statusMessage(ItineraryStepWeatherModel item) {
+    final backendMessage = item.weatherMessage?.trim();
+    if (backendMessage != null && backendMessage.isNotEmpty) {
+      return backendMessage;
+    }
+    return switch (item.weatherStatus) {
+      'out_of_range' =>
+        'El pronóstico detallado estará disponible más cerca de la fecha del viaje.',
+      'not_applicable' =>
+        'El clima ya no se consulta para itinerarios finalizados o pasados.',
+      'unavailable' => 'No se pudo cargar el clima en este momento.',
+      _ => 'No se pudo cargar el clima en este momento.',
+    };
+  }
+
+  static String _shortDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
+  static IconData _statusIcon(String status) {
+    return switch (status) {
+      'out_of_range' => Icons.event_available_outlined,
+      'not_applicable' => Icons.history_rounded,
+      _ => Icons.cloud_off_outlined,
+    };
+  }
+
+  static IconData _weatherIcon(String description) {
+    final lower = description.toLowerCase();
+    if (lower.contains('lluvia') || lower.contains('rain')) {
+      return Icons.water_drop_rounded;
+    }
+    if (lower.contains('nube') || lower.contains('cloud')) {
+      return Icons.cloud_rounded;
+    }
+    if (lower.contains('sol') ||
+        lower.contains('sun') ||
+        lower.contains('clear')) {
+      return Icons.wb_sunny_rounded;
+    }
+    return Icons.wb_cloudy_outlined;
+  }
+}
+
+class _WeatherStatusMessage extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const _WeatherStatusMessage({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            message,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -909,18 +1201,20 @@ class _DaySelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      height: 54,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: days.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
+    final textScale = MediaQuery.textScalerOf(context).scale(14);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useWrap = constraints.maxWidth >= 520 || textScale > 18;
+        final chips = List<Widget>.generate(days.length, (index) {
           final selected = index == selectedIndex;
           return ChoiceChip(
             selected: selected,
             onSelected: (_) => onSelected(index),
-            label: Text(labels[index]),
+            label: Text(
+              labels[index],
+              maxLines: useWrap ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             avatar: Icon(
               Icons.calendar_today_rounded,
               size: 16,
@@ -929,8 +1223,23 @@ class _DaySelector extends StatelessWidget {
                   : theme.colorScheme.primary,
             ),
           );
-        },
-      ),
+        });
+
+        if (useWrap) {
+          return Wrap(spacing: 8, runSpacing: 8, children: chips);
+        }
+
+        final chipHeight = textScale.clamp(54.0, 72.0).toDouble();
+        return SizedBox(
+          height: chipHeight,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: chips.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            itemBuilder: (context, index) => chips[index],
+          ),
+        );
+      },
     );
   }
 }
@@ -1044,13 +1353,16 @@ class _DayHeader extends StatelessWidget {
 
 class _GeneratedStep extends StatelessWidget {
   final ItineraryStepModel step;
+  final int dragIndex;
+  final bool isEditable;
   final VoidCallback onDelete;
   final VoidCallback onChange;
   final VoidCallback onReschedule;
 
   const _GeneratedStep({
-    super.key,
     required this.step,
+    required this.dragIndex,
+    required this.isEditable,
     required this.onDelete,
     required this.onChange,
     required this.onReschedule,
@@ -1060,9 +1372,8 @@ class _GeneratedStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final infoParts = <String>[
       if (step.recommendedDuration.isNotEmpty) step.recommendedDuration,
-      if (step.poiNombre != null && step.poiNombre!.isNotEmpty) step.poiNombre!,
+      if (step.poiName != null && step.poiName!.isNotEmpty) step.poiName!,
     ];
-    final weather = step.aiContext?['weather'] as Map<String, dynamic>?;
 
     return ItineraryStepWidget(
       time: _stepTimeLabel(step),
@@ -1075,28 +1386,28 @@ class _GeneratedStep extends StatelessWidget {
         action: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (weather != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _StepWeatherChip(weather: weather),
-              ),
             Wrap(
               spacing: 8,
               children: [
-                ReorderableDragStartListener(
-                  index: 0,
-                  child: IconButton(
-                    tooltip: 'Arrastrar para reordenar',
-                    icon: const Icon(Icons.drag_handle_rounded),
-                    onPressed: () {},
-                    visualDensity: VisualDensity.compact,
+                if (isEditable) ...[
+                  ReorderableDragStartListener(
+                    index: dragIndex,
+                    child: IconButton(
+                      tooltip: 'Arrastrar para reordenar',
+                      icon: const Icon(Icons.drag_handle_rounded),
+                      onPressed: () {},
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                    ),
                   ),
-                ),
-                TextButton.icon(
-                  onPressed: onReschedule,
-                  icon: const Icon(Icons.schedule_rounded),
-                  label: const Text('Horario'),
-                ),
+                  TextButton.icon(
+                    onPressed: onReschedule,
+                    icon: const Icon(Icons.schedule_rounded),
+                    label: const Text('Horario'),
+                  ),
+                ],
                 TextButton.icon(
                   onPressed: () => context.pushNamedSafe(
                     AppRouteNames.poiDetail,
@@ -1105,16 +1416,18 @@ class _GeneratedStep extends StatelessWidget {
                   icon: const Icon(Icons.place_outlined),
                   label: const Text('Ver lugar'),
                 ),
-                TextButton.icon(
-                  onPressed: onChange,
-                  icon: const Icon(Icons.swap_horiz_rounded),
-                  label: const Text('Cambiar lugar'),
-                ),
-                TextButton.icon(
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline_rounded),
-                  label: const Text('Eliminar'),
-                ),
+                if (isEditable) ...[
+                  TextButton.icon(
+                    onPressed: onChange,
+                    icon: const Icon(Icons.swap_horiz_rounded),
+                    label: const Text('Cambiar lugar'),
+                  ),
+                  TextButton.icon(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    label: const Text('Eliminar'),
+                  ),
+                ],
               ],
             ),
           ],
@@ -1131,109 +1444,6 @@ class _GeneratedStep extends StatelessWidget {
     final hour = arrival.hour.toString().padLeft(2, '0');
     final minute = arrival.minute.toString().padLeft(2, '0');
     return '$hour:$minute — Parada ${step.stepOrder}';
-  }
-}
-
-class _StepWeatherChip extends StatelessWidget {
-  final Map<String, dynamic> weather;
-
-  const _StepWeatherChip({required this.weather});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final description = weather['description']?.toString() ?? '';
-    final temp = weather['temperature_c'];
-    final rain = weather['precipitation_probability'];
-    final icon = _weatherIcon(description);
-    final parts = <String>[
-      if (temp != null) '${(temp as num).round()}°C',
-      if (rain != null) '$rain% lluvia',
-    ];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.mint.withValues(
-          alpha: theme.brightness == Brightness.dark ? 0.14 : 0.7,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.leaf.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: AppColors.leaf),
-          const SizedBox(width: 6),
-          if (parts.isNotEmpty)
-            Flexible(
-              child: Text(
-                parts.join(' • '),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: AppColors.deepForest,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          if (description.isNotEmpty && parts.isNotEmpty)
-            Text(
-              ' — $description',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: AppColors.deepForest.withValues(alpha: 0.7),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  IconData _weatherIcon(String description) {
-    final lower = description.toLowerCase();
-    if (lower.contains('lluvia') || lower.contains('rain')) {
-      return Icons.water_drop_rounded;
-    }
-    if (lower.contains('nube') || lower.contains('cloud')) {
-      return Icons.cloud_rounded;
-    }
-    if (lower.contains('sol') ||
-        lower.contains('sun') ||
-        lower.contains('clear')) {
-      return Icons.wb_sunny_rounded;
-    }
-    return Icons.cloud_outlined;
-  }
-}
-
-class _NoItineraryState extends StatelessWidget {
-  const _NoItineraryState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: const AppBackButton(
-          fallbackRouteName: AppRouteNames.itineraryHistory,
-        ),
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: AppResponsive.maxContentWidth(context),
-          ),
-          child: Padding(
-            padding: AppResponsive.pagePadding(context),
-            child: const _EmptyStateCard(
-              icon: Icons.route_outlined,
-              title: 'Aún no hay una ruta generada',
-              text:
-                  'Escribe una intención desde Inicio o Ara Assistant para generar un itinerario.',
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -1485,6 +1695,39 @@ class _RescheduleDialogState extends State<_RescheduleDialog> {
           child: const Text('Guardar'),
         ),
       ],
+    );
+  }
+}
+
+class _NoItineraryState extends StatelessWidget {
+  const _NoItineraryState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: const AppBackButton(
+          fallbackRouteName: AppRouteNames.itineraryHistory,
+        ),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: AppResponsive.maxContentWidth(context),
+          ),
+          child: Padding(
+            padding: AppResponsive.pagePadding(context),
+            child: const _EmptyStateCard(
+              icon: Icons.route_outlined,
+              title: 'Aún no hay una ruta generada',
+              text:
+                  'Escribe una intención desde Inicio o Ara Assistant para generar un itinerario.',
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

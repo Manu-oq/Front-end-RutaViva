@@ -48,8 +48,10 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
     final notifier = ref.read(chatProvider.notifier);
     final created = await notifier.sendMessage(
       text,
-      startDate: notifier.hasActiveSession ? null : _startDate,
-      endDate: notifier.hasActiveSession ? null : _endDate,
+      startDate: notifier.hasActiveSession
+          ? notifier.sessionStartDate
+          : _startDate,
+      endDate: notifier.hasActiveSession ? notifier.sessionEndDate : _endDate,
     );
     _controller.clear();
 
@@ -150,8 +152,8 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
                   onTap: inputLocked ? null : _submitMessage,
                   borderRadius: BorderRadius.circular(999),
                   child: Container(
-                    width: 42,
-                    height: 42,
+                    width: 48,
+                    height: 48,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: inputLocked

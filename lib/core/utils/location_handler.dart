@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationHandler {
@@ -22,7 +23,8 @@ class LocationHandler {
       }
 
       return true;
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[Location] Permission flow failed: $error');
       return false;
     }
   }

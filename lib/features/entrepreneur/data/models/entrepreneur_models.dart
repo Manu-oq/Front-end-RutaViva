@@ -13,33 +13,52 @@ class EntrepreneurMetricsModel {
 
   factory EntrepreneurMetricsModel.fromJson(Map<String, dynamic> json) {
     return EntrepreneurMetricsModel(
-      placesCount: _readInt(json, ['places_count', 'pois_count', 'places']),
-      visitsCount: _readInt(json, ['visits_count', 'visits']),
-      reviewsCount: _readInt(json, ['reviews_count', 'reviews']),
-      favoritesCount: _readInt(json, ['favorites_count', 'favorites']),
+      placesCount: _readInt(json, [
+        'total_pois',
+        'places_count',
+        'pois_count',
+        'places',
+      ]),
+      visitsCount: _readInt(json, ['total_visits', 'visits_count', 'visits']),
+      reviewsCount: _readInt(json, [
+        'total_reviews',
+        'reviews_count',
+        'reviews',
+      ]),
+      favoritesCount: _readInt(json, [
+        'total_bookmarks',
+        'favorites_count',
+        'favorites',
+      ]),
     );
   }
 }
 
 class EntrepreneurIncomeModel {
-  final double total;
+  final int grossIncome;
+  final int netIncome;
+  final int pendingIncome;
   final String currency;
-  final bool isPlaceholder;
+  final String status;
+  final String detail;
 
   const EntrepreneurIncomeModel({
-    required this.total,
+    required this.grossIncome,
+    required this.netIncome,
+    required this.pendingIncome,
     required this.currency,
-    required this.isPlaceholder,
+    required this.status,
+    required this.detail,
   });
 
   factory EntrepreneurIncomeModel.fromJson(Map<String, dynamic> json) {
     return EntrepreneurIncomeModel(
-      total: _readDouble(json, ['total', 'amount', 'income']) ?? 0,
+      grossIncome: (json['gross_income'] as num?)?.toInt() ?? 0,
+      netIncome: (json['net_income'] as num?)?.toInt() ?? 0,
+      pendingIncome: (json['pending_income'] as num?)?.toInt() ?? 0,
       currency: (json['currency'] ?? 'CLP').toString(),
-      isPlaceholder:
-          json['is_placeholder'] as bool? ??
-          json['placeholder'] as bool? ??
-          true,
+      status: (json['status'] ?? 'not_configured').toString(),
+      detail: (json['detail'] ?? '').toString(),
     );
   }
 }

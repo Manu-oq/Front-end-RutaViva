@@ -17,6 +17,7 @@ class ChatBubble extends StatelessWidget {
   final String? selectedActionId;
   final bool actionsLocked;
   final String? disclaimerText;
+  final String? progressPhase;
   final ValueChanged<MessageAction>? onAction;
   final ValueChanged<String>? onOpenItinerary;
   final ValueChanged<MessageCandidatePoi>? onOpenPoi;
@@ -35,6 +36,7 @@ class ChatBubble extends StatelessWidget {
     this.selectedActionId,
     this.actionsLocked = false,
     this.disclaimerText,
+    this.progressPhase,
     this.onAction,
     this.onOpenItinerary,
     this.onOpenPoi,
@@ -46,101 +48,113 @@ class ChatBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.all(18),
-        constraints: BoxConstraints(
-          maxWidth: AppResponsive.isDesktop(context)
-              ? 600
-              : MediaQuery.of(context).size.width * 0.82,
-        ),
-        decoration: BoxDecoration(
-          color: isUser
-              ? theme.colorScheme.primary
-              : theme.colorScheme.surface.withValues(alpha: 0.94),
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(24),
-            topRight: const Radius.circular(24),
-            bottomLeft: Radius.circular(isUser ? 24 : 6),
-            bottomRight: Radius.circular(isUser ? 6 : 24),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxBubbleWidth = AppResponsive.isDesktop(context)
+            ? 600.0
+            : constraints.maxWidth * 0.82;
+
+        return Align(
+          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.all(18),
+            constraints: BoxConstraints(maxWidth: maxBubbleWidth),
+            decoration: BoxDecoration(
+              color: isUser
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.surface.withValues(alpha: 0.94),
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(24),
+                topRight: const Radius.circular(24),
+                bottomLeft: Radius.circular(isUser ? 24 : 6),
+                bottomRight: Radius.circular(isUser ? 6 : 24),
+              ),
+              boxShadow: isUser
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isTyping)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: theme.colorScheme.secondary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: _BubbleText(message: message, isUser: isUser),
+                      ),
+                    ],
+                  )
+                else
+                  _BubbleText(message: message, isUser: isUser),
+                if (isTyping && progressPhase == 'generating') ...[
+                  const SizedBox(height: 12),
+                  const LinearProgressIndicator(),
+                ],
+                if (!isUser && evidenceLevel == 'inferred') ...[
+                  const SizedBox(height: 10),
+                  const _EvidencePill(label: 'Recomendación estimada'),
+                ],
+                if (!isUser && evidenceLevel == 'unknown') ...[
+                  const SizedBox(height: 10),
+                  const _EvidencePill(label: 'Dato no confirmado'),
+                ],
+                if (disclaimerText != null) ...[
+                  const SizedBox(height: 12),
+                  AppFeedbackBanner(
+                    message: disclaimerText!,
+                    type: AppFeedbackType.info,
+                  ),
+                ],
+                if (itineraryCard != null) ...[
+                  const SizedBox(height: 14),
+                  _ItineraryChatCard(
+                    card: itineraryCard!,
+                    onOpen: () => onOpenItinerary?.call(itineraryCard!.id),
+                  ),
+                ],
+                if (candidatePois.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _CandidatePoiList(
+                    candidates: candidatePois,
+                    actionsLocked: actionsLocked,
+                    onOpenPoi: onOpenPoi,
+                    onShowPoiOnMap: onShowPoiOnMap,
+                    onUseCandidate: onUseCandidate,
+                  ),
+                ],
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _ActionList(
+                    actions: actions,
+                    actionsLocked: actionsLocked,
+                    onAction: onAction,
+                    selectedActionId: selectedActionId,
+                    theme: theme,
+                  ),
+                ],
+              ],
+            ),
           ),
-          boxShadow: isUser
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isTyping)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: theme.colorScheme.secondary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Flexible(
-                    child: _BubbleText(message: message, isUser: isUser),
-                  ),
-                ],
-              )
-            else
-              _BubbleText(message: message, isUser: isUser),
-            if (!isUser && evidenceLevel == 'inferred') ...[
-              const SizedBox(height: 10),
-              const _EvidencePill(label: 'Recomendación estimada'),
-            ],
-            if (disclaimerText != null) ...[
-              const SizedBox(height: 12),
-              AppFeedbackBanner(
-                message: disclaimerText!,
-                type: AppFeedbackType.info,
-              ),
-            ],
-            if (itineraryCard != null) ...[
-              const SizedBox(height: 14),
-              _ItineraryChatCard(
-                card: itineraryCard!,
-                onOpen: () => onOpenItinerary?.call(itineraryCard!.id),
-              ),
-            ],
-            if (candidatePois.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              _CandidatePoiList(
-                candidates: candidatePois,
-                actionsLocked: actionsLocked,
-                onOpenPoi: onOpenPoi,
-                onShowPoiOnMap: onShowPoiOnMap,
-                onUseCandidate: onUseCandidate,
-              ),
-            ],
-            if (actions.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              _ActionList(
-                actions: actions,
-                actionsLocked: actionsLocked,
-                onAction: onAction,
-                selectedActionId: selectedActionId,
-                theme: theme,
-              ),
-            ],
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -166,12 +180,21 @@ class _CandidatePoiList extends StatefulWidget {
 
 class _CandidatePoiListState extends State<_CandidatePoiList> {
   bool _expanded = true;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final visible = widget.candidates.take(3).toList(growable: false);
-    if (visible.isEmpty) {
+    final candidates = widget.candidates;
+    final preview = candidates.take(3).toList(growable: false);
+    final hasOverflow = candidates.length > 3;
+    if (preview.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -196,9 +219,9 @@ class _CandidatePoiListState extends State<_CandidatePoiList> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      widget.candidates.length == 1
+                      candidates.length == 1
                           ? '1 opción recomendada'
-                          : '${visible.length} opciones recomendadas',
+                          : '${candidates.length} opciones recomendadas',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelLarge?.copyWith(
@@ -207,9 +230,9 @@ class _CandidatePoiListState extends State<_CandidatePoiList> {
                       ),
                     ),
                   ),
-                  if (widget.candidates.length > visible.length)
+                  if (hasOverflow)
                     Text(
-                      '${visible.length}/${widget.candidates.length}',
+                      '3/${candidates.length}',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w800,
@@ -234,17 +257,58 @@ class _CandidatePoiListState extends State<_CandidatePoiList> {
           secondChild: Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (var index = 0; index < visible.length; index++) ...[
-                  _CandidatePoiCard(
-                    candidate: visible[index],
-                    actionsLocked: widget.actionsLocked,
-                    onOpenPoi: widget.onOpenPoi,
-                    onShowPoiOnMap: widget.onShowPoiOnMap,
-                    onUseCandidate: widget.onUseCandidate,
+                if (hasOverflow)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8, left: 2),
+                    child: Text(
+                      'Desliza para ver más opciones',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                  if (index != visible.length - 1) const SizedBox(height: 8),
-                ],
+                if (hasOverflow)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 292),
+                    child: Scrollbar(
+                      controller: _scrollController,
+                      thumbVisibility: true,
+                      child: ListView.separated(
+                        controller: _scrollController,
+                        primary: false,
+                        padding: EdgeInsets.zero,
+                        itemCount: candidates.length,
+                        physics: const ClampingScrollPhysics(),
+                        itemBuilder: (context, index) => _CandidatePoiCard(
+                          candidate: candidates[index],
+                          actionsLocked: widget.actionsLocked,
+                          onOpenPoi: widget.onOpenPoi,
+                          onShowPoiOnMap: widget.onShowPoiOnMap,
+                          onUseCandidate: widget.onUseCandidate,
+                        ),
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      ),
+                    ),
+                  )
+                else
+                  Column(
+                    children: [
+                      for (var index = 0; index < preview.length; index++) ...[
+                        _CandidatePoiCard(
+                          candidate: preview[index],
+                          actionsLocked: widget.actionsLocked,
+                          onOpenPoi: widget.onOpenPoi,
+                          onShowPoiOnMap: widget.onShowPoiOnMap,
+                          onUseCandidate: widget.onUseCandidate,
+                        ),
+                        if (index != preview.length - 1)
+                          const SizedBox(height: 8),
+                      ],
+                    ],
+                  ),
               ],
             ),
           ),
@@ -258,7 +322,7 @@ class _CandidatePoiListState extends State<_CandidatePoiList> {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: _CandidatePoiCompactPreview(
-              candidate: visible.first,
+              candidate: preview.first,
               actionsLocked: widget.actionsLocked,
               onOpenPoi: widget.onOpenPoi,
               onShowPoiOnMap: widget.onShowPoiOnMap,
@@ -318,7 +382,7 @@ class _CandidatePoiCompactPreview extends StatelessWidget {
               ),
               IconButton(
                 tooltip: 'Detalle',
-                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 onPressed: onOpenPoi == null
                     ? null
                     : () => onOpenPoi!(candidate),
@@ -327,7 +391,10 @@ class _CandidatePoiCompactPreview extends StatelessWidget {
               if (candidate.hasCoordinates)
                 IconButton(
                   tooltip: 'Mapa',
-                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
                   onPressed: onShowPoiOnMap == null
                       ? null
                       : () => onShowPoiOnMap!(candidate),
@@ -335,7 +402,7 @@ class _CandidatePoiCompactPreview extends StatelessWidget {
                 ),
               IconButton(
                 tooltip: 'Elegir',
-                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 onPressed: actionsLocked || onUseCandidate == null
                     ? null
                     : () => onUseCandidate!(candidate),
