@@ -33,6 +33,15 @@ class _ChatStreamingEffectsListenerState
       }
       unawaited(_showItineraryReadyNotification(context, next));
     });
+    ref.listen<String?>(chatPendingDirectItineraryNavigationProvider, (
+      previous,
+      next,
+    ) {
+      if (!mounted || _isNavigating || next == null || next == previous) {
+        return;
+      }
+      unawaited(_navigateDirectToItinerary(next));
+    });
 
     return widget.child;
   }
@@ -100,6 +109,30 @@ class _ChatStreamingEffectsListenerState
             pathParameters: {'id': itineraryId},
           );
     } finally {
+      if (mounted) {
+        _isNavigating = false;
+      }
+    }
+  }
+
+  Future<void> _navigateDirectToItinerary(String itineraryId) async {
+    _isNavigating = true;
+    try {
+      ref
+          .read(appRouterProvider)
+          .goNamed(
+            AppRouteNames.itineraryDetail,
+            pathParameters: {'id': itineraryId},
+          );
+    } finally {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        ref
+            .read(chatProvider.notifier)
+            .consumePendingDirectItineraryNavigation();
+      });
       if (mounted) {
         _isNavigating = false;
       }

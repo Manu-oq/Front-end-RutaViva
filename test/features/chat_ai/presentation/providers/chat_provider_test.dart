@@ -418,6 +418,72 @@ void main() {
 
       expect(result.length, equals(1));
     });
+
+    test('filtra quick replies sin label explicito', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+
+      const replies = [
+        AraQuickReplyModel(
+          id: 'bad',
+          label: 'buscar_mas',
+          value: 'buscar_mas',
+          type: 'refinement',
+          hasExplicitLabel: false,
+          hasExplicitValue: true,
+        ),
+        AraQuickReplyModel(
+          id: 'good',
+          label: 'Buscar más opciones',
+          value: 'buscar_mas',
+          type: 'refinement',
+        ),
+      ];
+
+      final result = notifier.buildActions(replies);
+
+      expect(result.length, equals(1));
+      expect(result.single.id, equals('good'));
+      expect(result.single.label, equals('Buscar más opciones'));
+      expect(result.single.prompt, equals('buscar_mas'));
+    });
+
+    test('handleAction envia value pero muestra label humano', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repository = _FakeAraRepository(
+        streamFactory: ({required sessionId, finalInstruction}) =>
+            const Stream<AraGenerationStreamEvent>.empty(),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          araRepositoryProvider.overrideWith((ref) => repository),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(chatProvider.notifier);
+      await notifier.replaceThinkingWithSessionForTest(
+        const AraSessionModel(sessionId: 'session-1', status: 'clarifying'),
+      );
+
+      const action = MessageAction(
+        id: 'more',
+        label: 'Buscar más opciones',
+        prompt: 'buscar_mas',
+      );
+      final completed = await notifier.handleAction(action);
+
+      expect(completed, isTrue);
+      expect(repository.lastSentMessage, equals('buscar_mas'));
+      final userMessage = container
+          .read(chatProvider)
+          .lastWhere((message) => message.isUser);
+      expect(userMessage.text, equals('Buscar más opciones'));
+    });
   });
 
   group('Ara v2 generation signals', () {
@@ -639,7 +705,7 @@ void main() {
   });
 
   group('selección de candidate POI', () {
-    test('construye prompt técnico usando UUID cuando existe', () {
+    test('envía el UUID limpio cuando existe', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -652,10 +718,7 @@ void main() {
 
       final prompt = notifier.buildCandidateSelectionPrompt(candidate);
 
-      expect(
-        prompt,
-        equals('Seleccionar POI 123e4567-e89b-12d3-a456-426614174000'),
-      );
+      expect(prompt, equals('123e4567-e89b-12d3-a456-426614174000'));
     });
 
     test('usa actionValue solo si no hay UUID', () {
@@ -919,8 +982,27 @@ class _FakeAraRepository extends AraRepository {
     String? finalInstruction,
   })
   streamFactory;
+  String? lastSentMessage;
 
   _FakeAraRepository({required this.streamFactory}) : super(DioClient(Dio()));
+
+  @override
+  Future<AraSessionModel> sendMessage({
+    required String sessionId,
+    required String message,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    lastSentMessage = message;
+    return AraSessionModel(
+      sessionId: sessionId,
+      status: 'clarifying',
+      assistantMessage: const AraChatMessageModel(
+        role: 'assistant',
+        content: 'Listo, sigo buscando.',
+      ),
+    );
+  }
 
   @override
   Stream<AraGenerationStreamEvent> generateItineraryStream({

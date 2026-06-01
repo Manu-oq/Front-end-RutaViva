@@ -109,11 +109,14 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   String? _pendingStreamingFinalInstruction;
   ChatStreamingProgressData? _streamingProgress;
   String? _pendingNavigationItineraryId;
+  String? _pendingDirectItineraryNavigationId;
 
   TripProgressData? get progress => _progress;
   ChatStreamingProgressData? get streamingProgress => _streamingProgress;
   bool get hasPendingStreamingStart => _hasPendingStreamingStart;
   String? get pendingNavigationItineraryId => _pendingNavigationItineraryId;
+  String? get pendingDirectItineraryNavigationId =>
+      _pendingDirectItineraryNavigationId;
 
   @override
   List<MessageEntity> build() {
@@ -306,6 +309,14 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     state = [...state];
   }
 
+  void consumePendingDirectItineraryNavigation() {
+    if (_pendingDirectItineraryNavigationId == null) {
+      return;
+    }
+    _pendingDirectItineraryNavigationId = null;
+    state = [...state];
+  }
+
   Future<bool> handleCandidateSelection(MessageCandidatePoi candidate) {
     final prompt = buildCandidateSelectionPrompt(candidate);
     final visibleText = _candidateSelectionVisibleText(candidate);
@@ -324,7 +335,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   String buildCandidateSelectionPrompt(MessageCandidatePoi candidate) {
     final candidateId = candidate.id.trim();
     if (candidateId.isNotEmpty) {
-      return 'Seleccionar POI $candidateId';
+      return candidateId;
     }
 
     final actionValue = candidate.actionValue?.trim();
@@ -347,19 +358,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
       return null;
     }
 
-    final normalizedPrompt = prompt.toLowerCase();
-    final looksTechnical =
-        RegExp(
-          r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
-          caseSensitive: false,
-        ).hasMatch(prompt) ||
-        normalizedPrompt.startsWith('seleccionar poi') ||
-        normalizedPrompt.startsWith('usar poi') ||
-        action.type == 'generate' ||
-        action.type == 'replace_step' ||
-        action.type == 'select_poi';
-
-    return looksTechnical ? label : null;
+    return label;
   }
 
   @visibleForTesting
@@ -615,6 +614,10 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     }
 
     final updatedItinerary = session.updatedItinerary;
+    final replacementItineraryId =
+        updatedItinerary?.id ??
+        session.assistantMessage?.metadata?['itinerary_id']?.toString() ??
+        session.activeItineraryId;
     if (updatedItinerary != null) {
       ref.read(itineraryProvider.notifier).setCurrent(updatedItinerary);
       ref.invalidate(itineraryHistoryProvider);
@@ -622,13 +625,18 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
       ref.invalidate(itineraryPoisProvider(updatedItinerary.id));
       _refreshFilteredMapIfNeeded(updatedItinerary.id);
     } else if (isStepReplacementCompleted) {
-      final itineraryId = session.assistantMessage?.metadata?['itinerary_id']
-          ?.toString();
+      final itineraryId = replacementItineraryId?.trim();
       if (itineraryId != null && itineraryId.isNotEmpty) {
         ref.invalidate(itineraryHistoryProvider);
         ref.invalidate(itineraryDetailProvider(itineraryId));
         ref.invalidate(itineraryPoisProvider(itineraryId));
         _refreshFilteredMapIfNeeded(itineraryId);
+      }
+    }
+    if (isStepReplacementCompleted) {
+      final itineraryId = replacementItineraryId?.trim();
+      if (itineraryId != null && itineraryId.isNotEmpty) {
+        _pendingDirectItineraryNavigationId = itineraryId;
       }
     }
 
@@ -833,6 +841,15 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     }
 
     for (final reply in replies) {
+      if (!reply.isValidForUi) {
+        debugPrint(
+          '[Ara] Ignoring invalid quick reply: '
+          'id=${reply.id}, label=${reply.label}, value=${reply.value}, '
+          'hasExplicitLabel=${reply.hasExplicitLabel}, '
+          'hasExplicitValue=${reply.hasExplicitValue}',
+        );
+        continue;
+      }
       add(
         MessageAction(
           label: reply.label,
@@ -963,6 +980,12 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     state = [...state];
   }
 
+  @visibleForTesting
+  void setPendingDirectItineraryNavigationForTest(String? itineraryId) {
+    _pendingDirectItineraryNavigationId = itineraryId;
+    state = [...state];
+  }
+
   String _readableGenerationError(Object error) {
     if (error is ApiException) {
       final friendly = _friendlyAraMessage(error.message);
@@ -1012,4 +1035,9 @@ final chatStreamingProgressProvider = Provider<ChatStreamingProgressData?>((
 final chatPendingNavigationProvider = Provider<String?>((ref) {
   ref.watch(chatProvider);
   return ref.read(chatProvider.notifier).pendingNavigationItineraryId;
+});
+
+final chatPendingDirectItineraryNavigationProvider = Provider<String?>((ref) {
+  ref.watch(chatProvider);
+  return ref.read(chatProvider.notifier).pendingDirectItineraryNavigationId;
 });

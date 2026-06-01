@@ -7,22 +7,34 @@ class AraQuickReplyModel {
   final String label;
   final String value;
   final String type;
+  final bool hasExplicitLabel;
+  final bool hasExplicitValue;
 
   const AraQuickReplyModel({
     required this.id,
     required this.label,
     required this.value,
     required this.type,
+    this.hasExplicitLabel = true,
+    this.hasExplicitValue = true,
   });
 
   factory AraQuickReplyModel.fromJson(Map<String, dynamic> json) {
+    final rawLabel = json['label'];
+    final rawValue = json['value'];
+    final labelText = rawLabel?.toString().trim() ?? '';
+    final valueText = rawValue?.toString().trim() ?? '';
     return AraQuickReplyModel(
-      id: (json['id'] ?? json['label'] ?? '').toString(),
-      label: (json['label'] ?? json['value'] ?? '').toString(),
-      value: (json['value'] ?? json['label'] ?? '').toString(),
+      id: (json['id'] ?? rawLabel ?? '').toString(),
+      label: labelText.isNotEmpty ? labelText : valueText,
+      value: valueText.isNotEmpty ? valueText : labelText,
       type: (json['type'] ?? 'refinement').toString(),
+      hasExplicitLabel: labelText.isNotEmpty,
+      hasExplicitValue: valueText.isNotEmpty,
     );
   }
+
+  bool get isValidForUi => hasExplicitLabel && hasExplicitValue;
 }
 
 class AraChatMessageModel {

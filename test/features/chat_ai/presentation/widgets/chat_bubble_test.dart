@@ -24,6 +24,31 @@ void main() {
     },
   );
 
+  testWidgets('ChatBubble renders quick reply label instead of prompt', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ChatBubble(
+            message: '¿Qué hacemos ahora?',
+            isUser: false,
+            actions: [
+              MessageAction(
+                id: 'more',
+                label: 'Buscar más opciones',
+                prompt: 'buscar_mas',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Buscar más opciones'), findsOneWidget);
+    expect(find.text('buscar_mas'), findsNothing);
+  });
+
   testWidgets('ChatBubble shows unknown evidence indicator', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(

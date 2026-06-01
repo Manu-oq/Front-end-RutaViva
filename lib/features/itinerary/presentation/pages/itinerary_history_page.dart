@@ -125,13 +125,6 @@ class ItineraryHistoryPage extends ConsumerWidget {
     WidgetRef ref,
     ItineraryModel itinerary,
   ) async {
-    if (!itinerary.isEditable) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Este itinerario ya no se puede editar.')),
-      );
-      return;
-    }
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -168,7 +161,7 @@ class ItineraryHistoryPage extends ConsumerWidget {
         SnackBar(
           content: Text(
             error is ApiException && error.statusCode == 409
-                ? error.message
+                ? 'No pudimos eliminar este itinerario porque el servidor lo marcó como no editable.'
                 : 'No pudimos eliminar el itinerario.',
           ),
         ),
@@ -244,27 +237,33 @@ class _ItineraryCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (itinerary.isEditable)
-                    PopupMenuButton<String>(
-                      tooltip: 'Opciones de itinerario',
-                      onSelected: (value) {
-                        if (value == 'delete') onDelete();
-                      },
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete_outline_rounded),
-                              SizedBox(width: 8),
-                              Text('Eliminar'),
-                            ],
-                          ),
-                        ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!itinerary.isEditable) ...[
+                        _ReadOnlyChip(isPast: itinerary.isPast),
+                        const SizedBox(width: 6),
                       ],
-                    )
-                  else
-                    _ReadOnlyChip(isPast: itinerary.isPast),
+                      PopupMenuButton<String>(
+                        tooltip: 'Opciones de itinerario',
+                        onSelected: (value) {
+                          if (value == 'delete') onDelete();
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline_rounded),
+                                SizedBox(width: 8),
+                                Text('Eliminar'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ],
               ),
               if (itinerary.steps.isNotEmpty) ...[

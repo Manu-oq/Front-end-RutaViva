@@ -77,4 +77,67 @@ void main() {
       expect(find.text('Itinerary iti-1'), findsOneWidget);
     },
   );
+
+  testWidgets('redirects directly when step replacement completes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    SharedPreferences.setMockInitialValues({});
+    final sharedPreferences = await SharedPreferences.getInstance();
+    final router = GoRouter(
+      initialLocation: '/home',
+      routes: [
+        GoRoute(
+          path: '/home',
+          builder: (context, state) =>
+              const Scaffold(body: Center(child: Text('Home test'))),
+        ),
+        GoRoute(
+          path: '/itineraries/:id',
+          name: AppRouteNames.itineraryDetail,
+          builder: (context, state) => Scaffold(
+            body: Center(
+              child: Text('Itinerary ${state.pathParameters['id']!}'),
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    final container = ProviderContainer(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        appRouterProvider.overrideWithValue(router),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) =>
+              ChatStreamingEffectsListener(child: child!),
+        ),
+      ),
+    );
+
+    container
+        .read(chatProvider.notifier)
+        .setPendingDirectItineraryNavigationForTest('iti-2');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Itinerary iti-2'), findsOneWidget);
+    expect(find.text('Itinerario listo'), findsNothing);
+    expect(
+      container.read(chatPendingDirectItineraryNavigationProvider),
+      isNull,
+    );
+  });
 }

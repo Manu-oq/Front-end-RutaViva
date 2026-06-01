@@ -811,7 +811,7 @@ class _MapHeader extends StatelessWidget {
   }
 }
 
-class _MapCategoryFilters extends StatelessWidget {
+class _MapCategoryFilters extends StatefulWidget {
   final AsyncValue<List<CategoryModel>> categories;
   final Set<int> selectedCategoryIds;
   final bool isLoading;
@@ -827,8 +827,15 @@ class _MapCategoryFilters extends StatelessWidget {
   });
 
   @override
+  State<_MapCategoryFilters> createState() => _MapCategoryFiltersState();
+}
+
+class _MapCategoryFiltersState extends State<_MapCategoryFilters> {
+  int? _expandedParentId;
+
+  @override
   Widget build(BuildContext context) {
-    final items = categories.maybeWhen(
+    final items = widget.categories.maybeWhen(
       data: (value) => value,
       orElse: () => const <CategoryModel>[],
     );
@@ -837,38 +844,112 @@ class _MapCategoryFilters extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
-    final allSelected = selectedCategoryIds.isEmpty;
-    return SizedBox(
-      height: 46,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        itemCount: items.length + 1,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          if (index == 0) {
-            return _MapFilterChip(
-              label: 'Todos',
-              icon: Icons.public_rounded,
-              color: theme.colorScheme.primary,
-              selected: allSelected,
-              enabled: !isLoading,
-              onTap: onClear,
-            );
-          }
+    final parents = items.topLevelAttractionCategories();
+    final expandedParentId = _effectiveExpandedParentId(items, parents);
+    final expandedChildren = expandedParentId == null
+        ? const <CategoryModel>[]
+        : items.childrenOf(expandedParentId);
+    final allSelected = widget.selectedCategoryIds.isEmpty;
 
-          final category = items[index - 1];
-          final style = categoryStyleFor(category.id, theme.colorScheme);
-          return _MapFilterChip(
-            label: category.name,
-            icon: style.icon,
-            color: style.color,
-            selected: selectedCategoryIds.contains(category.id),
-            enabled: !isLoading,
-            onTap: () => onToggle(category.id),
-          );
-        },
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 46,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            itemCount: parents.length + 1,
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return _MapFilterChip(
+                  label: 'Todos',
+                  icon: Icons.public_rounded,
+                  color: theme.colorScheme.primary,
+                  selected: allSelected,
+                  enabled: !widget.isLoading,
+                  onTap: widget.onClear,
+                );
+              }
+
+              final category = parents[index - 1];
+              final children = items.childrenOf(category.id);
+              final hasChildren = children.isNotEmpty;
+              final style = categoryStyleFor(category.id, theme.colorScheme);
+              return _MapFilterChip(
+                label: category.name,
+                icon: style.icon,
+                color: style.color,
+                selected: hasChildren
+                    ? children.any(
+                        (child) =>
+                            widget.selectedCategoryIds.contains(child.id),
+                      )
+                    : widget.selectedCategoryIds.contains(category.id),
+                enabled: !widget.isLoading,
+                onTap: hasChildren
+                    ? () => _toggleExpandedParent(category.id)
+                    : () => widget.onToggle(category.id),
+              );
+            },
+          ),
+        ),
+        if (expandedChildren.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              itemCount: expandedChildren.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final category = expandedChildren[index];
+                final style = categoryStyleFor(category.id, theme.colorScheme);
+                return _MapFilterChip(
+                  label: category.name,
+                  icon: style.icon,
+                  color: style.color,
+                  selected: widget.selectedCategoryIds.contains(category.id),
+                  enabled: !widget.isLoading,
+                  onTap: () => widget.onToggle(category.id),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  int? _effectiveExpandedParentId(
+    List<CategoryModel> items,
+    List<CategoryModel> parents,
+  ) {
+    final selectedChildParentId = items
+        .where((category) => widget.selectedCategoryIds.contains(category.id))
+        .map((category) => category.parentId)
+        .whereType<int>()
+        .firstOrNull;
+    if (selectedChildParentId != null) {
+      return selectedChildParentId;
+    }
+
+    final expandedParentId = _expandedParentId;
+    if (expandedParentId != null &&
+        parents.any((category) => category.id == expandedParentId) &&
+        items.childrenOf(expandedParentId).isNotEmpty) {
+      return expandedParentId;
+    }
+
+    return null;
+  }
+
+  void _toggleExpandedParent(int parentId) {
+    setState(
+      () => _expandedParentId = _expandedParentId == parentId ? null : parentId,
     );
   }
 }

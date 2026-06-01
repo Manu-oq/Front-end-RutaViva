@@ -105,5 +105,41 @@ void main() {
         equals('Sí, amplía la búsqueda'),
       );
     });
+
+    test('marks quick replies without explicit label as invalid for UI', () {
+      final session = AraSessionModel.fromJson({
+        'session_id': 'session-4',
+        'status': 'clarifying',
+        'quick_replies': [
+          {'value': 'buscar_mas', 'type': 'refinement'},
+        ],
+      });
+
+      final reply = session.quickReplies.single;
+      expect(reply.label, equals('buscar_mas'));
+      expect(reply.value, equals('buscar_mas'));
+      expect(reply.hasExplicitLabel, isFalse);
+      expect(reply.hasExplicitValue, isTrue);
+      expect(reply.isValidForUi, isFalse);
+    });
+
+    test('keeps human label equal to value when both are explicit', () {
+      final session = AraSessionModel.fromJson({
+        'session_id': 'session-5',
+        'status': 'clarifying',
+        'quick_replies': [
+          {
+            'label': 'Buscar más opciones',
+            'value': 'Buscar más opciones',
+            'type': 'refinement',
+          },
+        ],
+      });
+
+      final reply = session.quickReplies.single;
+      expect(reply.label, equals('Buscar más opciones'));
+      expect(reply.value, equals('Buscar más opciones'));
+      expect(reply.isValidForUi, isTrue);
+    });
   });
 }

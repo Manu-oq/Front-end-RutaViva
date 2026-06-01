@@ -442,10 +442,10 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     final center = ref.read(mapProvider).center;
     final start = widget.itinerary.startDate;
     final end = widget.itinerary.endDate;
-    final prompt = 'Quiero cambiar la parada de ${step.title}.';
+    final prompt = 'cambiar la parada de ${step.title}';
 
     try {
-      await ref
+      final sessionFuture = ref
           .read(chatProvider.notifier)
           .startSessionFromHome(
             initialMessage: prompt,
@@ -457,12 +457,11 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
               'intent': 'change_itinerary_step',
               'itinerary_id': widget.itinerary.id,
               'step_id': step.id,
-              'poi_id': step.poiId,
-              'poi_name': step.title,
             },
           );
       if (!mounted) return;
-      context.pushNamed('chat_focused');
+      context.goNamed(AppRouteNames.chat);
+      await sessionFuture;
     } finally {
       if (mounted) {
         setState(() => _isStartingStepReplacement = false);
