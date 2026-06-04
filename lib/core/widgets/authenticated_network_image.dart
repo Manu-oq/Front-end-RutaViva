@@ -50,19 +50,27 @@ class AuthenticatedNetworkImage extends ConsumerStatefulWidget {
 
 class _AuthenticatedNetworkImageState
     extends ConsumerState<AuthenticatedNetworkImage> {
-  late Future<Uint8List> _bytesFuture;
+  Future<Uint8List>? _bytesFuture;
+
+  bool get _needsAuth => AuthenticatedNetworkImage.requiresBearerToken(widget.imageUrl);
 
   @override
   void initState() {
     super.initState();
-    _bytesFuture = _fetchBytes();
+    if (_needsAuth) {
+      _bytesFuture = _fetchBytes();
+    }
   }
 
   @override
   void didUpdateWidget(covariant AuthenticatedNetworkImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageUrl != widget.imageUrl) {
-      _bytesFuture = _fetchBytes();
+      if (_needsAuth) {
+        _bytesFuture = _fetchBytes();
+      } else {
+        _bytesFuture = null;
+      }
     }
   }
 
@@ -85,7 +93,7 @@ class _AuthenticatedNetworkImageState
     }
 
     return FutureBuilder<Uint8List>(
-      future: _bytesFuture,
+      future: _bytesFuture!,
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           return Image.memory(

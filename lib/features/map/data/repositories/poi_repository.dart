@@ -108,7 +108,7 @@ class PoiRepository {
 
   Future<List<PoiModel>> getMyPois() async {
     try {
-      final response = await _client.get<List<dynamic>>('/pois/mine');
+      final response = await _client.get<List<dynamic>>('/pois/my-contributions/');
       return (response.data ?? [])
           .map((item) => PoiModel.fromJson(item as Map<String, dynamic>))
           .toList();

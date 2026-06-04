@@ -16,6 +16,7 @@ import '../../features/itinerary/presentation/pages/itinerary_history_page.dart'
 import '../../features/map/presentation/pages/create_poi_page.dart';
 import '../../features/map/presentation/pages/edit_poi_page.dart';
 import '../../features/map/presentation/pages/map_screen.dart';
+import '../../features/map/presentation/pages/my_contributions_page.dart';
 import '../../features/map/presentation/pages/poi_detail_full_page.dart';
 import '../../features/onboarding/presentation/pages/vibe_selection_page.dart';
 import '../../features/user_profile/presentation/pages/edit_profile_page.dart';
@@ -159,6 +160,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             child: CreatePoiPage(creationType: creationType),
           );
         },
+      ),
+      GoRoute(
+        path: AppRoutes.myContributions,
+        name: AppRouteNames.myContributions,
+        pageBuilder: (context, state) => _fadeTransitionPage(
+          key: state.pageKey,
+          child: const MyContributionsPage(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.editPoi,

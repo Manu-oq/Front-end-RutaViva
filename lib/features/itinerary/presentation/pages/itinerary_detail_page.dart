@@ -417,7 +417,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     final daySteps = _controller.stepsForDate(_state.steps, day);
     _emit(_state.copyWith(clearFeedback: true));
     try {
-      final selectedIds = daySteps.map((s) => s.poiId).toSet();
+      final selectedIds = daySteps.map((s) => s.poiId).whereType<String>().toSet();
       final points =
           await ref.read(itineraryPoisProvider(widget.itinerary.id).future);
       final filtered =

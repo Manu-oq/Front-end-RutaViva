@@ -68,14 +68,15 @@ class GeneratedStep extends StatelessWidget {
                     label: const Text('Horario'),
                   ),
                 ],
-                TextButton.icon(
-                  onPressed: () => context.pushNamedSafe(
-                    AppRouteNames.poiDetail,
-                    pathParameters: {'id': step.poiId},
+                if (step.poiId != null)
+                  TextButton.icon(
+                    onPressed: () => context.pushNamedSafe(
+                      AppRouteNames.poiDetail,
+                      pathParameters: {'id': step.poiId!},
+                    ),
+                    icon: const Icon(Icons.place_outlined),
+                    label: const Text('Ver lugar'),
                   ),
-                  icon: const Icon(Icons.place_outlined),
-                  label: const Text('Ver lugar'),
-                ),
                 if (isEditable) ...[
                   TextButton.icon(
                     onPressed: onChange,

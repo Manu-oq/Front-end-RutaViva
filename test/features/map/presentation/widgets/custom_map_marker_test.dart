@@ -15,8 +15,6 @@ void main() {
           id: 'poi-unknown',
           name: 'POI con categoría rara',
           coordinates: const LatLng(-39.27, -71.97),
-          // 99 is not part of the mapping in categoryStyleFor, so the helper
-          // must yield the fallback (Icons.location_on, Colors.grey).
           categoryIds: const [99],
         );
 
@@ -28,13 +26,9 @@ void main() {
           ),
         );
 
-        // The marker icon: there is exactly one Icon inside the marker badge
-        // and it must be the fallback Icons.location_on.
         final iconFinder = find.byIcon(Icons.location_on);
         expect(iconFinder, findsOneWidget);
 
-        // The colored circle around the icon: locate the Container that holds
-        // the Icon and assert its BoxDecoration color is the fallback grey.
         final containerFinder = find.ancestor(
           of: iconFinder,
           matching: find.byType(Container),
@@ -46,5 +40,69 @@ void main() {
         expect(decoration.shape, equals(BoxShape.circle));
       },
     );
+
+    testWidgets('highlighted marker fits allocated map size', (
+      tester,
+    ) async {
+      final point = MapPoint(
+        id: 'poi-1',
+        name: 'Río Quiliche con un nombre largo',
+        coordinates: const LatLng(-39.35, -71.70),
+        categoryIds: const [1],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 104,
+                  height: 98,
+                  child: CustomMapMarker(point: point, highlighted: true),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Río Quiliche con un nombre largo'), findsOneWidget);
+    });
+
+    testWidgets('compact marker fits allocated map size', (
+      tester,
+    ) async {
+      final point = MapPoint(
+        id: 'poi-2',
+        name: 'Mirador',
+        coordinates: const LatLng(-39.35, -71.70),
+        categoryIds: const [3],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 46,
+                  height: 46,
+                  child: CustomMapMarker(
+                    point: point,
+                    compact: true,
+                    showLabel: false,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Mirador'), findsNothing);
+    });
   });
 }

@@ -340,6 +340,14 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
   }
 
   void _toggleCategory(int id, bool selected) {
+    if (selected &&
+        !_selectedCategoryIds.contains(id) &&
+        _selectedCategoryIds.length >= 4) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Máximo 4 categorías')));
+      return;
+    }
     setState(() {
       if (selected) {
         _selectedCategoryIds.add(id);

@@ -61,4 +61,25 @@ void main() {
     expect(ids.first, equals('focused-low-score'));
     expect(ids, contains('focused-low-score'));
   });
+
+  test('proximityBoost +20 a 0m', () {
+    expect(
+      MapScreenMarkerLogicForTesting.proximityBoost(0),
+      equals(20.0),
+    );
+  });
+
+  test('proximityBoost 0 a 2000m', () {
+    expect(
+      MapScreenMarkerLogicForTesting.proximityBoost(2000),
+      equals(0.0),
+    );
+  });
+
+  test('proximityBoost +10 a 1000m', () {
+    expect(
+      MapScreenMarkerLogicForTesting.proximityBoost(1000),
+      equals(10.0),
+    );
+  });
 }

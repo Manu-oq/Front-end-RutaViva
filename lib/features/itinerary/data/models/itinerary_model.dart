@@ -84,7 +84,7 @@ class ItineraryModel {
 class ItineraryStepModel {
   final String id;
   final String itineraryId;
-  final String poiId;
+  final String? poiId;
   final String? poiName;
   final String? poiDescription;
   final int stepOrder;
@@ -118,7 +118,7 @@ class ItineraryStepModel {
     return ItineraryStepModel(
       id: json['id'] as String,
       itineraryId: json['itinerary_id'] as String,
-      poiId: json['poi_id'] as String,
+      poiId: json['poi_id'] as String?,
       poiName: json['poi_name'] as String?,
       poiDescription: PublicTextSanitizer.cleanOptional(
         json['poi_description'] as String?,
@@ -258,7 +258,7 @@ class PaginatedItinerariesModel {
 class StepVisitModel {
   final String id;
   final String stepId;
-  final String poiId;
+  final String? poiId;
   final DateTime? visitedAt;
   final String source;
   final String? note;
@@ -276,7 +276,7 @@ class StepVisitModel {
     return StepVisitModel(
       id: json['id'].toString(),
       stepId: json['step_id'].toString(),
-      poiId: json['poi_id'].toString(),
+      poiId: json['poi_id']?.toString(),
       visitedAt: ItineraryStepModel._parseDateTime(
         json['visited_at'] as String?,
       ),
@@ -288,7 +288,7 @@ class StepVisitModel {
 
 class ItineraryStepWeatherModel {
   final String stepId;
-  final String poiId;
+  final String? poiId;
   final String? poiName;
   final DateTime? dayDate;
   final bool weatherAvailable;
@@ -310,7 +310,7 @@ class ItineraryStepWeatherModel {
   factory ItineraryStepWeatherModel.fromJson(Map<String, dynamic> json) {
     return ItineraryStepWeatherModel(
       stepId: json['step_id'].toString(),
-      poiId: json['poi_id'].toString(),
+      poiId: json['poi_id']?.toString(),
       poiName: json['poi_name']?.toString(),
       dayDate: ItineraryModel._parseDate(json['day_date'] as String?),
       weatherAvailable: json['weather_available'] as bool? ?? false,

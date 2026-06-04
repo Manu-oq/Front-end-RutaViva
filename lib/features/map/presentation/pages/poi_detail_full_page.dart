@@ -250,6 +250,17 @@ class _TitleCard extends StatelessWidget {
                 _VerificationBadge(status: poi.verificationStatus!),
             ],
           ),
+          if (poi.createdByUserName != null &&
+              poi.createdByUserName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Creado por ${poi.createdByUserName}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Text(
             poi.name,

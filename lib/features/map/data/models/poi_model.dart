@@ -61,6 +61,8 @@ class PoiModel {
   final double? distanceMeters;
   final String? verificationStatus;
   final double? confidenceScore;
+  final DateTime? createdAt;
+  final String? createdByUserName;
 
   const PoiModel({
     required this.id,
@@ -79,6 +81,8 @@ class PoiModel {
     this.distanceMeters,
     this.verificationStatus,
     this.confidenceScore,
+    this.createdAt,
+    this.createdByUserName,
   });
 
   factory PoiModel.fromJson(Map<String, dynamic> json) {
@@ -104,6 +108,8 @@ class PoiModel {
       distanceMeters: (json['distance_meters'] as num?)?.toDouble(),
       verificationStatus: json['verification_status'] as String?,
       confidenceScore: (json['confidence_score'] as num?)?.toDouble(),
+      createdAt: _parseDateTime(json['created_at']),
+      createdByUserName: _readCreatedByUserName(json),
     );
   }
 
@@ -124,7 +130,32 @@ class PoiModel {
       visitRules: visitRules?.toMapPointVisitRules(),
       verificationStatus: verificationStatus,
       confidenceScore: confidenceScore,
+      createdAt: createdAt,
+      createdByUserName: createdByUserName,
     );
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString())?.toLocal();
+  }
+
+  static String? _readCreatedByUserName(Map<String, dynamic> json) {
+    final direct =
+        json['created_by_user_name'] ??
+        json['creator_name'] ??
+        json['created_by_name'];
+    if (direct != null && direct.toString().trim().isNotEmpty) {
+      return direct.toString().trim();
+    }
+    final createdBy = json['created_by'] ?? json['creator'] ?? json['user'];
+    if (createdBy is Map<String, dynamic>) {
+      final nested = createdBy['name'] ?? createdBy['full_name'];
+      if (nested != null && nested.toString().trim().isNotEmpty) {
+        return nested.toString().trim();
+      }
+    }
+    return null;
   }
 
   static String? _firstMediaUrl(dynamic media) {
@@ -143,15 +174,14 @@ class PoiModel {
     }
 
     if (media is Map) {
-      final preferredKeys = ['cover', 'image', 'url', 'principal'];
+      final preferredKeys = ['cover', 'image', 'url', 'principal', 'gallery'];
       for (final key in preferredKeys) {
         final value = media[key];
         if (value is String && value.isNotEmpty) return value;
-      }
-      for (final value in media.values) {
-        if (value is String && value.isNotEmpty) return value;
-        final nested = _firstMediaUrl(value);
-        if (nested != null) return nested;
+        if (value is List && value.isNotEmpty) {
+          final nested = _firstMediaUrl(value);
+          if (nested != null) return nested;
+        }
       }
     }
 

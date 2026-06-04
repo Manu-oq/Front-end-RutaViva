@@ -62,6 +62,12 @@ class AccountSettings extends ConsumerWidget {
               ),
             ),
             _SettingTile(
+              icon: Icons.volunteer_activism_rounded,
+              title: 'Mis contribuciones',
+              description: 'Revisa los lugares que compartiste.',
+              onTap: () => context.pushNamedSafe(AppRouteNames.myContributions),
+            ),
+            _SettingTile(
               icon: Icons.storefront_rounded,
               title: 'Panel emprendedor',
               description: 'Administra tu presencia dentro de Ruta Viva.',

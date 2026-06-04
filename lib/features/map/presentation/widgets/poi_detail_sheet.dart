@@ -17,7 +17,11 @@ class PoiDetailSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final names = ref.watch(categoriesByIdProvider);
-    final hasImage = point.imageUrl != null && point.imageUrl!.isNotEmpty;
+    final hasImage = point.imageUrl != null &&
+        point.imageUrl!.isNotEmpty &&
+        (point.imageUrl!.startsWith('http') ||
+            point.imageUrl!.startsWith('https') ||
+            point.imageUrl!.startsWith('/'));
 
     return DraggableScrollableSheet(
       initialChildSize: 0.68,

@@ -1326,6 +1326,14 @@ class MapScreenMarkerLogicForTesting {
       liveCameraCenter: liveCameraCenter,
     ).map((marker) => marker.point.id).toList(growable: false);
   }
+
+  static double proximityBoost(
+    double distanceMeters, {
+    bool isSearchMode = false,
+  }) {
+    final range = isSearchMode ? 2200.0 : 2000.0;
+    return (20.0 * (1 - (distanceMeters / range))).clamp(0, 20);
+  }
 }
 
 List<_VisibleMapMarker> _computeVisibleMarkers({
