@@ -1,7 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'package:ruta_viva/core/network/dio_client.dart';
+import 'package:ruta_viva/features/map/data/models/poi_model.dart';
+import 'package:ruta_viva/features/map/data/repositories/poi_repository.dart';
 import 'package:ruta_viva/features/map/domain/entities/map_point.dart';
 import 'package:ruta_viva/features/map/presentation/providers/map_provider.dart';
 
@@ -284,5 +288,59 @@ void main() {
       expect(state.filteredItineraryId, equals('itinerary-1'));
       expect(state.isGlobalMode, isFalse);
     });
+
+    test(
+      'toggleCategoryFilter acumula múltiples categorías como unión OR',
+      () async {
+        final repo = _RecordingPoiRepository();
+        final container = ProviderContainer(
+          overrides: [poiRepositoryProvider.overrideWith((ref) => repo)],
+        );
+        addTearDown(container.dispose);
+
+        await container.read(mapProvider.notifier).toggleCategoryFilter(13);
+        await container.read(mapProvider.notifier).toggleCategoryFilter(14);
+
+        final state = container.read(mapProvider);
+        expect(state.selectedCategoryIds, equals({13, 14}));
+        expect(repo.categoryRequests, hasLength(2));
+        expect(repo.categoryRequests.last, equals([13, 14]));
+      },
+    );
+
+    test(
+      'clearCategoryFilters no repite request si ya está en Todos',
+      () async {
+        final repo = _RecordingPoiRepository();
+        final container = ProviderContainer(
+          overrides: [poiRepositoryProvider.overrideWith((ref) => repo)],
+        );
+        addTearDown(container.dispose);
+
+        await container.read(mapProvider.notifier).clearCategoryFilters();
+
+        expect(container.read(mapProvider).selectedCategoryIds, isEmpty);
+        expect(repo.searchCallCount, isZero);
+      },
+    );
   });
+}
+
+class _RecordingPoiRepository extends PoiRepository {
+  int searchCallCount = 0;
+  final categoryRequests = <List<int>>[];
+
+  _RecordingPoiRepository() : super(DioClient(Dio()));
+
+  @override
+  Future<List<PoiModel>> searchNearby({
+    required double lat,
+    required double lon,
+    double radius = 30000,
+    List<int> categoryIds = const [],
+  }) async {
+    searchCallCount++;
+    categoryRequests.add([...categoryIds]);
+    return const [];
+  }
 }

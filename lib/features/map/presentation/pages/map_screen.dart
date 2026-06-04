@@ -1454,8 +1454,15 @@ double _visualScore(
   final primaryBoost = point.visitRules?.isPrimaryExperience == true
       ? 18.0
       : 0.0;
+  final proximityBoost = distanceMeters < 2000
+      ? (2000 - distanceMeters) / 100
+      : 0.0;
   final distancePenalty = distanceMeters / (isSearchMode ? 2200 : 3000);
-  return categoryScore + imageBoost + primaryBoost - distancePenalty;
+  return categoryScore +
+      imageBoost +
+      primaryBoost +
+      proximityBoost -
+      distancePenalty;
 }
 
 double _categoryVisualPriority(int id, _MarkerDensity density) {
@@ -1509,8 +1516,8 @@ enum _MarkerDensity {
       };
     }
     return switch (this) {
-      _MarkerDensity.far => 28,
-      _MarkerDensity.medium => 64,
+      _MarkerDensity.far => 42,
+      _MarkerDensity.medium => 80,
       _MarkerDensity.near => 145,
     };
   }

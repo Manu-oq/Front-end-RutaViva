@@ -158,6 +158,9 @@ class MapNotifier extends Notifier<MapState> {
   }
 
   Future<void> clearCategoryFilters({LatLng? center}) {
+    if (state.selectedCategoryIds.isEmpty) {
+      return Future<void>.value();
+    }
     return loadNearby(center: center ?? state.center);
   }
 

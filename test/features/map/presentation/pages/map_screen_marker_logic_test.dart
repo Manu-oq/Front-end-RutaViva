@@ -5,6 +5,7 @@ import 'package:ruta_viva/features/map/presentation/pages/map_screen.dart';
 
 void main() {
   test('maxMarkers devuelve los mismos valores con y sin filtros', () {
+    final expected = {'far': 42, 'medium': 80, 'near': 145};
     for (final density in ['far', 'medium', 'near']) {
       expect(
         MapScreenMarkerLogicForTesting.maxMarkers(
@@ -17,6 +18,10 @@ void main() {
             hasCategoryFilters: true,
           ),
         ),
+      );
+      expect(
+        MapScreenMarkerLogicForTesting.maxMarkers(density: density),
+        equals(expected[density]),
       );
     }
   });

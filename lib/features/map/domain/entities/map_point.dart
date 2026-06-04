@@ -36,6 +36,8 @@ class MapPoint {
   final List<String>? amenities;
   final String? verificationStatus;
   final double? confidenceScore;
+  final DateTime? createdAt;
+  final String? createdByUserName;
 
   MapPoint({
     required this.id,
@@ -53,6 +55,8 @@ class MapPoint {
     this.amenities,
     this.verificationStatus,
     this.confidenceScore,
+    this.createdAt,
+    this.createdByUserName,
   });
 }
 
