@@ -33,21 +33,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   late final MapController _mapController;
   final _searchController = TextEditingController();
-  LatLng _cameraCenter = araucaniaDefaultCenter;
-  double _cameraZoom = 11.0;
+  final _camera = ValueNotifier<(LatLng, double)>(
+    (araucaniaDefaultCenter, 11.0),
+  );
   Timer? _autoRefreshTimer;
   String? _activeMapSearchQuery;
   bool _isResolvingSearch = false;
   double _pullRefreshOffset = 0;
   bool _isPullRefreshing = false;
 
+  LatLng get _cameraCenter => _camera.value.$1;
+  double get _cameraZoom => _camera.value.$2;
+
+  void _updateCamera(LatLng center, double zoom) {
+    _camera.value = (center, zoom);
+  }
+
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
     final current = ref.read(mapProvider);
-    _cameraCenter = current.center;
-    _cameraZoom = current.focusedPoiId != null ? 15.0 : 11.0;
+    _updateCamera(
+      current.center,
+      current.focusedPoiId != null ? 15.0 : 11.0,
+    );
     Future.microtask(() {
       final current = ref.read(mapProvider);
       if (widget.backFallbackRouteName == AppRouteNames.home &&
@@ -63,6 +73,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   @override
   void dispose() {
+    _camera.dispose();
     _autoRefreshTimer?.cancel();
     _searchController.dispose();
     _mapController.dispose();
@@ -247,10 +258,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
 
     final center = LatLng(position.latitude, position.longitude);
-    setState(() {
-      _cameraCenter = center;
-      _cameraZoom = 14.0;
-    });
+    _updateCamera(center, 14.0);
     _mapController.move(center, 14.0);
     await ref.read(mapProvider.notifier).loadNearby(center: center);
   }
@@ -288,10 +296,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         if (locations.isNotEmpty) {
           final nextCenter = locations.first.coordinates;
           _mapController.move(nextCenter, 13.0);
-          setState(() {
-            _cameraCenter = nextCenter;
-            _cameraZoom = 13.0;
-          });
+          _updateCamera(nextCenter, 13.0);
           await notifier.semanticSearch(query: query, center: nextCenter);
           stateAfterSearch = ref.read(mapProvider);
           if (stateAfterSearch.visiblePoints.isEmpty) {
@@ -310,10 +315,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       final first = finalVisiblePoints.first.coordinates;
       final targetZoom = _cameraZoom < 13 ? 13.0 : _cameraZoom;
       _mapController.move(first, targetZoom);
-      setState(() {
-        _cameraCenter = first;
-        _cameraZoom = targetZoom;
-      });
+      _updateCamera(first, targetZoom);
     }
     setState(() => _isResolvingSearch = false);
   }
@@ -354,10 +356,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   void _focusSearchResult(MapPoint point) {
     ref.read(mapProvider.notifier).selectPoint(point);
-    setState(() {
-      _cameraCenter = point.coordinates;
-      _cameraZoom = _cameraZoom < 14 ? 14.0 : _cameraZoom;
-    });
+    _updateCamera(
+      point.coordinates,
+      _cameraZoom < 14 ? 14.0 : _cameraZoom,
+    );
     _mapController.move(point.coordinates, _cameraZoom);
   }
 
@@ -397,8 +399,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final mapState = ref.watch(mapProvider);
-    final visiblePoints = mapState.visiblePoints;
-    final visibleMarkers = _visibleMarkers(visiblePoints, mapState);
 
     ref.listen<MapState>(mapProvider, (previous, next) {
       if (next.isGlobalMode || previous?.center == next.center) {
@@ -410,10 +410,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         if (!mounted) {
           return;
         }
-        setState(() {
-          _cameraCenter = next.center;
-          _cameraZoom = zoom;
-        });
+        _updateCamera(next.center, zoom);
         _mapController.move(next.center, zoom);
       });
     });
@@ -440,10 +437,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     final center = position.center;
                     final zoom = position.zoom;
                     if (hasGesture) {
-                      setState(() {
-                        _cameraCenter = center;
-                        _cameraZoom = zoom;
-                      });
+                      _updateCamera(center, zoom);
                       if (ref.read(mapProvider).isGlobalMode) {
                         _scheduleViewportRefresh(center);
                       }
@@ -456,24 +450,33 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.rutaviva.app',
                   ),
-                  MarkerLayer(
-                    markers: visibleMarkers
-                        .map((marker) {
-                          return Marker(
-                            point: marker.point.coordinates,
-                            width: marker.size,
-                            height: marker.showLabel
-                                ? marker.size + 24
-                                : marker.size,
-                            child: CustomMapMarker(
-                              point: marker.point,
-                              compact: !marker.showLabel,
-                              showLabel: marker.showLabel,
-                              highlighted: marker.highlighted,
-                            ),
-                          );
-                        })
-                        .toList(growable: false),
+                  ValueListenableBuilder<(LatLng, double)>(
+                    valueListenable: _camera,
+                    builder: (context, camera, _) {
+                      final visibleMarkers = _visibleMarkers(
+                        mapState.visiblePoints,
+                        mapState,
+                      );
+                      return MarkerLayer(
+                        markers: visibleMarkers
+                            .map((marker) {
+                              return Marker(
+                                point: marker.point.coordinates,
+                                width: marker.size,
+                                height: marker.showLabel
+                                    ? marker.size + 24
+                                    : marker.size,
+                                child: CustomMapMarker(
+                                  point: marker.point,
+                                  compact: !marker.showLabel,
+                                  showLabel: marker.showLabel,
+                                  highlighted: marker.highlighted,
+                                ),
+                              );
+                            })
+                            .toList(growable: false),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -641,7 +644,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               ),
                             if (!mapState.isLoading &&
                                 mapState.errorMessage == null &&
-                                visiblePoints.isEmpty)
+                                mapState.visiblePoints.isEmpty)
                               Padding(
                                 padding: EdgeInsets.only(
                                   bottom: overlaySpacing,
@@ -656,14 +659,14 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                               ),
                             if (mapState.isGlobalMode &&
                                 _activeMapSearchQuery != null &&
-                                visiblePoints.isNotEmpty)
+                                mapState.visiblePoints.isNotEmpty)
                               Padding(
                                 padding: EdgeInsets.only(
                                   right: constraints.maxWidth >= 720 ? 8 : 0,
                                   bottom: overlaySpacing,
                                 ),
                                 child: _MapSearchResultsPanel(
-                                  points: visiblePoints,
+                                  points: mapState.visiblePoints,
                                   selectedPointId: mapState.selectedPoint?.id,
                                   onSelect: _focusSearchResult,
                                 ),
@@ -680,19 +683,13 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           onZoomIn: () {
                             final newZoom = _mapController.camera.zoom + 1;
                             final center = _mapController.camera.center;
-                            setState(() {
-                              _cameraCenter = center;
-                              _cameraZoom = newZoom;
-                            });
+                            _updateCamera(center, newZoom);
                             _mapController.move(center, newZoom);
                           },
                           onZoomOut: () {
                             final newZoom = _mapController.camera.zoom - 1;
                             final center = _mapController.camera.center;
-                            setState(() {
-                              _cameraCenter = center;
-                              _cameraZoom = newZoom;
-                            });
+                            _updateCamera(center, newZoom);
                             _mapController.move(center, newZoom);
                           },
                           onLocateUser: _locateUser,

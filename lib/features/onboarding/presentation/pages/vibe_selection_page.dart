@@ -20,7 +20,6 @@ class VibeSelectionPage extends ConsumerStatefulWidget {
 class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
   bool _isSearching = false;
   String? _selectedVibeQuery;
-  String? _errorMessage;
 
   Future<void> _searchAndOpenMap(String query) async {
     if (_isSearching) {
@@ -30,7 +29,6 @@ class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
     setState(() {
       _isSearching = true;
       _selectedVibeQuery = query;
-      _errorMessage = null;
     });
 
     await ref.read(mapProvider.notifier).semanticSearch(query: query);
@@ -42,7 +40,6 @@ class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
     setState(() => _isSearching = false);
     final error = ref.read(mapProvider).errorMessage;
     if (error != null) {
-      setState(() => _errorMessage = error);
       return;
     }
 
@@ -63,6 +60,7 @@ class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selectedInterests = ref.watch(interestsProvider);
+    final errorMessage = ref.watch(mapProvider.select((s) => s.errorMessage));
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
@@ -93,11 +91,11 @@ class _VibeSelectionPageState extends ConsumerState<VibeSelectionPage> {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-            if (_errorMessage != null) ...[
+            if (errorMessage != null) ...[
               AppFeedbackBanner(
-                message: _errorMessage!,
+                message: errorMessage,
                 type: AppFeedbackType.error,
-                onDismiss: () => setState(() => _errorMessage = null),
+                onDismiss: () {},
               ),
               const SizedBox(height: 16),
             ],

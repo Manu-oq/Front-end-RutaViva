@@ -55,7 +55,9 @@ class TripProgressData {
             ),
           )
           .toList(growable: false),
-      lodgingName: p.lodging?.name,
+      lodgingName: p.lodging != null
+          ? '${p.lodging!.name} · ${p.lodging!.mode}'
+          : null,
     );
   }
 }

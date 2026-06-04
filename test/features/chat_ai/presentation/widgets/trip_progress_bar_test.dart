@@ -42,7 +42,7 @@ void main() {
               ],
               lodging: AraLodgingModel(
                 name: 'Hotel X',
-                plan: 'Todas las noches',
+                mode: 'Todas las noches',
               ),
             ),
           ),
