@@ -130,6 +130,21 @@ void main() {
   });
 
   group('PoiRepository POI request bodies', () {
+    test('create endpoint switches by creation type', () {
+      expect(
+        PoiRepository.createPoiEndpointForTesting('tourist'),
+        equals('/pois/tourist/'),
+      );
+      expect(
+        PoiRepository.createPoiEndpointForTesting('entrepreneur'),
+        equals('/pois/entrepreneur/'),
+      );
+      expect(
+        PoiRepository.createPoiEndpointForTesting('invalid'),
+        equals('/pois/tourist/'),
+      );
+    });
+
     test('create body uses backend English contract only', () {
       final body = PoiRepository.createPoiRequestBodyForTesting(
         name: 'Café del Lago',

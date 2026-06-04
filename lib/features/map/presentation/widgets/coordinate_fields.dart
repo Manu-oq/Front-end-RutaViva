@@ -50,8 +50,16 @@ class CoordinateFields extends StatelessWidget {
         Offstage(
           child: Column(
             children: [
-              TextFormField(controller: latController, validator: validator),
-              TextFormField(controller: lonController, validator: validator),
+              TextFormField(
+                key: const ValueKey('coordinate_lat_field'),
+                controller: latController,
+                validator: validator,
+              ),
+              TextFormField(
+                key: const ValueKey('coordinate_lon_field'),
+                controller: lonController,
+                validator: validator,
+              ),
             ],
           ),
         ),

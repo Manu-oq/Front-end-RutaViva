@@ -9,6 +9,7 @@ import 'package:ruta_viva/core/network/dio_client.dart';
 import 'package:ruta_viva/features/itinerary/data/models/itinerary_model.dart';
 import 'package:ruta_viva/features/itinerary/data/repositories/itinerary_repository.dart';
 import 'package:ruta_viva/features/itinerary/presentation/pages/itinerary_detail_page.dart';
+import 'package:ruta_viva/features/itinerary/presentation/widgets/day_drop_section.dart';
 
 void main() {
   testWidgets('drag step to another day updates state', (tester) async {
@@ -170,10 +171,7 @@ void main() {
       findsOneWidget,
     );
 
-    expect(
-      find.byWidgetPredicate((w) => w is DragTarget),
-      findsWidgets,
-    );
+    expect(find.byWidgetPredicate((w) => w is DragTarget), findsWidgets);
     expect(
       find.byWidgetPredicate((w) => w is LongPressDraggable),
       findsWidgets,
@@ -237,6 +235,58 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   });
 
+  testWidgets('drag step to top of same day saves it as first', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    final repo = _ReorderSpyRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          itineraryRepositoryProvider.overrideWith((ref) => repo),
+          itineraryDetailProvider.overrideWith((ref, itineraryId) async {
+            return _itineraryWithTwoDays();
+          }),
+        ],
+        child: const MaterialApp(
+          home: ItineraryDetailPage(itineraryId: 'itinerary-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final draggables = find.byWidgetPredicate((w) => w is LongPressDraggable);
+    final secondStepHandle = draggables.at(1);
+    final topDropTarget = find.byType(StepDropTarget).first;
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(secondStepHandle),
+    );
+    await tester.pump();
+    await tester.pump(kLongPressTimeout);
+    await tester.pump();
+    await gesture.moveTo(tester.getCenter(topDropTarget));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(repo.calledSteps, isNotNull);
+
+    final movedStep = repo.calledSteps!.firstWhere(
+      (s) => s['step_id'] == 'step-2',
+    );
+    expect(movedStep['day_index'], equals(1));
+    expect(movedStep['position'], equals(0));
+
+    final shiftedStep = repo.calledSteps!.firstWhere(
+      (s) => s['step_id'] == 'step-1',
+    );
+    expect(shiftedStep['day_index'], equals(1));
+    expect(shiftedStep['position'], equals(1));
+
+    repo.completeReorder();
+    await tester.pump(const Duration(milliseconds: 300));
+  });
+
   testWidgets('muestra aviso fuera de rango sobre las paradas del día', (
     tester,
   ) async {
@@ -291,9 +341,7 @@ void main() {
     expect(find.text('Ver lugar'), findsOneWidget);
   });
 
-  testWidgets('botón cambiar lugar inicia chat para reemplazo', (
-    tester,
-  ) async {
+  testWidgets('botón cambiar lugar inicia chat para reemplazo', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -447,10 +495,7 @@ ItineraryModel _itineraryNotEditable() {
         arrivalTime: DateTime(2026, 1, 2, 9),
         dayDate: DateTime(2026, 1, 2),
         dayIndex: 1,
-        aiContext: const {
-          'title': 'Paso bloqueado',
-          'reason': 'No editable.',
-        },
+        aiContext: const {'title': 'Paso bloqueado', 'reason': 'No editable.'},
       ),
     ],
   );

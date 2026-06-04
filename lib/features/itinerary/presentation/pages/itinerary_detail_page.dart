@@ -117,7 +117,6 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
               padding: EdgeInsets.fromLTRB(
@@ -184,12 +183,13 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                               .toList(growable: false),
                         ),
                         const SizedBox(height: 10),
-                        Text(
-                          'Mantén presionada una parada y arrástrala a otro día para reorganizarla.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                        if (days.length > 1 && widget.itinerary.isEditable)
+                          Text(
+                            'Mantén presionada una parada y arrástrala a otro día para reorganizarla.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
-                        ),
                         const SizedBox(height: 18),
                       ],
                     ),
@@ -224,6 +224,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                           stepBuilder: (context, step) => GeneratedStep(
                             step: step,
                             isEditable: widget.itinerary.isEditable,
+                            isSavingReorder: _state.isSavingReorder,
                             onDelete: () => _onDeleteStep(step),
                             onChange: () => _onChangeStep(step),
                             onReschedule: () => _onRescheduleDialog(step),
@@ -251,7 +252,8 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
   }
 
   Widget _wrapContent(BuildContext context, Widget child) {
-    return Center(
+    return Align(
+      alignment: Alignment.centerLeft,
       child: ConstrainedBox(
         constraints:
             BoxConstraints(maxWidth: AppResponsive.maxContentWidth(context)),

@@ -21,7 +21,9 @@ import '../widgets/poi_form_hero.dart';
 import '../widgets/poi_image_upload_field.dart';
 
 class CreatePoiPage extends ConsumerStatefulWidget {
-  const CreatePoiPage({super.key});
+  final String creationType;
+
+  const CreatePoiPage({super.key, this.creationType = 'tourist'});
 
   @override
   ConsumerState<CreatePoiPage> createState() => _CreatePoiPageState();
@@ -40,6 +42,8 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
   final Set<int> _selectedCategoryIds = {};
   bool _isSubmitting = false;
   String? _formErrorMessage;
+
+  bool get _isEntrepreneurCreation => widget.creationType == 'entrepreneur';
 
   @override
   void initState() {
@@ -74,6 +78,15 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
       });
       return;
     }
+    final latitude = double.tryParse(_latController.text.trim());
+    final longitude = double.tryParse(_lonController.text.trim());
+    if (latitude == null || longitude == null) {
+      setState(() {
+        _formErrorMessage =
+            'Revisa la ubicación: latitud y longitud deben ser números válidos.';
+      });
+      return;
+    }
 
     setState(() {
       _isSubmitting = true;
@@ -83,15 +96,16 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
       final poi = await ref
           .read(poiRepositoryProvider)
           .createPoi(
+            creationType: _isEntrepreneurCreation ? 'entrepreneur' : 'tourist',
             name: _nameController.text.trim(),
             description: _descriptionController.text.trim(),
             accessType: _accessType,
             imageUrl: _uploadedImageUrl?.trim() ?? '',
-            contactPhone: _phoneController.text.trim(),
-            contactEmail: _emailController.text.trim(),
+            contactPhone: _emptyToNull(_normalizedPhone(_phoneController.text)),
+            contactEmail: _emptyToNull(_emailController.text.trim()),
             categoryIds: _selectedCategoryIds.toList()..sort(),
-            latitude: double.parse(_latController.text.trim()),
-            longitude: double.parse(_lonController.text.trim()),
+            latitude: latitude,
+            longitude: longitude,
           );
 
       await ref
@@ -125,6 +139,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesProvider);
     final isMobile = AppResponsive.isMobile(context);
+    final isEntrepreneurCreation = _isEntrepreneurCreation;
 
     return Scaffold(
       body: PoiFormBackground(
@@ -150,12 +165,19 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const PoiFormHero(
-                              title: 'Comparte un lugar',
-                              eyebrow: 'Nuevo aporte',
-                              description:
-                                  'Ayuda a otros viajeros a descubrir rincones, servicios o experiencias de La Araucanía.',
-                              fallbackRouteName: AppRouteNames.profile,
+                            PoiFormHero(
+                              title: isEntrepreneurCreation
+                                  ? 'Publica tu negocio'
+                                  : 'Comparte un lugar',
+                              eyebrow: isEntrepreneurCreation
+                                  ? 'Nuevo lugar emprendedor'
+                                  : 'Nuevo aporte',
+                              description: isEntrepreneurCreation
+                                  ? 'Suma tu negocio, servicio o experiencia turística al mapa de Ruta Viva.'
+                                  : 'Ayuda a otros viajeros a descubrir rincones, servicios o experiencias de La Araucanía.',
+                              fallbackRouteName: isEntrepreneurCreation
+                                  ? AppRouteNames.entrepreneur
+                                  : AppRouteNames.profile,
                             ),
                             SizedBox(height: isMobile ? 14 : 16),
                             if (_formErrorMessage != null) ...[
@@ -228,26 +250,40 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
                             ),
                             const SizedBox(height: 16),
                             SectionCard(
-                              title: 'Contacto',
+                              title: isEntrepreneurCreation
+                                  ? 'Contacto del negocio'
+                                  : 'Contacto',
                               icon: Icons.contact_phone_rounded,
                               child: Column(
                                 children: [
                                   TextFormField(
                                     controller: _phoneController,
                                     keyboardType: TextInputType.phone,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Teléfono público opcional',
-                                      prefixIcon: Icon(Icons.phone_outlined),
+                                    decoration: InputDecoration(
+                                      labelText: isEntrepreneurCreation
+                                          ? 'Teléfono público obligatorio'
+                                          : 'Teléfono público opcional',
+                                      hintText: '+56912345678',
+                                      prefixIcon: const Icon(
+                                        Icons.phone_outlined,
+                                      ),
                                     ),
+                                    validator: _phoneValidator,
                                   ),
                                   const SizedBox(height: 14),
                                   TextFormField(
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Email público opcional',
-                                      prefixIcon: Icon(Icons.email_outlined),
+                                    decoration: InputDecoration(
+                                      labelText: isEntrepreneurCreation
+                                          ? 'Email público obligatorio'
+                                          : 'Email público opcional',
+                                      hintText: 'contacto@ejemplo.cl',
+                                      prefixIcon: const Icon(
+                                        Icons.email_outlined,
+                                      ),
                                     ),
+                                    validator: _emailValidator,
                                   ),
                                 ],
                               ),
@@ -328,11 +364,43 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
   }
 
   String? _coordinateValidator(String? value) {
-    final parsed = double.tryParse((value ?? '').trim());
-    if (parsed == null) {
-      return 'Coordenada inválida.';
+    // Coordinate fields are hidden; submit handles parse errors with a visible
+    // form banner instead of an offstage field error.
+    return null;
+  }
+
+  String? _phoneValidator(String? value) {
+    final text = _normalizedPhone(value ?? '');
+    if (text.isEmpty) {
+      return _isEntrepreneurCreation ? 'Ingresa un teléfono público.' : null;
+    }
+    final isValid = RegExp(r'^\+56\d{9,11}$').hasMatch(text);
+    if (!isValid) {
+      return 'Usa formato chileno: +56 seguido de 9 a 11 dígitos.';
     }
     return null;
+  }
+
+  String? _emailValidator(String? value) {
+    final text = (value ?? '').trim();
+    if (text.isEmpty) {
+      return _isEntrepreneurCreation ? 'Ingresa un email público.' : null;
+    }
+    final isValid = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(text);
+    if (!isValid) {
+      return 'Ingresa un email válido.';
+    }
+    return null;
+  }
+
+  String _normalizedPhone(String value) {
+    return value.trim().replaceAll(RegExp(r'[\s-]'), '');
+  }
+
+  String? _emptyToNull(String value) {
+    return value.isEmpty ? null : value;
   }
 }
 

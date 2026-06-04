@@ -56,7 +56,10 @@ class AccountSettings extends ConsumerWidget {
               icon: Icons.add_location_alt_rounded,
               title: 'Compartir lugar',
               description: 'Sugiere un punto de interés para otros viajeros.',
-              onTap: () => context.pushNamedSafe(AppRouteNames.createPoi),
+              onTap: () => context.pushNamedSafe(
+                AppRouteNames.createPoi,
+                queryParameters: const {'creationType': 'tourist'},
+              ),
             ),
             _SettingTile(
               icon: Icons.storefront_rounded,

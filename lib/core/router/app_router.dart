@@ -151,10 +151,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.createPoi,
         name: AppRouteNames.createPoi,
-        pageBuilder: (context, state) => _fadeTransitionPage(
-          key: state.pageKey,
-          child: const CreatePoiPage(),
-        ),
+        pageBuilder: (context, state) {
+          final creationType =
+              state.uri.queryParameters['creationType'] ?? 'tourist';
+          return _fadeTransitionPage(
+            key: state.pageKey,
+            child: CreatePoiPage(creationType: creationType),
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.editPoi,

@@ -64,10 +64,14 @@ class DayDropSection extends StatelessWidget {
     final theme = Theme.of(context);
     return DragTarget<ItineraryStepModel>(
       onWillAcceptWithDetails: (_) => isEditable && !isSavingReorder,
+      onAcceptWithDetails: steps.isEmpty
+          ? (details) => onDrop(details.data, day, 0)
+          : null,
       builder: (context, candidateData, rejectedData) {
         final isDragTarget = candidateData.isNotEmpty;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: isDragTarget
@@ -112,37 +116,64 @@ class DayDropSection extends StatelessWidget {
                   day: day,
                   index: 0,
                   enabled: isEditable && !isSavingReorder,
-                  onDrop: onDrop,
+                  onDrop: _dropAt,
                   child: const EmptyDayCard(),
                 )
               else
-                for (final entry in steps.indexed) ...[
-                  StepDropTarget(
-                    day: day,
-                    index: entry.$1,
-                    enabled: isEditable && !isSavingReorder,
-                    onDrop: onDrop,
-                    child: const SizedBox(height: 8),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 240),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: Column(
+                    children: [
+                      for (final entry in steps.indexed) ...[
+                        StepDropTarget(
+                          day: day,
+                          index: entry.$1,
+                          enabled: isEditable && !isSavingReorder,
+                          onDrop: _dropAt,
+                          indicatorAlignment: Alignment.center,
+                          child: const SizedBox(height: 36),
+                        ),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 240),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          child: KeyedSubtree(
+                            key: ValueKey('step-card-${entry.$2.id}'),
+                            child: stepBuilder(context, entry.$2),
+                          ),
+                        ),
+                        if (entry.$1 == steps.length - 1)
+                          StepDropTarget(
+                            day: day,
+                            index: entry.$1 + 1,
+                            enabled: isEditable && !isSavingReorder,
+                            onDrop: _dropAt,
+                            indicatorAlignment: Alignment.center,
+                            child: const SizedBox(height: 36),
+                          ),
+                      ],
+                    ],
                   ),
-                  DraggableStepCard(
-                    step: entry.$2,
-                    enabled: isEditable && !isSavingReorder,
-                    child: stepBuilder(context, entry.$2),
-                  ),
-                  if (entry.$1 == steps.length - 1)
-                    StepDropTarget(
-                      day: day,
-                      index: steps.length,
-                      enabled: isEditable && !isSavingReorder,
-                      onDrop: onDrop,
-                      child: const SizedBox(height: 8),
-                    ),
-                ],
+                ),
             ],
           ),
         );
       },
     );
+  }
+
+  void _dropAt(ItineraryStepModel movedStep, DateTime day, int requestedIndex) {
+    onDrop(movedStep, day, _effectiveDropIndex(movedStep, requestedIndex));
+  }
+
+  int _effectiveDropIndex(ItineraryStepModel movedStep, int requestedIndex) {
+    final originalIndex = steps.indexWhere((step) => step.id == movedStep.id);
+    if (originalIndex < 0 || originalIndex >= requestedIndex) {
+      return requestedIndex;
+    }
+    return requestedIndex - 1;
   }
 }
 
@@ -152,6 +183,7 @@ class StepDropTarget extends StatelessWidget {
   final bool enabled;
   final void Function(ItineraryStepModel step, DateTime day, int index) onDrop;
   final Widget child;
+  final Alignment indicatorAlignment;
 
   const StepDropTarget({
     super.key,
@@ -160,6 +192,7 @@ class StepDropTarget extends StatelessWidget {
     required this.enabled,
     required this.onDrop,
     required this.child,
+    this.indicatorAlignment = Alignment.center,
   });
 
   @override
@@ -172,50 +205,63 @@ class StepDropTarget extends StatelessWidget {
       builder: (context, candidateData, rejectedData) {
         final isActive = candidateData.isNotEmpty;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
           decoration: BoxDecoration(
             color: isActive
-                ? theme.colorScheme.primary.withValues(alpha: 0.16)
+                ? theme.colorScheme.primary.withValues(alpha: 0.08)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-            border: isActive
-                ? Border.all(color: theme.colorScheme.primary, width: 1.5)
-                : null,
+            borderRadius: BorderRadius.circular(22),
           ),
-          child: child,
+          child: Stack(
+            children: [
+              child,
+              Align(
+                alignment: indicatorAlignment,
+                child: _DropPositionIndicator(active: isActive),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 }
 
-class DraggableStepCard extends StatelessWidget {
-  final ItineraryStepModel step;
-  final bool enabled;
-  final Widget child;
+class _DropPositionIndicator extends StatelessWidget {
+  final bool active;
 
-  const DraggableStepCard({
-    super.key,
-    required this.step,
-    required this.enabled,
-    required this.child,
-  });
+  const _DropPositionIndicator({required this.active});
 
   @override
   Widget build(BuildContext context) {
-    if (!enabled) return child;
-    return LongPressDraggable<ItineraryStepModel>(
-      data: step,
-      feedback: Material(
-        elevation: 8,
-        borderRadius: BorderRadius.circular(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Opacity(opacity: 0.92, child: child),
-        ),
-      ),
-      childWhenDragging: Opacity(opacity: 0.35, child: child),
-      child: child,
+    final theme = Theme.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          width: width,
+          height: active ? 5 : 0,
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+        );
+      },
     );
   }
 }

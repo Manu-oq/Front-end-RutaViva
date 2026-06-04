@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../weather/data/models/weather_forecast_model.dart';
 import '../../data/models/itinerary_model.dart';
 import '../../data/repositories/itinerary_repository.dart';
 
@@ -83,7 +84,7 @@ class WeatherDashboard extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Información dinámica por parada entregada por Ruta Viva.',
+            'Pronóstico diario actualizado, entregado por Ruta Viva.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -121,7 +122,7 @@ class WeatherDashboard extends ConsumerWidget {
 }
 
 class AdaptiveItineraryWeatherCards extends StatelessWidget {
-  final List<ItineraryStepWeatherModel> items;
+  final List<WeatherForecastDay> items;
 
   const AdaptiveItineraryWeatherCards({super.key, required this.items});
 
@@ -149,7 +150,7 @@ class AdaptiveItineraryWeatherCards extends StatelessWidget {
             for (final item in items)
               SizedBox(
                 width: cardWidth,
-                child: ItineraryWeatherCard(item: item),
+                child: DayWeatherCard(item: item),
               ),
           ],
         );
@@ -158,30 +159,25 @@ class AdaptiveItineraryWeatherCards extends StatelessWidget {
   }
 }
 
-class ItineraryWeatherCard extends StatelessWidget {
-  final ItineraryStepWeatherModel item;
+class DayWeatherCard extends StatelessWidget {
+  final WeatherForecastDay item;
 
-  const ItineraryWeatherCard({super.key, required this.item});
+  const DayWeatherCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final weather = item.weather;
-    final isAvailable =
-        item.weatherAvailable &&
-        item.weatherStatus == 'available' &&
-        weather != null;
-    final statusMessage = _statusMessage(item);
+    final hasData = item.summary != null || item.maxTempC != null;
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isAvailable
+        color: hasData
             ? theme.colorScheme.primary.withValues(alpha: 0.07)
             : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: isAvailable
+          color: hasData
               ? theme.colorScheme.primary.withValues(alpha: 0.12)
               : theme.colorScheme.outlineVariant,
         ),
@@ -192,17 +188,15 @@ class ItineraryWeatherCard extends StatelessWidget {
           Row(
             children: [
               Icon(
-                isAvailable
-                    ? _weatherIcon(weather.description ?? '')
-                    : _statusIcon(item.weatherStatus),
-                color: isAvailable
+                _weatherIcon(item.summary ?? ''),
+                color: hasData
                     ? theme.colorScheme.primary
                     : theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  item.poiName ?? 'Parada',
+                  _dayLabel(item),
                   style: theme.textTheme.labelLarge,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -210,30 +204,24 @@ class ItineraryWeatherCard extends StatelessWidget {
               ),
             ],
           ),
-          if (item.dayDate != null) ...[
-            const SizedBox(height: 4),
+          const SizedBox(height: 10),
+          if (hasData) ...[
+            if (item.summary != null && item.summary!.isNotEmpty)
+              Text(
+                item.summary!,
+                style: theme.textTheme.bodyMedium,
+              ),
+            if (item.summary != null && item.summary!.isNotEmpty)
+              const SizedBox(height: 4),
             Text(
-              _weatherDateLabel(item.dayDate!),
+              _temperatureLine(item),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
-          ],
-          const SizedBox(height: 10),
-          if (isAvailable) ...[
-            Text(weather.description ?? 'Clima disponible'),
-            const SizedBox(height: 4),
-            Text(
-              [
-                if (weather.temperatureC != null)
-                  '${weather.temperatureC!.round()}°C',
-                if (weather.precipitationProbability != null)
-                  '${weather.precipitationProbability}% precipitaciones',
-              ].join(' • '),
-            ),
           ] else
             Text(
-              statusMessage,
+              'Datos del clima no disponibles',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 height: 1.35,
@@ -244,37 +232,34 @@ class ItineraryWeatherCard extends StatelessWidget {
     );
   }
 
-  static String _statusMessage(ItineraryStepWeatherModel item) {
-    final backendMessage = item.weatherMessage?.trim();
-    if (backendMessage != null && backendMessage.isNotEmpty) {
-      return backendMessage;
+  static String _dayLabel(WeatherForecastDay item) {
+    if (item.label != null && item.label!.isNotEmpty) return item.label!;
+    final day = item.date.day.toString().padLeft(2, '0');
+    final month = item.date.month.toString().padLeft(2, '0');
+    return '$day/$month/${item.date.year}';
+  }
+
+  static String _temperatureLine(WeatherForecastDay item) {
+    final parts = <String>[];
+    if (item.maxTempC != null) {
+      if (item.minTempC != null) {
+        parts.add('${item.minTempC!.round()}° – ${item.maxTempC!.round()}°C');
+      } else {
+        parts.add('${item.maxTempC!.round()}°C máx');
+      }
+    } else if (item.minTempC != null) {
+      parts.add('${item.minTempC!.round()}°C mín');
     }
-    return switch (item.weatherStatus) {
-      'out_of_range' =>
-        'El pronóstico detallado estará disponible más cerca de la fecha del viaje.',
-      'not_applicable' =>
-        'El clima ya no se consulta para itinerarios finalizados o pasados.',
-      'unavailable' => 'No se pudo cargar el clima en este momento.',
-      _ => 'No se pudo cargar el clima en este momento.',
-    };
+    if (item.precipitationProbability != null) {
+      parts.add('${item.precipitationProbability}% precipitaciones');
+    } else if (item.precipitationMm != null) {
+      parts.add('${item.precipitationMm!.toStringAsFixed(1)} mm');
+    }
+    return parts.join(' • ');
   }
 
-  static String _weatherDateLabel(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    return '$day/$month/${date.year}';
-  }
-
-  static IconData _statusIcon(String status) {
-    return switch (status) {
-      'out_of_range' => Icons.event_available_outlined,
-      'not_applicable' => Icons.history_rounded,
-      _ => Icons.cloud_off_outlined,
-    };
-  }
-
-  static IconData _weatherIcon(String description) {
-    final lower = description.toLowerCase();
+  static IconData _weatherIcon(String summary) {
+    final lower = summary.toLowerCase();
     if (lower.contains('lluvia') || lower.contains('rain')) {
       return Icons.water_drop_rounded;
     }

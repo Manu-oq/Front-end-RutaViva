@@ -33,20 +33,64 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   late final MapController _mapController;
   final _searchController = TextEditingController();
-  final _camera = ValueNotifier<(LatLng, double)>(
-    (araucaniaDefaultCenter, 11.0),
-  );
+  final _camera = ValueNotifier<(LatLng, double)>((
+    araucaniaDefaultCenter,
+    11.0,
+  ));
+  final _markerDensity = ValueNotifier<_MarkerDensity>(_MarkerDensity.far);
   Timer? _autoRefreshTimer;
   String? _activeMapSearchQuery;
   bool _isResolvingSearch = false;
   double _pullRefreshOffset = 0;
   bool _isPullRefreshing = false;
+  String? _lastMarkerSignature;
+  List<_VisibleMapMarker>? _stableMarkersCache;
 
-  LatLng get _cameraCenter => _camera.value.$1;
   double get _cameraZoom => _camera.value.$2;
+  LatLng get _liveCameraCenter => _camera.value.$1;
 
   void _updateCamera(LatLng center, double zoom) {
     _camera.value = (center, zoom);
+    final nextDensity = _MarkerDensity.fromZoom(zoom);
+    if (_markerDensity.value != nextDensity) {
+      _markerDensity.value = nextDensity;
+    }
+  }
+
+  bool _canBuildMarkerLayer(BuildContext context) {
+    if (!mounted) {
+      return false;
+    }
+
+    try {
+      final renderObject = context.findRenderObject();
+      if (renderObject is RenderBox) {
+        if (!renderObject.hasSize ||
+            !renderObject.size.width.isFinite ||
+            !renderObject.size.height.isFinite ||
+            renderObject.size.width <= 0 ||
+            renderObject.size.height <= 0) {
+          return false;
+        }
+      }
+
+      final camera = _mapController.camera;
+      final size = camera.nonRotatedSize;
+      if (!size.width.isFinite ||
+          !size.height.isFinite ||
+          size.width <= 0 ||
+          size.height <= 0) {
+        return false;
+      }
+
+      final bounds = camera.visibleBounds;
+      return bounds.north.isFinite &&
+          bounds.south.isFinite &&
+          bounds.east.isFinite &&
+          bounds.west.isFinite;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -54,10 +98,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     super.initState();
     _mapController = MapController();
     final current = ref.read(mapProvider);
-    _updateCamera(
-      current.center,
-      current.focusedPoiId != null ? 15.0 : 11.0,
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _updateCamera(current.center, current.focusedPoiId != null ? 15.0 : 11.0);
+    });
     Future.microtask(() {
       final current = ref.read(mapProvider);
       if (widget.backFallbackRouteName == AppRouteNames.home &&
@@ -74,6 +118,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   void dispose() {
     _camera.dispose();
+    _markerDensity.dispose();
     _autoRefreshTimer?.cancel();
     _searchController.dispose();
     _mapController.dispose();
@@ -84,139 +129,39 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     List<MapPoint> points,
     MapState mapState,
   ) {
-    if (points.isEmpty) {
-      return const [];
-    }
-
-    if (!mapState.isGlobalMode) {
-      return [
-        for (final point in points)
-          _VisibleMapMarker(
-            point: point,
-            size: mapState.focusedPoiId == point.id ? 82 : 64,
-            showLabel: true,
-            highlighted: mapState.focusedPoiId == point.id,
-          ),
-      ];
-    }
-
-    final isSearchMode = _activeMapSearchQuery?.trim().isNotEmpty == true;
-    final density = _MarkerDensity.fromZoom(_cameraZoom);
-    final hasCategoryFilters = mapState.selectedCategoryIds.isNotEmpty;
-    const distance = Distance();
-    final radiusMeters = density.radiusMeters(isSearchMode: isSearchMode);
-    final maxMarkers = density.maxMarkers(
-      hasCategoryFilters: hasCategoryFilters,
-      isSearchMode: isSearchMode,
+    return _computeVisibleMarkers(
+      points: points,
+      isGlobalMode: mapState.isGlobalMode,
+      focusedPoiId: mapState.focusedPoiId,
+      selectedPointId: mapState.selectedPoint?.id,
+      activeSearchQuery: _activeMapSearchQuery,
+      density: _markerDensity.value,
+      liveCameraCenter: _liveCameraCenter,
     );
-    final cellSize = density.cellSize(
-      hasCategoryFilters: hasCategoryFilters,
-      isSearchMode: isSearchMode,
-    );
-
-    final candidates =
-        <({MapPoint point, double meters})>[
-          for (final point in points)
-            if (isSearchMode ||
-                hasCategoryFilters ||
-                density.allows(point.categoryIds))
-              (
-                point: point,
-                meters: distance.as(
-                  LengthUnit.Meter,
-                  _cameraCenter,
-                  point.coordinates,
-                ),
-              ),
-        ].where((item) => item.meters <= radiusMeters).toList()..sort((a, b) {
-          final scoreA = _visualScore(
-            a.point,
-            a.meters,
-            density: density,
-            isSearchMode: isSearchMode,
-          );
-          final scoreB = _visualScore(
-            b.point,
-            b.meters,
-            density: density,
-            isSearchMode: isSearchMode,
-          );
-          final byScore = scoreB.compareTo(scoreA);
-          return byScore == 0 ? a.meters.compareTo(b.meters) : byScore;
-        });
-
-    final occupiedCells = <String>{};
-    final visible = <_VisibleMapMarker>[];
-    for (final item in candidates) {
-      final cell = _screenCellKey(item.point, cellSize);
-      if (!occupiedCells.add(cell)) {
-        continue;
-      }
-      visible.add(
-        _VisibleMapMarker(
-          point: item.point,
-          size: density.markerSize(isSearchMode: isSearchMode),
-          showLabel:
-              isSearchMode ||
-              density == _MarkerDensity.near ||
-              item.point.id == mapState.selectedPoint?.id,
-          highlighted: item.point.id == mapState.selectedPoint?.id,
-        ),
-      );
-      if (visible.length >= maxMarkers) {
-        break;
-      }
-    }
-    return visible;
   }
 
-  String _screenCellKey(MapPoint point, double cellSize) {
-    try {
-      final offset = _mapController.camera.getOffsetFromOrigin(
-        point.coordinates,
-      );
-      return '${(offset.dx / cellSize).floor()}:${(offset.dy / cellSize).floor()}';
-    } catch (_) {
-      final scale = _cameraZoom >= 14
-          ? 0.002
-          : _cameraZoom >= 12
-          ? 0.006
-          : 0.016;
-      return '${(point.coordinates.latitude / scale).floor()}:${(point.coordinates.longitude / scale).floor()}';
+  List<_VisibleMapMarker> _stableMarkers(
+    List<MapPoint> points,
+    MapState mapState,
+  ) {
+    final signature = _markerSignature(points, mapState);
+    if (_lastMarkerSignature == signature && _stableMarkersCache != null) {
+      return _stableMarkersCache!;
     }
+    final markers = _visibleMarkers(points, mapState);
+    _stableMarkersCache = markers;
+    _lastMarkerSignature = signature;
+    return markers;
   }
 
-  double _visualScore(
-    MapPoint point,
-    double distanceMeters, {
-    required _MarkerDensity density,
-    required bool isSearchMode,
-  }) {
-    final categoryScore = point.categoryIds.isEmpty
-        ? 4.0
-        : point.categoryIds
-              .map((id) => _categoryVisualPriority(id, density))
-              .reduce((a, b) => a > b ? a : b);
-    final imageBoost = point.imageUrl?.isNotEmpty == true ? 8.0 : 0.0;
-    final primaryBoost = point.visitRules?.isPrimaryExperience == true
-        ? 18.0
-        : 0.0;
-    final distancePenalty = distanceMeters / (isSearchMode ? 2200 : 3000);
-    return categoryScore + imageBoost + primaryBoost - distancePenalty;
-  }
-
-  double _categoryVisualPriority(int id, _MarkerDensity density) {
-    final landmark = switch (id) {
-      1 || 3 || 7 || 8 || 9 || 10 || 11 => 100.0,
-      5 || 6 || 12 => 82.0,
-      2 || 4 || 15 => 66.0,
-      13 || 14 => 38.0,
-      _ => 44.0,
-    };
-    if (density == _MarkerDensity.near) {
-      return landmark + (id == 13 || id == 14 ? 18.0 : 0.0);
-    }
-    return landmark;
+  String _markerSignature(List<MapPoint> points, MapState mapState) {
+    final density = _markerDensity.value;
+    final searchKey = _activeMapSearchQuery?.hashCode.toString() ?? '0';
+    final filterKey = mapState.selectedCategoryIds.toList()..sort();
+    final pointsKey = points.map((point) => point.id).join(',');
+    final selectedKey =
+        mapState.selectedPoint?.id ?? mapState.focusedPoiId ?? '';
+    return '${density.name}:$searchKey:${filterKey.join(',')}:$selectedKey:$pointsKey';
   }
 
   Future<void> _locateUser() async {
@@ -356,10 +301,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   void _focusSearchResult(MapPoint point) {
     ref.read(mapProvider.notifier).selectPoint(point);
-    _updateCamera(
-      point.coordinates,
-      _cameraZoom < 14 ? 14.0 : _cameraZoom,
-    );
+    _updateCamera(point.coordinates, _cameraZoom < 14 ? 14.0 : _cameraZoom);
     _mapController.move(point.coordinates, _cameraZoom);
   }
 
@@ -401,17 +343,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final mapState = ref.watch(mapProvider);
 
     ref.listen<MapState>(mapProvider, (previous, next) {
+      if (ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
       if (next.isGlobalMode || previous?.center == next.center) {
         return;
       }
       final zoom = next.focusedPoiId != null ? 15.0 : 13.0;
       _autoRefreshTimer?.cancel();
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
+        if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
           return;
         }
-        _updateCamera(next.center, zoom);
         _mapController.move(next.center, zoom);
+        _updateCamera(next.center, zoom);
       });
     });
 
@@ -430,6 +375,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 options: MapOptions(
                   initialCenter: mapState.center,
                   initialZoom: mapState.focusedPoiId != null ? 15.0 : 11.0,
+                  minZoom: 7,
+                  maxZoom: 18,
                   interactionOptions: const InteractionOptions(
                     flags: InteractiveFlag.all,
                   ),
@@ -450,31 +397,37 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.rutaviva.app',
                   ),
-                  ValueListenableBuilder<(LatLng, double)>(
-                    valueListenable: _camera,
-                    builder: (context, camera, _) {
-                      final visibleMarkers = _visibleMarkers(
+                  ValueListenableBuilder<_MarkerDensity>(
+                    valueListenable: _markerDensity,
+                    builder: (context, density, _) {
+                      if (!_canBuildMarkerLayer(context)) {
+                        return const MarkerLayer(markers: []);
+                      }
+                      final visibleMarkers = _stableMarkers(
                         mapState.visiblePoints,
                         mapState,
                       );
-                      return MarkerLayer(
-                        markers: visibleMarkers
-                            .map((marker) {
-                              return Marker(
-                                point: marker.point.coordinates,
-                                width: marker.size,
-                                height: marker.showLabel
-                                    ? marker.size + 24
-                                    : marker.size,
-                                child: CustomMapMarker(
-                                  point: marker.point,
-                                  compact: !marker.showLabel,
-                                  showLabel: marker.showLabel,
-                                  highlighted: marker.highlighted,
-                                ),
-                              );
-                            })
-                            .toList(growable: false),
+                      return RepaintBoundary(
+                        child: MarkerLayer(
+                          key: ValueKey(_lastMarkerSignature),
+                          markers: visibleMarkers
+                              .map((marker) {
+                                return Marker(
+                                  point: marker.point.coordinates,
+                                  width: marker.size,
+                                  height: marker.showLabel
+                                      ? marker.size + 24
+                                      : marker.size,
+                                  child: CustomMapMarker(
+                                    point: marker.point,
+                                    compact: !marker.showLabel,
+                                    showLabel: marker.showLabel,
+                                    highlighted: marker.highlighted,
+                                  ),
+                                );
+                              })
+                              .toList(growable: false),
+                        ),
                       );
                     },
                   ),
@@ -1338,6 +1291,195 @@ class _MapNotice extends StatelessWidget {
   }
 }
 
+@visibleForTesting
+class MapScreenMarkerLogicForTesting {
+  const MapScreenMarkerLogicForTesting._();
+
+  static int maxMarkers({
+    String density = 'far',
+    bool hasCategoryFilters = false,
+    bool isSearchMode = false,
+  }) {
+    return _densityFromName(density).maxMarkers(isSearchMode: isSearchMode);
+  }
+
+  static double categoryVisualPriority(int id, {String density = 'far'}) {
+    return _categoryVisualPriority(id, _densityFromName(density));
+  }
+
+  static List<String> visibleMarkerIds({
+    required List<MapPoint> points,
+    required LatLng liveCameraCenter,
+    String? focusedPoiId,
+    String? selectedPointId,
+    String density = 'far',
+    String? activeSearchQuery,
+    bool isGlobalMode = true,
+  }) {
+    return _computeVisibleMarkers(
+      points: points,
+      isGlobalMode: isGlobalMode,
+      focusedPoiId: focusedPoiId,
+      selectedPointId: selectedPointId,
+      activeSearchQuery: activeSearchQuery,
+      density: _densityFromName(density),
+      liveCameraCenter: liveCameraCenter,
+    ).map((marker) => marker.point.id).toList(growable: false);
+  }
+}
+
+List<_VisibleMapMarker> _computeVisibleMarkers({
+  required List<MapPoint> points,
+  required bool isGlobalMode,
+  required String? focusedPoiId,
+  required String? selectedPointId,
+  required String? activeSearchQuery,
+  required _MarkerDensity density,
+  required LatLng liveCameraCenter,
+}) {
+  if (points.isEmpty) {
+    return const [];
+  }
+
+  if (!isGlobalMode) {
+    return [
+      for (final point in points)
+        _VisibleMapMarker(
+          point: point,
+          size: focusedPoiId == point.id ? 82 : 64,
+          showLabel: true,
+          highlighted: focusedPoiId == point.id,
+        ),
+    ];
+  }
+
+  final isSearchMode = activeSearchQuery?.trim().isNotEmpty == true;
+  const distance = Distance();
+  final radiusMeters = density.radiusMeters(isSearchMode: isSearchMode);
+  final maxMarkers = density.maxMarkers(isSearchMode: isSearchMode);
+  final cellSize = density.cellSize(isSearchMode: isSearchMode);
+
+  final candidates =
+      <({MapPoint point, double meters})>[
+        for (final point in points)
+          if (point.id != focusedPoiId)
+            (
+              point: point,
+              meters: distance.as(
+                LengthUnit.Meter,
+                liveCameraCenter,
+                point.coordinates,
+              ),
+            ),
+      ].where((item) => item.meters <= radiusMeters).toList()..sort((a, b) {
+        final scoreA = _visualScore(
+          a.point,
+          a.meters,
+          density: density,
+          isSearchMode: isSearchMode,
+        );
+        final scoreB = _visualScore(
+          b.point,
+          b.meters,
+          density: density,
+          isSearchMode: isSearchMode,
+        );
+        final byScore = scoreB.compareTo(scoreA);
+        return byScore == 0 ? a.meters.compareTo(b.meters) : byScore;
+      });
+
+  final occupiedCells = <String>{};
+  final visible = <_VisibleMapMarker>[];
+  if (focusedPoiId != null) {
+    final focusedPoint = points.where((point) => point.id == focusedPoiId);
+    if (focusedPoint.isNotEmpty) {
+      final point = focusedPoint.first;
+      visible.add(
+        _VisibleMapMarker(
+          point: point,
+          size: 82,
+          showLabel: true,
+          highlighted: true,
+        ),
+      );
+      occupiedCells.add(_markerCellKey(point, cellSize, density));
+    }
+  }
+
+  for (final item in candidates) {
+    final cell = _markerCellKey(item.point, cellSize, density);
+    if (!occupiedCells.add(cell)) {
+      continue;
+    }
+    visible.add(
+      _VisibleMapMarker(
+        point: item.point,
+        size: density.markerSize(isSearchMode: isSearchMode),
+        showLabel:
+            isSearchMode ||
+            density == _MarkerDensity.near ||
+            item.point.id == selectedPointId,
+        highlighted: item.point.id == selectedPointId,
+      ),
+    );
+    if (visible.length >= maxMarkers) {
+      break;
+    }
+  }
+  return visible;
+}
+
+String _markerCellKey(MapPoint point, double cellSize, _MarkerDensity density) {
+  final baseScale = switch (density) {
+    _MarkerDensity.far => 0.018,
+    _MarkerDensity.medium => 0.008,
+    _MarkerDensity.near => 0.003,
+  };
+  final scale = baseScale * (cellSize / density.baseCellSize);
+  return '${(point.coordinates.latitude / scale).floor()}:${(point.coordinates.longitude / scale).floor()}';
+}
+
+double _visualScore(
+  MapPoint point,
+  double distanceMeters, {
+  required _MarkerDensity density,
+  required bool isSearchMode,
+}) {
+  final categoryScore = point.categoryIds.isEmpty
+      ? 4.0
+      : point.categoryIds
+            .map((id) => _categoryVisualPriority(id, density))
+            .reduce((a, b) => a > b ? a : b);
+  final imageBoost = point.imageUrl?.isNotEmpty == true ? 8.0 : 0.0;
+  final primaryBoost = point.visitRules?.isPrimaryExperience == true
+      ? 18.0
+      : 0.0;
+  final distancePenalty = distanceMeters / (isSearchMode ? 2200 : 3000);
+  return categoryScore + imageBoost + primaryBoost - distancePenalty;
+}
+
+double _categoryVisualPriority(int id, _MarkerDensity density) {
+  final landmark = switch (id) {
+    1 || 3 || 7 || 8 || 9 || 10 || 11 => 100.0,
+    5 || 6 || 12 => 82.0,
+    2 || 4 || 15 => 66.0,
+    13 || 14 => 60.0,
+    _ => 44.0,
+  };
+  if (density == _MarkerDensity.near) {
+    return landmark + (id == 13 || id == 14 ? 18.0 : 0.0);
+  }
+  return landmark;
+}
+
+_MarkerDensity _densityFromName(String density) {
+  return switch (density) {
+    'near' => _MarkerDensity.near,
+    'medium' => _MarkerDensity.medium,
+    _ => _MarkerDensity.far,
+  };
+}
+
 enum _MarkerDensity {
   far,
   medium,
@@ -1349,32 +1491,6 @@ enum _MarkerDensity {
     return _MarkerDensity.far;
   }
 
-  bool allows(List<int> categoryIds) {
-    if (this == _MarkerDensity.near || categoryIds.isEmpty) {
-      return true;
-    }
-    final allowed = switch (this) {
-      _MarkerDensity.far => const {1, 3, 7, 8, 9, 10, 11},
-      _MarkerDensity.medium => const {
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        15,
-      },
-      _MarkerDensity.near => const <int>{},
-    };
-    return categoryIds.any(allowed.contains);
-  }
-
   double radiusMeters({required bool isSearchMode}) {
     if (isSearchMode) return 50000;
     return switch (this) {
@@ -1384,22 +1500,12 @@ enum _MarkerDensity {
     };
   }
 
-  int maxMarkers({
-    required bool hasCategoryFilters,
-    required bool isSearchMode,
-  }) {
+  int maxMarkers({required bool isSearchMode}) {
     if (isSearchMode) {
       return switch (this) {
         _MarkerDensity.far => 48,
         _MarkerDensity.medium => 80,
         _MarkerDensity.near => 140,
-      };
-    }
-    if (hasCategoryFilters) {
-      return switch (this) {
-        _MarkerDensity.far => 56,
-        _MarkerDensity.medium => 96,
-        _MarkerDensity.near => 170,
       };
     }
     return switch (this) {
@@ -1409,17 +1515,15 @@ enum _MarkerDensity {
     };
   }
 
-  double cellSize({
-    required bool hasCategoryFilters,
-    required bool isSearchMode,
-  }) {
-    final base = switch (this) {
-      _MarkerDensity.far => 68.0,
-      _MarkerDensity.medium => 56.0,
-      _MarkerDensity.near => 44.0,
-    };
-    return hasCategoryFilters || isSearchMode ? base * 0.82 : base;
+  double cellSize({required bool isSearchMode}) {
+    return isSearchMode ? baseCellSize * 0.82 : baseCellSize;
   }
+
+  double get baseCellSize => switch (this) {
+    _MarkerDensity.far => 68.0,
+    _MarkerDensity.medium => 56.0,
+    _MarkerDensity.near => 44.0,
+  };
 
   double markerSize({required bool isSearchMode}) {
     if (isSearchMode) {

@@ -137,11 +137,12 @@ class ItineraryDetailController {
     int? durationMinutes,
   }) async {
     var next = state.copyWith(clearFeedback: true);
-    final now = DateTime.now();
+    final step = state.steps.firstWhere((s) => s.id == stepId);
+    final dateBase = step.dayDate ?? step.arrivalTime ?? itinerary.startDate ?? DateTime.now();
     final arrival = DateTime(
-      now.year,
-      now.month,
-      now.day,
+      dateBase.year,
+      dateBase.month,
+      dateBase.day,
       arrivalTime.hour,
       arrivalTime.minute,
     );

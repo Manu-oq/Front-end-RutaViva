@@ -52,7 +52,10 @@ class EntrepreneurDashboardPage extends ConsumerWidget {
       ),
       floatingActionButton: user?.isEntrepreneur == true
           ? FloatingActionButton.extended(
-              onPressed: () => context.pushNamedSafe(AppRouteNames.createPoi),
+              onPressed: () => context.pushNamedSafe(
+                AppRouteNames.createPoi,
+                queryParameters: const {'creationType': 'entrepreneur'},
+              ),
               icon: const Icon(Icons.add_location_alt_rounded),
               label: const Text('Compartir lugar'),
             )
@@ -294,8 +297,12 @@ class _EntrepreneurDashboard extends ConsumerWidget {
                             color: Colors.white,
                           ),
                           action: FilledButton.icon(
-                            onPressed: () =>
-                                context.pushNamedSafe(AppRouteNames.createPoi),
+                            onPressed: () => context.pushNamedSafe(
+                              AppRouteNames.createPoi,
+                              queryParameters: const {
+                                'creationType': 'entrepreneur',
+                              },
+                            ),
                             icon: const Icon(Icons.add_rounded),
                             label: const Text('Nuevo lugar'),
                             style: FilledButton.styleFrom(
@@ -586,7 +593,10 @@ class _PlacesSection extends ConsumerWidget {
     final theme = Theme.of(context);
     if (items.isEmpty) {
       return _EmptyPlacesCard(
-        onCreate: () => context.pushNamedSafe(AppRouteNames.createPoi),
+        onCreate: () => context.pushNamedSafe(
+          AppRouteNames.createPoi,
+          queryParameters: const {'creationType': 'entrepreneur'},
+        ),
       );
     }
     return Column(

@@ -187,6 +187,7 @@ class MapNotifier extends Notifier<MapState> {
       clearSelection: true,
       selectedCategoryIds: categoryIds,
       hasMapViewOverride: true,
+      mapViewPoints: const [],
     );
     try {
       final pois = await ref
@@ -227,6 +228,7 @@ class MapNotifier extends Notifier<MapState> {
       clearSelection: true,
       hasMapViewOverride: true,
       selectedCategoryIds: const {},
+      mapViewPoints: const [],
     );
     try {
       final pois = await ref

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/error/api_exception.dart';
 import '../../../../core/network/api_provider.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../weather/data/models/weather_forecast_model.dart';
 import '../models/itinerary_model.dart';
 
 final itineraryRepositoryProvider = Provider<ItineraryRepository>((ref) {
@@ -23,7 +24,7 @@ final itineraryDetailProvider = FutureProvider.family<ItineraryModel, String>((
 });
 
 final itineraryWeatherProvider =
-    FutureProvider.family<List<ItineraryStepWeatherModel>, String>((
+    FutureProvider.family<List<WeatherForecastDay>, String>((
       ref,
       itineraryId,
     ) async {
@@ -232,18 +233,18 @@ class ItineraryRepository {
     }
   }
 
-  Future<List<ItineraryStepWeatherModel>> getItineraryWeather(
+  Future<List<WeatherForecastDay>> getItineraryWeather(
     String itineraryId,
   ) async {
     try {
-      final response = await _client.get<List<dynamic>>(
+      final response = await _client.get<Map<String, dynamic>>(
         '/itineraries/$itineraryId/weather',
       );
-      return (response.data ?? const [])
-          .whereType<Map>()
+      final daily = (response.data?['daily'] as List<dynamic>?) ?? const [];
+      return daily
           .map(
-            (item) => ItineraryStepWeatherModel.fromJson(
-              Map<String, dynamic>.from(item),
+            (item) => WeatherForecastDay.fromJson(
+              Map<String, dynamic>.from(item as Map),
             ),
           )
           .toList(growable: false);

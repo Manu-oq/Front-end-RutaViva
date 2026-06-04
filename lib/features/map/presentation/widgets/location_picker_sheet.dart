@@ -44,12 +44,17 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
   final _searchController = TextEditingController();
   List<GeocodingResultModel> _results = const [];
   bool _isSearching = false;
+  bool _mapReady = false;
 
   @override
   void initState() {
     super.initState();
     _mapController = MapController();
     _selected = widget.initialLocation;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _mapReady = true;
+    });
   }
 
   @override
@@ -115,227 +120,245 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final height = AppResponsive.value<double>(
-          context,
-          mobile: (constraints.maxHeight * 0.92).clamp(520.0, 760.0).toDouble(),
-          tablet: (constraints.maxHeight * 0.86).clamp(560.0, 820.0).toDouble(),
-          desktop: 700,
-        );
-        final compactHeight = AppResponsive.isCompactHeight(context);
+    final viewport = MediaQuery.sizeOf(context);
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: viewport.width,
+        maxWidth: viewport.width,
+        maxHeight: viewport.height,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight
+              : viewport.height;
+          final height = AppResponsive.value<double>(
+            context,
+            mobile: (maxHeight * 0.92).clamp(520.0, 760.0).toDouble(),
+            tablet: (maxHeight * 0.86).clamp(560.0, 820.0).toDouble(),
+            desktop: 700,
+          );
+          final compactHeight = AppResponsive.isCompactHeight(context);
 
-        return Container(
-          height: height,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-            boxShadow: AppColors.liftedShadow,
-          ),
-          child: Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  18,
-                  compactHeight ? 10 : 12,
-                  18,
-                  compactHeight ? 10 : 12,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.outlineVariant,
-                          borderRadius: BorderRadius.circular(999),
+          return Container(
+            height: height,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(32),
+              ),
+              boxShadow: AppColors.liftedShadow,
+            ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    18,
+                    compactHeight ? 10 : 12,
+                    18,
+                    compactHeight ? 10 : 12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 44,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.outlineVariant,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Elegir ubicación',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
+                      const SizedBox(height: 16),
+                      Text(
+                        'Elegir ubicación',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Mueve el mapa y deja el marcador sobre el lugar exacto.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      const SizedBox(height: 6),
+                      Text(
+                        'Mueve el mapa y deja el marcador sobre el lugar exacto.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _searchController,
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => _search(),
-                      decoration: InputDecoration(
-                        hintText: 'Buscar dirección o referencia',
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        suffixIcon: _isSearching
-                            ? const Padding(
-                                padding: EdgeInsets.all(14),
-                                child: SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _searchController,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => _search(),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar dirección o referencia',
+                          prefixIcon: const Icon(Icons.search_rounded),
+                          suffixIcon: _isSearching
+                              ? const Padding(
+                                  padding: EdgeInsets.all(14),
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : IconButton(
+                                  tooltip: 'Buscar',
+                                  onPressed: _search,
+                                  icon: const Icon(Icons.arrow_forward_rounded),
+                                ),
+                        ),
+                      ),
+                      if (_results.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: compactHeight ? 110 : 142,
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: _results.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 6),
+                            itemBuilder: (context, index) {
+                              final result = _results[index];
+                              return ListTile(
+                                dense: true,
+                                visualDensity: VisualDensity.compact,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: theme.colorScheme.outlineVariant,
                                   ),
                                 ),
-                              )
-                            : IconButton(
-                                tooltip: 'Buscar',
-                                onPressed: _search,
-                                icon: const Icon(Icons.arrow_forward_rounded),
-                              ),
-                      ),
-                    ),
-                    if (_results.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: compactHeight ? 110 : 142,
-                        ),
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: _results.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 6),
-                          itemBuilder: (context, index) {
-                            final result = _results[index];
-                            return ListTile(
-                              dense: true,
-                              visualDensity: VisualDensity.compact,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                side: BorderSide(
-                                  color: theme.colorScheme.outlineVariant,
+                                leading: const Icon(Icons.location_on_outlined),
+                                title: Text(
+                                  result.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              leading: const Icon(Icons.location_on_outlined),
-                              title: Text(
-                                result.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              onTap: () => _selectResult(result),
-                            );
+                                onTap: () => _selectResult(result),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter: widget.initialLocation,
+                          initialZoom: 14,
+                          minZoom: 7,
+                          onPositionChanged: (position, hasGesture) {
+                            if (!_mapReady) return;
+                            if (!mounted) return;
+                            final center = position.center;
+                            setState(() => _selected = center);
                           },
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate:
+                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.rutaviva.app',
+                          ),
+                        ],
+                      ),
+                      IgnorePointer(
+                        child: Transform.translate(
+                          offset: const Offset(0, -18),
+                          child: Icon(
+                            Icons.location_pin,
+                            color: theme.colorScheme.primary,
+                            size: 52,
+                            shadows: [
+                              Shadow(
+                                blurRadius: 12,
+                                color: AppColors.deepForest.withValues(
+                                  alpha: 0.22,
+                                ),
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 16,
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withValues(
+                              alpha: 0.96,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: theme.colorScheme.outlineVariant,
+                            ),
+                          ),
+                          child: LayoutBuilder(
+                            builder: (context, footerConstraints) {
+                              final verticalLayout =
+                                  footerConstraints.maxWidth < 420 ||
+                                  MediaQuery.textScalerOf(context).scale(14) >
+                                      18;
+                              return Flex(
+                                direction: verticalLayout
+                                    ? Axis.vertical
+                                    : Axis.horizontal,
+                                crossAxisAlignment: verticalLayout
+                                    ? CrossAxisAlignment.stretch
+                                    : CrossAxisAlignment.center,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.my_location,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Flexible(
+                                        child: Text(
+                                          '${_selected.latitude.toStringAsFixed(6)}, ${_selected.longitude.toStringAsFixed(6)}',
+                                          style: theme.textTheme.labelLarge,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(
+                                    width: verticalLayout ? 0 : 12,
+                                    height: verticalLayout ? 12 : 0,
+                                  ),
+                                  FilledButton(
+                                    onPressed: _confirm,
+                                    child: const Text('Usar ubicación'),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    FlutterMap(
-                      mapController: _mapController,
-                      options: MapOptions(
-                        initialCenter: widget.initialLocation,
-                        initialZoom: 14,
-                        onPositionChanged: (position, hasGesture) {
-                          final center = position.center;
-                          setState(() => _selected = center);
-                        },
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.rutaviva.app',
-                        ),
-                      ],
-                    ),
-                    IgnorePointer(
-                      child: Transform.translate(
-                        offset: const Offset(0, -18),
-                        child: Icon(
-                          Icons.location_pin,
-                          color: theme.colorScheme.primary,
-                          size: 52,
-                          shadows: [
-                            Shadow(
-                              blurRadius: 12,
-                              color: AppColors.deepForest.withValues(
-                                alpha: 0.22,
-                              ),
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 16,
-                      right: 16,
-                      bottom: 16,
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withValues(
-                            alpha: 0.96,
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: theme.colorScheme.outlineVariant,
-                          ),
-                        ),
-                        child: LayoutBuilder(
-                          builder: (context, footerConstraints) {
-                            final verticalLayout =
-                                footerConstraints.maxWidth < 420 ||
-                                MediaQuery.textScalerOf(context).scale(14) > 18;
-                            return Flex(
-                              direction: verticalLayout
-                                  ? Axis.vertical
-                                  : Axis.horizontal,
-                              crossAxisAlignment: verticalLayout
-                                  ? CrossAxisAlignment.stretch
-                                  : CrossAxisAlignment.center,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.my_location,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        '${_selected.latitude.toStringAsFixed(6)}, ${_selected.longitude.toStringAsFixed(6)}',
-                                        style: theme.textTheme.labelLarge,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(
-                                  width: verticalLayout ? 0 : 12,
-                                  height: verticalLayout ? 12 : 0,
-                                ),
-                                FilledButton(
-                                  onPressed: _confirm,
-                                  child: const Text('Usar ubicación'),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

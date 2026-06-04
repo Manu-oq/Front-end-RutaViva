@@ -1,8 +1,17 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:ruta_viva/core/network/dio_client.dart';
+import 'package:ruta_viva/core/router/app_router.dart';
 import 'package:ruta_viva/core/router/app_routes.dart';
+import 'package:ruta_viva/features/categories/data/models/category_model.dart';
+import 'package:ruta_viva/features/categories/data/repositories/category_repository.dart';
 import 'package:ruta_viva/features/auth/data/models/user_model.dart';
 import 'package:ruta_viva/features/auth/presentation/providers/auth_provider.dart';
+import 'package:ruta_viva/features/map/data/models/poi_model.dart';
+import 'package:ruta_viva/features/map/data/repositories/poi_repository.dart';
 
 final _testUser = UserModel(
   id: 'test-id',
@@ -111,4 +120,65 @@ void main() {
       });
     });
   });
+
+  group('appRouter create POI route', () {
+    testWidgets(
+      '/pois/create?creationType=entrepreneur pasa param a CreatePoiPage',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            authProvider.overrideWith(
+              () => _NotifierWithState(
+                AuthState(user: _testUser, token: 'token'),
+              ),
+            ),
+            categoriesProvider.overrideWith((ref) async => _categories),
+            poiRepositoryProvider.overrideWith((ref) => _FakePoiRepository()),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final router = container.read(appRouterProvider);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        router.go('/pois/create?creationType=entrepreneur');
+        await tester.pumpAndSettle();
+
+        expect(find.text('Publica tu negocio'), findsOneWidget);
+        expect(find.text('Contacto del negocio'), findsOneWidget);
+        expect(find.text('Teléfono público obligatorio'), findsOneWidget);
+      },
+    );
+  });
+}
+
+class _FakePoiRepository extends PoiRepository {
+  _FakePoiRepository() : super(DioClient(Dio()));
+
+  @override
+  Future<List<PoiModel>> searchNearby({
+    required double lat,
+    required double lon,
+    double radius = 30000,
+    List<int> categoryIds = const [],
+  }) async {
+    return const [];
+  }
+}
+
+const _categories = [CategoryModel(id: 1, name: 'Naturaleza')];
+
+class _NotifierWithState extends AuthNotifier {
+  final AuthState _fakeState;
+
+  _NotifierWithState(this._fakeState);
+
+  @override
+  AuthState build() => _fakeState;
 }

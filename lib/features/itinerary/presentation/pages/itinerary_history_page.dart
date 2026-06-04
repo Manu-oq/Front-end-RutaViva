@@ -26,12 +26,6 @@ class ItineraryHistoryPage extends ConsumerWidget {
       appBar: AppBar(
         leading: const AppBackButton(fallbackRouteName: AppRouteNames.home),
         title: const Text('Mis itinerarios'),
-        actions: [
-          IconButton(
-            onPressed: () => ref.invalidate(itineraryHistoryProvider),
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
       ),
       body: DecoratedBox(
         decoration: BoxDecoration(
@@ -57,7 +51,10 @@ class ItineraryHistoryPage extends ConsumerWidget {
                 constraints: BoxConstraints(
                   maxWidth: AppResponsive.maxContentWidth(context),
                 ),
-                child: ListView.separated(
+                child: RefreshIndicator(
+                  onRefresh: () async =>
+                      ref.invalidate(itineraryHistoryProvider),
+                  child: ListView.separated(
                   padding: AppResponsive.value<EdgeInsets>(
                     context,
                     mobile: const EdgeInsets.fromLTRB(16, 12, 16, 96),
@@ -75,6 +72,7 @@ class ItineraryHistoryPage extends ConsumerWidget {
                       const SizedBox(height: 14),
                   itemCount: items.length,
                 ),
+              ),
               ),
             );
           },

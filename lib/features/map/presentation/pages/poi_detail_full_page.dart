@@ -16,7 +16,6 @@ import '../../data/repositories/poi_repository.dart';
 import '../../domain/entities/map_point.dart';
 import '../providers/map_provider.dart';
 import '../widgets/amenity_item.dart';
-import '../widgets/authenticity_seal.dart';
 import '../widgets/poi_gallery_header.dart';
 
 class PoiDetailFullPage extends ConsumerWidget {
@@ -242,7 +241,6 @@ class _TitleCard extends StatelessWidget {
                   icon: Icons.near_me_rounded,
                   label: _formatDistance(poi.distanceMeters!),
                 ),
-              if (poi.isLocalAuthentic) const AuthenticitySeal(),
               if (poi.visitRules?.requiresDaylight == true)
                 const _DetailPill(
                   icon: Icons.wb_sunny_rounded,

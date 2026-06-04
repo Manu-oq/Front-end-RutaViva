@@ -58,6 +58,7 @@ class PoiRepository {
   }
 
   Future<PoiModel> createPoi({
+    required String creationType,
     required String name,
     required String description,
     required String accessType,
@@ -69,8 +70,9 @@ class PoiRepository {
     List<int> categoryIds = const [],
   }) async {
     try {
+      final endpoint = _createPoiEndpoint(creationType);
       final response = await _client.post<Map<String, dynamic>>(
-        '/pois/',
+        endpoint,
         data: _createPoiRequestBody(
           name: name,
           description: description,
@@ -291,6 +293,17 @@ class PoiRepository {
       contactEmail: contactEmail,
       categoryIds: categoryIds,
     );
+  }
+
+  static String createPoiEndpointForTesting(String creationType) {
+    return _createPoiEndpoint(creationType);
+  }
+
+  static String _createPoiEndpoint(String creationType) {
+    return switch (creationType) {
+      'entrepreneur' => '/pois/entrepreneur/',
+      _ => '/pois/tourist/',
+    };
   }
 
   static Map<String, dynamic> _createPoiRequestBody({
