@@ -120,10 +120,7 @@ class _ContributionCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 8),
-            _EditWindowChip(
-              remainingHours: hoursLeft,
-              theme: theme,
-            ),
+            _EditWindowChip(remainingHours: hoursLeft, theme: theme),
             const SizedBox(height: 14),
             Wrap(
               spacing: 8,
@@ -211,6 +208,7 @@ class _ContributionCard extends ConsumerWidget {
     try {
       await ref.read(poiRepositoryProvider).deletePoi(poi.id);
       ref.invalidate(myPoisProvider);
+      ref.invalidate(entrepreneurPoisProvider);
       messenger.showSnackBar(
         const SnackBar(content: Text('Contribución borrada.')),
       );
@@ -232,10 +230,7 @@ class _EditWindowChip extends StatelessWidget {
   final int remainingHours;
   final ThemeData theme;
 
-  const _EditWindowChip({
-    required this.remainingHours,
-    required this.theme,
-  });
+  const _EditWindowChip({required this.remainingHours, required this.theme});
 
   @override
   Widget build(BuildContext context) {

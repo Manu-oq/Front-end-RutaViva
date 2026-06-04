@@ -110,7 +110,7 @@ class _ActivateEntrepreneurPanelState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Modo emprendedor activado.')),
       );
-      ref.invalidate(myPoisProvider);
+      ref.invalidate(entrepreneurPoisProvider);
       return;
     }
 
@@ -238,12 +238,12 @@ class _EntrepreneurDashboard extends ConsumerWidget {
   const _EntrepreneurDashboard();
 
   Future<void> _refreshDashboard(WidgetRef ref) async {
-    ref.invalidate(myPoisProvider);
+    ref.invalidate(entrepreneurPoisProvider);
     ref.invalidate(entrepreneurMetricsProvider);
     ref.invalidate(entrepreneurIncomeProvider);
     try {
       await Future.wait([
-        ref.read(myPoisProvider.future),
+        ref.read(entrepreneurPoisProvider.future),
         ref.read(entrepreneurMetricsProvider.future),
         ref.read(entrepreneurIncomeProvider.future),
       ]);
@@ -254,7 +254,7 @@ class _EntrepreneurDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pois = ref.watch(myPoisProvider);
+    final pois = ref.watch(entrepreneurPoisProvider);
     final metrics = ref.watch(entrepreneurMetricsProvider);
     final income = ref.watch(entrepreneurIncomeProvider);
     final isMobile = AppResponsive.isMobile(context);
@@ -331,8 +331,9 @@ class _EntrepreneurDashboard extends ConsumerWidget {
         ),
       ),
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) =>
-          _DashboardError(onRetry: () => ref.invalidate(myPoisProvider)),
+      error: (error, stackTrace) => _DashboardError(
+        onRetry: () => ref.invalidate(entrepreneurPoisProvider),
+      ),
     );
   }
 }
@@ -569,7 +570,7 @@ class _PlacesSection extends ConsumerWidget {
 
     try {
       await ref.read(poiRepositoryProvider).deletePoi(poi.id);
-      ref.invalidate(myPoisProvider);
+      ref.invalidate(entrepreneurPoisProvider);
       ref.invalidate(poiDetailProvider(poi.id));
       ref.invalidate(poiModelDetailProvider(poi.id));
       await ref.read(mapProvider.notifier).loadNearby();

@@ -150,6 +150,7 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
           );
 
       ref.invalidate(myPoisProvider);
+      ref.invalidate(entrepreneurPoisProvider);
       ref.invalidate(poiModelDetailProvider(widget.poi.id));
       ref.invalidate(poiDetailProvider(widget.poi.id));
       await ref

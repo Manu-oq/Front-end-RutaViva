@@ -29,6 +29,10 @@ final myPoisProvider = FutureProvider<List<PoiModel>>((ref) async {
   return ref.watch(poiRepositoryProvider).getMyPois();
 });
 
+final entrepreneurPoisProvider = FutureProvider<List<PoiModel>>((ref) async {
+  return ref.watch(poiRepositoryProvider).getEntrepreneurPois();
+});
+
 final itineraryPoisProvider = FutureProvider.family<List<MapPoint>, String>((
   ref,
   itineraryId,
@@ -108,7 +112,20 @@ class PoiRepository {
 
   Future<List<PoiModel>> getMyPois() async {
     try {
-      final response = await _client.get<List<dynamic>>('/pois/my-contributions/');
+      final response = await _client.get<List<dynamic>>(
+        '/pois/my-contributions/',
+      );
+      return (response.data ?? [])
+          .map((item) => PoiModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (error) {
+      throw ApiException.fromDioException(error);
+    }
+  }
+
+  Future<List<PoiModel>> getEntrepreneurPois() async {
+    try {
+      final response = await _client.get<List<dynamic>>('/pois/mine');
       return (response.data ?? [])
           .map((item) => PoiModel.fromJson(item as Map<String, dynamic>))
           .toList();

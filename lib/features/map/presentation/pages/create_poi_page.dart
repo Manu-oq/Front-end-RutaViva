@@ -112,6 +112,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
           .read(mapProvider.notifier)
           .loadNearby(center: poi.toMapPoint().coordinates);
       ref.invalidate(myPoisProvider);
+      ref.invalidate(entrepreneurPoisProvider);
 
       if (!mounted) {
         return;
