@@ -120,8 +120,10 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
           slivers: [
             SliverPadding(
               padding: EdgeInsets.fromLTRB(
-                contentPadding.left, contentPadding.top,
-                contentPadding.right, 0,
+                contentPadding.left,
+                contentPadding.top,
+                contentPadding.right,
+                0,
               ),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
@@ -133,16 +135,14 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                       dateLabel: dateRangeLabel(widget.itinerary),
                       onHistory: () =>
                           context.goNamed(AppRouteNames.itineraryHistory),
-                      onMap: () => _openFullMap(),
+                      onMap: _openFullMap,
                     ),
                   ),
                   if (!widget.itinerary.isEditable) ...[
                     const SizedBox(height: 14),
                     _wrapContent(
                       context,
-                      ReadOnlyItineraryBanner(
-                        isPast: widget.itinerary.isPast,
-                      ),
+                      ReadOnlyItineraryBanner(isPast: widget.itinerary.isPast),
                     ),
                   ],
                   if (_state.feedbackMessage != null) ...[
@@ -170,8 +170,10 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Recorrido sugerido',
-                            style: theme.textTheme.titleLarge),
+                        Text(
+                          'Recorrido sugerido',
+                          style: theme.textTheme.titleLarge,
+                        ),
                         const SizedBox(height: 14),
                         WeatherSection(itinerary: widget.itinerary),
                         const SizedBox(height: 22),
@@ -212,11 +214,14 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                           label: fullDayLabel(entry.$2, _state.steps),
                           day: entry.$2,
                           steps: _controller.stepsForDate(
-                              _state.steps, entry.$2),
+                            _state.steps,
+                            entry.$2,
+                          ),
                           isEditable: widget.itinerary.isEditable,
                           isSavingReorder: _state.isSavingReorder,
                           onDrop: _onReorderStep,
-                          onOpenMap: _controller
+                          onOpenMap:
+                              _controller
                                   .stepsForDate(_state.steps, entry.$2)
                                   .isEmpty
                               ? null
@@ -237,7 +242,10 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
             ),
             SliverPadding(
               padding: EdgeInsets.fromLTRB(
-                contentPadding.left, 12, contentPadding.right, 0,
+                contentPadding.left,
+                12,
+                contentPadding.right,
+                0,
               ),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
@@ -255,8 +263,9 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     return Align(
       alignment: Alignment.centerLeft,
       child: ConstrainedBox(
-        constraints:
-            BoxConstraints(maxWidth: AppResponsive.maxContentWidth(context)),
+        constraints: BoxConstraints(
+          maxWidth: AppResponsive.maxContentWidth(context),
+        ),
         child: child,
       ),
     );
@@ -268,15 +277,20 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     int targetIndex,
   ) {
     if (!widget.itinerary.isEditable) {
-      _emit(_controller.showFeedback(
-        _state,
-        'Este itinerario ya no se puede editar.',
-        type: AppFeedbackType.info,
-      ));
+      _emit(
+        _controller.showFeedback(
+          _state,
+          'Este itinerario ya no se puede editar.',
+          type: AppFeedbackType.info,
+        ),
+      );
       return;
     }
     final next = _controller.reorderStep(
-      _state, movedStep, targetDay, targetIndex,
+      _state,
+      movedStep,
+      targetDay,
+      targetIndex,
       onSaveReorder: (payload) async {
         final result = await _controller.saveReorder(_state, payload);
         if (mounted) _emit(result);
@@ -287,39 +301,46 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
 
   Future<void> _onDeleteStep(ItineraryStepModel step) async {
     if (!widget.itinerary.isEditable) {
-      _emit(_controller.showFeedback(
-        _state,
-        'Este itinerario ya no se puede editar.',
-        type: AppFeedbackType.info,
-      ));
+      _emit(
+        _controller.showFeedback(
+          _state,
+          'Este itinerario ya no se puede editar.',
+          type: AppFeedbackType.info,
+        ),
+      );
       return;
     }
     final next = await _controller.deleteStep(_state, step.id);
     if (mounted) {
       _emit(next);
       if (next.feedbackMessage == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Parada eliminada.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Parada eliminada.')));
       }
     }
   }
 
   Future<void> _onRescheduleDialog(ItineraryStepModel step) async {
     if (!widget.itinerary.isEditable) {
-      _emit(_controller.showFeedback(
-        _state,
-        'Este itinerario ya no se puede editar.',
-        type: AppFeedbackType.info,
-      ));
+      _emit(
+        _controller.showFeedback(
+          _state,
+          'Este itinerario ya no se puede editar.',
+          type: AppFeedbackType.info,
+        ),
+      );
       return;
     }
     final initialTime = step.arrivalTime != null
         ? TimeOfDay(
-            hour: step.arrivalTime!.hour, minute: step.arrivalTime!.minute)
+            hour: step.arrivalTime!.hour,
+            minute: step.arrivalTime!.minute,
+          )
         : const TimeOfDay(hour: 9, minute: 0);
-    final durationController =
-        TextEditingController(text: step.recommendedDuration);
+    final durationController = TextEditingController(
+      text: step.recommendedDuration,
+    );
     final result = await showDialog<RescheduleResult>(
       context: context,
       builder: (ctx) => RescheduleDialog(
@@ -339,20 +360,22 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     if (mounted) {
       _emit(next);
       if (next.feedbackMessage == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Horario actualizado.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Horario actualizado.')));
       }
     }
   }
 
   Future<void> _onChangeStep(ItineraryStepModel step) async {
     if (!widget.itinerary.isEditable) {
-      _emit(_controller.showFeedback(
-        _state,
-        'Este itinerario ya no se puede editar.',
-        type: AppFeedbackType.info,
-      ));
+      _emit(
+        _controller.showFeedback(
+          _state,
+          'Este itinerario ya no se puede editar.',
+          type: AppFeedbackType.info,
+        ),
+      );
       return;
     }
     if (_state.isStartingStepReplacement) return;
@@ -364,7 +387,9 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     final prompt = 'cambiar la parada de ${step.title}';
 
     try {
-      final sessionFuture = ref.read(chatProvider.notifier).startSessionFromHome(
+      final sessionFuture = ref
+          .read(chatProvider.notifier)
+          .startSessionFromHome(
             initialMessage: prompt,
             center: center,
             radius: 10000,
@@ -392,17 +417,19 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
 
   Future<void> _openFullMap() async {
     try {
-      final points =
-          await ref.read(itineraryPoisProvider(widget.itinerary.id).future);
-      ref.read(mapProvider.notifier).showItineraryPois(
-            itineraryId: widget.itinerary.id,
-            points: points,
-          );
-      if (!context.mounted) return;
-      context.pushNamedSafe(AppRouteNames.focusedMap,
-          extra: AppRouteNames.itineraryHistory);
+      final points = await ref.read(
+        itineraryPoisProvider(widget.itinerary.id).future,
+      );
+      ref
+          .read(mapProvider.notifier)
+          .showItineraryPois(itineraryId: widget.itinerary.id, points: points);
+      if (!mounted) return;
+      context.pushNamedSafe(
+        AppRouteNames.focusedMap,
+        extra: AppRouteNames.itineraryHistory,
+      );
     } catch (_) {
-      if (!context.mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -417,24 +444,33 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
     final daySteps = _controller.stepsForDate(_state.steps, day);
     _emit(_state.copyWith(clearFeedback: true));
     try {
-      final selectedIds = daySteps.map((s) => s.poiId).whereType<String>().toSet();
-      final points =
-          await ref.read(itineraryPoisProvider(widget.itinerary.id).future);
-      final filtered =
-          points.where((p) => selectedIds.contains(p.id)).toList();
-      ref.read(mapProvider.notifier).showItineraryPois(
+      final selectedIds = daySteps
+          .map((s) => s.poiId)
+          .whereType<String>()
+          .toSet();
+      final points = await ref.read(
+        itineraryPoisProvider(widget.itinerary.id).future,
+      );
+      final filtered = points.where((p) => selectedIds.contains(p.id)).toList();
+      ref
+          .read(mapProvider.notifier)
+          .showItineraryPois(
             itineraryId: widget.itinerary.id,
             points: filtered,
           );
-      if (!context.mounted) return;
-      context.pushNamedSafe(AppRouteNames.focusedMap,
-          extra: AppRouteNames.itineraryHistory);
+      if (!mounted) return;
+      context.pushNamedSafe(
+        AppRouteNames.focusedMap,
+        extra: AppRouteNames.itineraryHistory,
+      );
     } catch (_) {
-      if (!context.mounted) return;
-      _emit(_controller.showFeedback(
-        _state,
-        'No pudimos cargar este día en el mapa. Intenta nuevamente.',
-      ));
+      if (!mounted) return;
+      _emit(
+        _controller.showFeedback(
+          _state,
+          'No pudimos cargar este día en el mapa. Intenta nuevamente.',
+        ),
+      );
     }
   }
 }

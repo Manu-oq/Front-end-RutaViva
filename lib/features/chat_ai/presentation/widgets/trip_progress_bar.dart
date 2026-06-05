@@ -29,7 +29,11 @@ class TripProgressBar extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (progress.lodgingName != null) ...[
-              _LodgingPill(name: progress.lodgingName!, theme: theme),
+              _LodgingPill(
+                name: progress.lodgingName!,
+                mode: progress.lodgingMode,
+                theme: theme,
+              ),
               const SizedBox(width: 12),
               _Separator(theme: theme),
               const SizedBox(width: 12),
@@ -55,9 +59,10 @@ class TripProgressBar extends ConsumerWidget {
 
 class _LodgingPill extends StatelessWidget {
   final String name;
+  final String? mode;
   final ThemeData theme;
 
-  const _LodgingPill({required this.name, required this.theme});
+  const _LodgingPill({required this.name, this.mode, required this.theme});
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +81,7 @@ class _LodgingPill extends StatelessWidget {
           Icon(Icons.hotel_rounded, size: 16, color: theme.colorScheme.primary),
           const SizedBox(width: 6),
           Text(
-            name,
+            _label,
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.primary,
               fontWeight: FontWeight.w800,
@@ -85,6 +90,14 @@ class _LodgingPill extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String get _label {
+    final normalizedMode = mode?.trim();
+    if (normalizedMode == null || normalizedMode.isEmpty) {
+      return name;
+    }
+    return '$name · $normalizedMode';
   }
 }
 

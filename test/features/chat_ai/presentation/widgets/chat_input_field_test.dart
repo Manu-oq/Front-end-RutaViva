@@ -43,7 +43,7 @@ void main() {
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(
       field.decoration?.hintText,
-      equals('¿Qué fechas tienes en mente para Villarrica?'),
+      equals('¿Qué quieres hacer? Dime tu destino y preferencias'),
     );
   });
 

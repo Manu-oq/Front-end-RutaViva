@@ -20,7 +20,7 @@ class ChatHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Ara Assistant',
+                  'Asistente Ara',
                   style: theme.textTheme.headlineMedium?.copyWith(fontSize: 22),
                 ),
                 Text(

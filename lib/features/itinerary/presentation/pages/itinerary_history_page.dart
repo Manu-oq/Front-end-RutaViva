@@ -55,24 +55,25 @@ class ItineraryHistoryPage extends ConsumerWidget {
                   onRefresh: () async =>
                       ref.invalidate(itineraryHistoryProvider),
                   child: ListView.separated(
-                  padding: AppResponsive.value<EdgeInsets>(
-                    context,
-                    mobile: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                    tablet: const EdgeInsets.fromLTRB(20, 16, 20, 104),
-                    desktop: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                    padding: AppResponsive.value<EdgeInsets>(
+                      context,
+                      mobile: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                      tablet: const EdgeInsets.fromLTRB(20, 16, 20, 104),
+                      desktop: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                    ),
+                    itemBuilder: (context, index) {
+                      final itinerary = items[index];
+                      return _ItineraryCard(
+                        itinerary: itinerary,
+                        onDelete: () =>
+                            _deleteItinerary(context, ref, itinerary),
+                      );
+                    },
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 14),
+                    itemCount: items.length,
                   ),
-                  itemBuilder: (context, index) {
-                    final itinerary = items[index];
-                    return _ItineraryCard(
-                      itinerary: itinerary,
-                      onDelete: () => _deleteItinerary(context, ref, itinerary),
-                    );
-                  },
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 14),
-                  itemCount: items.length,
                 ),
-              ),
               ),
             );
           },
@@ -353,7 +354,7 @@ class _EmptyItineraryHistory extends StatelessWidget {
             icon: Icons.route_outlined,
             title: 'Aún no tienes itinerarios guardados',
             text:
-                'Genera una ruta desde Inicio o Ara Assistant y aparecerá aquí.',
+                'Genera una ruta desde Inicio o Asistente Ara y aparecerá aquí.',
             action: ElevatedButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.auto_awesome),

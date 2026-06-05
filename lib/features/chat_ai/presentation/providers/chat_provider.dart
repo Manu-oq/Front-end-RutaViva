@@ -28,12 +28,14 @@ class TripProgressData {
   final int currentDayFocus;
   final List<DayProgressData> days;
   final String? lodgingName;
+  final String? lodgingMode;
 
   const TripProgressData({
     required this.totalDays,
     required this.currentDayFocus,
     this.days = const [],
     this.lodgingName,
+    this.lodgingMode,
   });
 
   factory TripProgressData.fromAraProgress(AraProgressModel? p) {
@@ -55,9 +57,8 @@ class TripProgressData {
             ),
           )
           .toList(growable: false),
-      lodgingName: p.lodging != null
-          ? '${p.lodging!.name} · ${p.lodging!.mode}'
-          : null,
+      lodgingName: p.lodging?.name,
+      lodgingMode: p.lodging?.mode?.toString(),
     );
   }
 }
@@ -96,6 +97,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   static const _streamingProgressMessageType = 'streaming_progress';
   static const _viewProgressActionId = 'view_progress';
   static const _retryStreamingActionId = 'retry_streaming_itinerary';
+  static const contextualGenerateActionId = 'generate_itinerary_contextual';
 
   String? _sessionId;
   DateTime? _sessionStartDate;
@@ -106,8 +108,10 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   bool _lodgingDisclaimerShown = false;
   final Random _random = Random();
   Timer? _pendingStreamingTimer;
+  Timer? _streamFirstEventTimer;
   bool _hasPendingStreamingStart = false;
   bool _isStreamingInBackground = false;
+  bool _isWaitingForFirstStreamEvent = false;
   String? _pendingStreamingFinalInstruction;
   ChatStreamingProgressData? _streamingProgress;
   String? _pendingNavigationItineraryId;
@@ -116,6 +120,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   TripProgressData? get progress => _progress;
   ChatStreamingProgressData? get streamingProgress => _streamingProgress;
   bool get hasPendingStreamingStart => _hasPendingStreamingStart;
+  bool get isWaitingForFirstStreamEvent => _isWaitingForFirstStreamEvent;
   String? get pendingNavigationItineraryId => _pendingNavigationItineraryId;
   String? get pendingDirectItineraryNavigationId =>
       _pendingDirectItineraryNavigationId;
@@ -124,6 +129,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   List<MessageEntity> build() {
     ref.onDispose(() {
       _pendingStreamingTimer?.cancel();
+      _streamFirstEventTimer?.cancel();
     });
     return [
       MessageEntity(
@@ -149,6 +155,26 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
           !_isStreamingInBackground);
   DateTime? get sessionStartDate => _sessionStartDate;
   DateTime? get sessionEndDate => _sessionEndDate;
+
+  void _startFirstStreamEventTimer() {
+    _streamFirstEventTimer?.cancel();
+    _isWaitingForFirstStreamEvent = false;
+    _streamFirstEventTimer = Timer(const Duration(seconds: 2), () {
+      _isWaitingForFirstStreamEvent = true;
+      state = [...state];
+    });
+  }
+
+  void _clearFirstStreamEventWait() {
+    _streamFirstEventTimer?.cancel();
+    _streamFirstEventTimer = null;
+    if (_isWaitingForFirstStreamEvent) {
+      _isWaitingForFirstStreamEvent = false;
+      state = [...state];
+    } else {
+      _isWaitingForFirstStreamEvent = false;
+    }
+  }
 
   Future<bool> startSessionFromHome({
     required String initialMessage,
@@ -251,8 +277,8 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
           .sendMessage(
             sessionId: _sessionId!,
             message: message,
-            startDate: _sessionStartDate,
-            endDate: _sessionEndDate,
+            startDate: startDate ?? _sessionStartDate,
+            endDate: endDate ?? _sessionEndDate,
           );
       _sessionId = session.sessionId.isEmpty ? _sessionId : session.sessionId;
       await _replaceThinkingWithSession(session);
@@ -363,7 +389,6 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     return label;
   }
 
-  @visibleForTesting
   void lockExistingActions(MessageAction selectedAction) {
     final selectedId = selectedAction.id.trim().isNotEmpty
         ? selectedAction.id.trim()
@@ -402,6 +427,8 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   }) async {
     _uiState = AraChatUiState.generatingItinerary;
     _isStreamingInBackground = backgroundMode;
+    var receivedFirstStreamEvent = false;
+    _startFirstStreamEventTimer();
     _setStreamingProgress(
       phase: 'searching',
       message: 'Buscando lugares...',
@@ -417,6 +444,10 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
                 sessionId: _sessionId!,
                 finalInstruction: finalInstruction,
               )) {
+        if (!receivedFirstStreamEvent) {
+          receivedFirstStreamEvent = true;
+          _clearFirstStreamEventWait();
+        }
         switch (event) {
           case AraGenerationStatusEvent():
             _setStreamingProgress(
@@ -460,10 +491,14 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
       }
       final itinerary = await _resolveStreamResultItinerary(response);
       ref.read(itineraryProvider.notifier).setCurrent(itinerary);
+      ref.invalidate(itineraryHistoryProvider);
+      ref.invalidate(itineraryDetailProvider(itinerary.id));
+      ref.invalidate(itineraryPoisProvider(itinerary.id));
       _uiState = AraChatUiState.idle;
       _isBusy = false;
       _isStreamingInBackground = false;
       _streamingProgress = null;
+      _clearFirstStreamEventWait();
       if (navigateOnComplete) {
         _pendingNavigationItineraryId = itinerary.id;
       }
@@ -488,6 +523,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
       _isBusy = false;
       _isStreamingInBackground = false;
       _streamingProgress = null;
+      _clearFirstStreamEventWait();
       state = [
         for (final message in state)
           if (message.messageType != _streamingProgressMessageType) message,
@@ -669,6 +705,9 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     final actions = isStepReplacementCompleted
         ? const <MessageAction>[]
         : _actionsForSession(session, status: normalizedStatus);
+    final displayActions = isStepReplacementCompleted
+        ? actions
+        : _withNoPlacesAlternativeAction(assistantText, actions);
 
     state = [
       for (final message in state)
@@ -683,7 +722,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
           timestamp: DateTime.now(),
           turnType: turnType,
           evidenceLevel: assistantMessage?.evidenceLevel,
-          actions: actions,
+          actions: displayActions,
           itineraryCard: _buildUpdatedItineraryCard(
             updatedItinerary,
             fallbackItineraryId: assistantMessage?.metadata?['itinerary_id']
@@ -871,7 +910,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   }) {
     final actions = buildActions(session.quickReplies);
     if (status != 'streaming_itinerary') {
-      return actions;
+      return _withContextualGenerateAction(session, actions, status: status);
     }
 
     final alreadyHasViewProgress = actions.any(
@@ -888,6 +927,105 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
         label: 'Ver progreso',
         prompt: 'ver progreso',
         type: 'navigation',
+      ),
+    ];
+  }
+
+  List<MessageAction> _withContextualGenerateAction(
+    AraSessionModel session,
+    List<MessageAction> actions, {
+    required String status,
+  }) {
+    if (!_shouldOfferContextualGenerate(session, status: status)) {
+      return actions;
+    }
+    if (actions.any((action) => action.isGenerate)) {
+      return actions;
+    }
+    return [
+      ...actions,
+      const MessageAction(
+        id: contextualGenerateActionId,
+        label: '¿Querés que arme un itinerario?',
+        prompt: 'generate_itinerary',
+        type: 'generate',
+      ),
+    ];
+  }
+
+  bool _shouldOfferContextualGenerate(
+    AraSessionModel session, {
+    required String status,
+  }) {
+    if (_sessionRequestsGeneration(session)) {
+      return false;
+    }
+    if (session.updatedItinerary != null || session.activeItineraryId != null) {
+      return false;
+    }
+    const excludedStatuses = {
+      'reset',
+      'step_replaced',
+      'streaming_itinerary',
+      'completed',
+      'error',
+    };
+    if (excludedStatuses.contains(status)) {
+      return false;
+    }
+
+    final intentTokens = [
+      session.intent?.primaryIntent,
+      ...?session.intent?.intents,
+    ].whereType<String>().map((value) => value.toLowerCase());
+    final hasItineraryIntent = intentTokens.any(
+      (value) =>
+          value.contains('itinerary') ||
+          value.contains('itinerario') ||
+          value.contains('route') ||
+          value.contains('ruta') ||
+          value.contains('trip') ||
+          value.contains('viaje'),
+    );
+    final draft = session.tripDraft ?? const <String, dynamic>{};
+    final hasTripDraft = draft.isNotEmpty;
+    final assistantText = session.assistantText.toLowerCase();
+    final mentionsItinerary =
+        assistantText.contains('itinerario') ||
+        assistantText.contains('ruta') ||
+        assistantText.contains('viaje');
+
+    return hasItineraryIntent || hasTripDraft || mentionsItinerary;
+  }
+
+  List<MessageAction> _withNoPlacesAlternativeAction(
+    String assistantText,
+    List<MessageAction> actions,
+  ) {
+    String normalize(String value) => value.trim().toLowerCase();
+    final shouldSuggest =
+        assistantText.toLowerCase().contains('no encontré lugares cerca de') ||
+        actions.any((action) => normalize(action.id) == 'suggest_alternatives');
+    if (!shouldSuggest) {
+      return actions;
+    }
+
+    final normalized = actions.map((action) => normalize(action.id)).toSet();
+    final cleanedActions = [
+      for (final action in actions)
+        if (normalize(action.id) != 'suggest_alternatives') action,
+    ];
+    if (normalized.contains('search_other_area')) {
+      return cleanedActions;
+    }
+
+    return [
+      ...cleanedActions,
+      const MessageAction(
+        id: 'search_other_area',
+        label: 'Buscar otra zona',
+        prompt: 'Mostrame otras opciones',
+        type: 'refinement',
       ),
     ];
   }
@@ -926,12 +1064,13 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
       );
     }
 
-    final current = ref.read(itineraryProvider).current;
     final itineraryId = fallbackItineraryId?.trim();
-    if (current != null &&
-        itineraryId != null &&
-        itineraryId.isNotEmpty &&
-        current.id == itineraryId) {
+    if (itineraryId == null || itineraryId.isEmpty) {
+      return null;
+    }
+
+    final current = ref.read(itineraryProvider).current;
+    if (current != null && current.id == itineraryId) {
       return MessageItineraryCard(
         id: current.id,
         title: current.title,
@@ -1037,6 +1176,11 @@ final chatStreamingProgressProvider = Provider<ChatStreamingProgressData?>((
 final chatPendingNavigationProvider = Provider<String?>((ref) {
   ref.watch(chatProvider);
   return ref.read(chatProvider.notifier).pendingNavigationItineraryId;
+});
+
+final chatWaitingForFirstStreamEventProvider = Provider<bool>((ref) {
+  ref.watch(chatProvider);
+  return ref.read(chatProvider.notifier).isWaitingForFirstStreamEvent;
 });
 
 final chatPendingDirectItineraryNavigationProvider = Provider<String?>((ref) {

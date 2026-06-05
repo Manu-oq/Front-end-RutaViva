@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/utils/app_durations.dart';
 import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_feedback.dart';
 import '../../../../core/widgets/authenticated_network_image.dart';
@@ -159,7 +158,7 @@ class ChatBubble extends StatelessWidget {
   }
 }
 
-class _CandidatePoiList extends StatefulWidget {
+class _CandidatePoiList extends StatelessWidget {
   final List<MessageCandidatePoi> candidates;
   final bool actionsLocked;
   final ValueChanged<MessageCandidatePoi>? onOpenPoi;
@@ -175,26 +174,9 @@ class _CandidatePoiList extends StatefulWidget {
   });
 
   @override
-  State<_CandidatePoiList> createState() => _CandidatePoiListState();
-}
-
-class _CandidatePoiListState extends State<_CandidatePoiList> {
-  bool _expanded = true;
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final candidates = widget.candidates;
-    final preview = candidates.take(3).toList(growable: false);
-    final hasOverflow = candidates.length > 3;
-    if (preview.isEmpty) {
+    if (candidates.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -206,7 +188,6 @@ class _CandidatePoiListState extends State<_CandidatePoiList> {
           borderRadius: BorderRadius.circular(18),
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
-            onTap: () => setState(() => _expanded = !_expanded),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
@@ -230,188 +211,46 @@ class _CandidatePoiListState extends State<_CandidatePoiList> {
                       ),
                     ),
                   ),
-                  if (hasOverflow)
-                    Text(
-                      '3/${candidates.length}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  const SizedBox(width: 4),
-                  AnimatedRotation(
-                    turns: _expanded ? 0.5 : 0,
-                    duration: AppDurations.short,
-                    child: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
+                  Icon(Icons.swipe_rounded, color: theme.colorScheme.primary),
                 ],
               ),
             ),
           ),
         ),
-        AnimatedCrossFade(
-          firstChild: const SizedBox.shrink(),
-          secondChild: Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (hasOverflow)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8, left: 2),
-                    child: Text(
-                      'Desliza para ver más opciones',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                if (hasOverflow)
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 292),
-                    child: Scrollbar(
-                      controller: _scrollController,
-                      thumbVisibility: true,
-                      child: ListView.separated(
-                        controller: _scrollController,
-                        primary: false,
-                        padding: EdgeInsets.zero,
-                        itemCount: candidates.length,
-                        physics: const ClampingScrollPhysics(),
-                        itemBuilder: (context, index) => _CandidatePoiCard(
-                          candidate: candidates[index],
-                          actionsLocked: widget.actionsLocked,
-                          onOpenPoi: widget.onOpenPoi,
-                          onShowPoiOnMap: widget.onShowPoiOnMap,
-                          onUseCandidate: widget.onUseCandidate,
-                        ),
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      ),
-                    ),
-                  )
-                else
-                  Column(
-                    children: [
-                      for (var index = 0; index < preview.length; index++) ...[
-                        _CandidatePoiCard(
-                          candidate: preview[index],
-                          actionsLocked: widget.actionsLocked,
-                          onOpenPoi: widget.onOpenPoi,
-                          onShowPoiOnMap: widget.onShowPoiOnMap,
-                          onUseCandidate: widget.onUseCandidate,
-                        ),
-                        if (index != preview.length - 1)
-                          const SizedBox(height: 8),
-                      ],
-                    ],
-                  ),
-              ],
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Text(
+            candidates.length == 1
+                ? 'Toca la card para elegir este lugar'
+                : 'Desliza y toca una card para cambiar el lugar',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          crossFadeState: _expanded
-              ? CrossFadeState.showSecond
-              : CrossFadeState.showFirst,
-          duration: AppDurations.short,
-          sizeCurve: Curves.easeOut,
         ),
-        if (!_expanded)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: _CandidatePoiCompactPreview(
-              candidate: preview.first,
-              actionsLocked: widget.actionsLocked,
-              onOpenPoi: widget.onOpenPoi,
-              onShowPoiOnMap: widget.onShowPoiOnMap,
-              onUseCandidate: widget.onUseCandidate,
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 214,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.zero,
+            itemCount: candidates.length,
+            itemBuilder: (context, index) => SizedBox(
+              width: 280,
+              child: _CandidatePoiCard(
+                candidate: candidates[index],
+                actionsLocked: actionsLocked,
+                onOpenPoi: onOpenPoi,
+                onShowPoiOnMap: onShowPoiOnMap,
+                onUseCandidate: onUseCandidate,
+              ),
             ),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
           ),
+        ),
       ],
-    );
-  }
-}
-
-class _CandidatePoiCompactPreview extends StatelessWidget {
-  final MessageCandidatePoi candidate;
-  final bool actionsLocked;
-  final ValueChanged<MessageCandidatePoi>? onOpenPoi;
-  final ValueChanged<MessageCandidatePoi>? onShowPoiOnMap;
-  final ValueChanged<MessageCandidatePoi>? onUseCandidate;
-
-  const _CandidatePoiCompactPreview({
-    required this.candidate,
-    required this.actionsLocked,
-    this.onOpenPoi,
-    this.onShowPoiOnMap,
-    this.onUseCandidate,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final style = categoryStyleFor(
-      candidate.categoryIds.isEmpty ? null : candidate.categoryIds.first,
-      theme.colorScheme,
-    );
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.56),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: actionsLocked || onUseCandidate == null
-            ? null
-            : () => onUseCandidate!(candidate),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            children: [
-              Icon(style.icon, color: style.color, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  candidate.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Detalle',
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                onPressed: onOpenPoi == null
-                    ? null
-                    : () => onOpenPoi!(candidate),
-                icon: const Icon(Icons.info_outline_rounded, size: 18),
-              ),
-              if (candidate.hasCoordinates)
-                IconButton(
-                  tooltip: 'Mapa',
-                  constraints: const BoxConstraints(
-                    minWidth: 48,
-                    minHeight: 48,
-                  ),
-                  onPressed: onShowPoiOnMap == null
-                      ? null
-                      : () => onShowPoiOnMap!(candidate),
-                  icon: const Icon(Icons.map_rounded, size: 18),
-                ),
-              IconButton(
-                tooltip: 'Elegir',
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                onPressed: actionsLocked || onUseCandidate == null
-                    ? null
-                    : () => onUseCandidate!(candidate),
-                icon: const Icon(Icons.touch_app_rounded, size: 18),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -60,9 +60,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final messages = ref.watch(chatProvider);
     final chatNotifier = ref.read(chatProvider.notifier);
     final itineraryState = ref.watch(itineraryProvider);
+    final waitingForFirstStreamEvent = ref.watch(
+      chatWaitingForFirstStreamEventProvider,
+    );
     final theme = Theme.of(context);
     final actionsLocked = chatNotifier.isInputLocked;
-    final hasPendingStreamingStart = chatNotifier.hasPendingStreamingStart;
     final isMobile = AppResponsive.isMobile(context);
 
     ref.listen(chatProvider, (prev, next) {
@@ -70,9 +72,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _scrollToBottom();
       }
     });
-
-    final chatNotifier2 = ref.read(chatProvider.notifier);
-    final hasSession = chatNotifier2.hasActiveSession;
 
     return Scaffold(
       body: Container(
@@ -150,37 +149,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       },
                     ),
                   ),
-                  if (hasSession &&
-                      !chatNotifier.isGenerating &&
-                      !hasPendingStreamingStart)
+                  if (waitingForFirstStreamEvent)
                     Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 14 : 20,
-                        vertical: 4,
+                      padding: EdgeInsets.fromLTRB(
+                        isMobile ? 14 : 20,
+                        6,
+                        isMobile ? 14 : 20,
+                        0,
                       ),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: actionsLocked
-                              ? null
-                              : () async {
-                                  await ref
-                                      .read(chatProvider.notifier)
-                                      .generateItinerary();
-                                },
-                          icon: const Icon(
-                            Icons.auto_awesome_rounded,
-                            size: 20,
-                          ),
-                          label: const Text('Que lo arme Ara'),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: const _GeneratingItineraryIndicator(),
                     ),
                   Padding(
                     padding: EdgeInsets.all(isMobile ? 14 : 20),
@@ -269,6 +246,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await ref.read(chatProvider.notifier).retryStreamingItinerary();
       return;
     }
+    if (action.id == ChatNotifier.contextualGenerateActionId) {
+      final notifier = ref.read(chatProvider.notifier);
+      notifier.lockExistingActions(action);
+      final itineraryId = await notifier.generateItinerary();
+      if (!context.mounted || itineraryId == null) {
+        return;
+      }
+      await _openItineraryDetail(context, itineraryId: itineraryId);
+      return;
+    }
     if (action.type == 'navigation') {
       await _openItineraryDetail(
         context,
@@ -348,6 +335,53 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
     ).firstMatch(value);
     return match?.group(0);
+  }
+}
+
+class _GeneratingItineraryIndicator extends StatefulWidget {
+  const _GeneratingItineraryIndicator();
+
+  @override
+  State<_GeneratingItineraryIndicator> createState() =>
+      _GeneratingItineraryIndicatorState();
+}
+
+class _GeneratingItineraryIndicatorState
+    extends State<_GeneratingItineraryIndicator> {
+  int _dots = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick();
+  }
+
+  void _tick() {
+    Future<void>.delayed(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      setState(() => _dots = _dots == 3 ? 1 : _dots + 1);
+      _tick();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AnimatedOpacity(
+      opacity: 1,
+      duration: AppDurations.short,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Generando itinerario${List.filled(_dots, '.').join()}',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.primary,
+            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
   }
 }
 

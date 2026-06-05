@@ -78,6 +78,7 @@ class AraRepository {
             : {'final_instruction': finalInstruction.trim()},
         options: Options(
           responseType: ResponseType.stream,
+          receiveTimeout: const Duration(minutes: 1),
           headers: {
             'Accept': 'text/event-stream',
             'Content-Type': 'application/json',

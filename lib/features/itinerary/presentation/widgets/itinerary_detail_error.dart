@@ -115,7 +115,7 @@ class NoItineraryState extends StatelessWidget {
               icon: Icons.route_outlined,
               title: 'Aún no hay una ruta generada',
               text:
-                  'Escribe una intención desde Inicio o Ara Assistant para generar un itinerario.',
+                  'Escribe una intención desde Inicio o Asistente Ara para generar un itinerario.',
             ),
           ),
         ),

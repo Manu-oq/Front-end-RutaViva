@@ -72,10 +72,10 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
           _DatePickDialog(initialStart: _startDate, initialEnd: _endDate),
     );
     if (result == null) return;
-    _applyDateRange(result.start, result.end);
+    await _applyDateRange(result.start, result.end);
   }
 
-  void _applyDateRange(DateTime start, DateTime end) {
+  Future<void> _applyDateRange(DateTime start, DateTime end) async {
     final startDate = DateTime(start.year, start.month, start.day);
     final endDate = DateTime(end.year, end.month, end.day);
     final days = endDate.difference(startDate).inDays + 1;
@@ -90,6 +90,22 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
       _endDate = endDate;
       _feedbackMessage = null;
     });
+
+    final notifier = ref.read(chatProvider.notifier);
+    if (!notifier.hasActiveSession) {
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    await notifier.sendMessage(
+      'Voy a ir del ${_shortDate(startDate)} al ${_shortDate(endDate)}',
+      startDate: startDate,
+      endDate: endDate,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isSubmitting = false);
   }
 
   @override
@@ -112,6 +128,10 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
     final displayEnd = hasActiveSession
         ? notifier.sessionEndDate ?? _endDate
         : _endDate;
+    final canPickDates =
+        !hasActiveSession ||
+        notifier.sessionStartDate == null ||
+        notifier.sessionEndDate == null;
 
     return GlassContainer(
       borderRadius: BorderRadius.circular(isMobile ? 24 : 28),
@@ -137,7 +157,8 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
                     keyboardType: TextInputType.multiline,
                     textInputAction: TextInputAction.newline,
                     decoration: const InputDecoration(
-                      hintText: 'Escribe tu deseo...',
+                      hintText:
+                          '¿Qué quieres hacer? Dime tu destino y preferencias',
                       border: InputBorder.none,
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(
@@ -194,7 +215,7 @@ class _ChatInputFieldState extends ConsumerState<ChatInputField> {
                   ),
                 ),
                 const Spacer(),
-                hasActiveSession
+                !canPickDates
                     ? Chip(
                         avatar: const Icon(Icons.date_range_rounded, size: 18),
                         label: Text(_dateRangeLabel(displayStart, displayEnd)),

@@ -87,73 +87,75 @@ void main() {
     expect(textWidget.overflow, isNull);
   });
 
-  testWidgets(
-    'ChatBubble muestra pista de scroll cuando llegan más de 3 POIs',
-    (tester) async {
-      final pois = List.generate(
-        5,
-        (index) => MessageCandidatePoi(
-          id: 'poi-$index',
-          name: 'POI ${index + 1}',
-          categoryIds: const [1],
-        ),
-      );
+  testWidgets('ChatBubble muestra carrusel horizontal cuando llegan POIs', (
+    tester,
+  ) async {
+    final pois = List.generate(
+      5,
+      (index) => MessageCandidatePoi(
+        id: 'poi-$index',
+        name: 'POI ${index + 1}',
+        categoryIds: const [1],
+      ),
+    );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: SizedBox(
-                width: 360,
-                child: ChatBubble(
-                  message: 'Te dejo varias opciones.',
-                  isUser: false,
-                  candidatePois: pois,
-                ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SizedBox(
+              width: 360,
+              child: ChatBubble(
+                message: 'Te dejo varias opciones.',
+                isUser: false,
+                candidatePois: pois,
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
 
-      expect(find.text('5 opciones recomendadas'), findsOneWidget);
-      expect(find.text('Desliza para ver más opciones'), findsOneWidget);
-      expect(find.byType(Scrollbar), findsOneWidget);
-    },
-  );
+    expect(find.text('5 opciones recomendadas'), findsOneWidget);
+    expect(
+      find.text('Desliza y toca una card para cambiar el lugar'),
+      findsOneWidget,
+    );
+    final listView = tester.widget<ListView>(find.byType(ListView));
+    expect(listView.scrollDirection, Axis.horizontal);
+  });
 
-  testWidgets(
-    'ChatBubble no muestra pista de scroll cuando hay 3 POIs o menos',
-    (tester) async {
-      final pois = List.generate(
-        3,
-        (index) => MessageCandidatePoi(
-          id: 'poi-$index',
-          name: 'POI ${index + 1}',
-          categoryIds: const [1],
-        ),
-      );
+  testWidgets('ChatBubble permite seleccionar una card de POI', (tester) async {
+    final pois = List.generate(
+      3,
+      (index) => MessageCandidatePoi(
+        id: 'poi-$index',
+        name: 'POI ${index + 1}',
+        categoryIds: const [1],
+      ),
+    );
+    MessageCandidatePoi? selected;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: SizedBox(
-                width: 360,
-                child: ChatBubble(
-                  message: 'Te dejo varias opciones.',
-                  isUser: false,
-                  candidatePois: pois,
-                ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SizedBox(
+              width: 360,
+              child: ChatBubble(
+                message: 'Te dejo varias opciones.',
+                isUser: false,
+                candidatePois: pois,
+                onUseCandidate: (candidate) => selected = candidate,
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
 
-      expect(find.text('3 opciones recomendadas'), findsOneWidget);
-      expect(find.text('Desliza para ver más opciones'), findsNothing);
-      expect(find.byType(Scrollbar), findsNothing);
-    },
-  );
+    expect(find.text('3 opciones recomendadas'), findsOneWidget);
+    await tester.tap(find.text('POI 1'));
+    expect(selected?.id, 'poi-0');
+  });
 }

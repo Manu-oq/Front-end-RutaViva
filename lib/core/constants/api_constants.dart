@@ -28,15 +28,16 @@ class ApiConstants {
   static const int connectionTimeout = 15000;
 
   static String? resolveBackendUrl(String? value) {
-    if (value == null || value.isEmpty) {
-      return value;
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return normalized;
     }
-    if (value.startsWith('http://') || value.startsWith('https://')) {
-      return value;
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+      return normalized;
     }
-    if (value.startsWith('/')) {
-      return '$backendOrigin$value';
+    if (normalized.startsWith('/')) {
+      return '$backendOrigin$normalized';
     }
-    return value;
+    return null;
   }
 }
