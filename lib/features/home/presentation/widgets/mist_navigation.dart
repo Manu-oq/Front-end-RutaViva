@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../map/presentation/providers/map_provider.dart';
 
 class MistNavigation extends ConsumerWidget {
@@ -13,6 +14,54 @@ class MistNavigation extends ConsumerWidget {
     final uri = GoRouterState.of(context).uri;
     final selectedIndex = _calculateSelectedIndex(uri);
     final theme = Theme.of(context);
+
+    final useRail =
+        AppResponsive.isTablet(context) || AppResponsive.isDesktop(context);
+    if (useRail) {
+      final railSelectedIndex = _calculateRailSelectedIndex(uri);
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: railSelectedIndex,
+              onDestinationSelected: (index) =>
+                  _onRailItemTapped(index, context, ref),
+              extended: MediaQuery.sizeOf(context).width > 800,
+              backgroundColor: theme.colorScheme.surface,
+              elevation: 1,
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: Text('Inicio'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.map_outlined),
+                  selectedIcon: Icon(Icons.map),
+                  label: Text('Mapa'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.route_outlined),
+                  selectedIcon: Icon(Icons.route),
+                  label: Text('Itinerarios'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.chat_bubble_outline),
+                  selectedIcon: Icon(Icons.chat_bubble),
+                  label: Text('Chat'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: Text('Perfil'),
+                ),
+              ],
+            ),
+            Expanded(child: child),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       body: child,
@@ -83,6 +132,16 @@ class MistNavigation extends ConsumerWidget {
     return 0;
   }
 
+  int _calculateRailSelectedIndex(Uri uri) {
+    final path = uri.path;
+    if (path.startsWith(AppRoutes.home)) return 0;
+    if (path.startsWith(AppRoutes.map)) return 1;
+    if (path.startsWith(AppRoutes.itineraryHistory)) return 2;
+    if (path.startsWith(AppRoutes.chat)) return 3;
+    if (path.startsWith(AppRoutes.profile)) return 4;
+    return 0;
+  }
+
   void _onItemTapped(int index, BuildContext context, WidgetRef ref) {
     switch (index) {
       case 0:
@@ -101,6 +160,29 @@ class MistNavigation extends ConsumerWidget {
         context.goNamed(AppRouteNames.map);
       case 3:
         context.goNamed(AppRouteNames.itineraryHistory);
+      case 4:
+        context.goNamed(AppRouteNames.profile);
+    }
+  }
+
+  void _onRailItemTapped(int index, BuildContext context, WidgetRef ref) {
+    switch (index) {
+      case 0:
+        final mapState = ref.read(mapProvider);
+        if (!mapState.isGlobalMode && mapState.points.isEmpty) {
+          ref.read(mapProvider.notifier).loadNearby(center: mapState.center);
+        }
+        context.goNamed(AppRouteNames.home);
+      case 1:
+        final mapState = ref.read(mapProvider);
+        if (!mapState.isGlobalMode) {
+          ref.read(mapProvider.notifier).loadNearby(center: mapState.center);
+        }
+        context.goNamed(AppRouteNames.map);
+      case 2:
+        context.goNamed(AppRouteNames.itineraryHistory);
+      case 3:
+        context.goNamed(AppRouteNames.chat);
       case 4:
         context.goNamed(AppRouteNames.profile);
     }

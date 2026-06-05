@@ -112,6 +112,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   bool _hasPendingStreamingStart = false;
   bool _isStreamingInBackground = false;
   bool _isWaitingForFirstStreamEvent = false;
+  bool _isReplacementMode = false;
   String? _pendingStreamingFinalInstruction;
   ChatStreamingProgressData? _streamingProgress;
   String? _pendingNavigationItineraryId;
@@ -121,6 +122,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
   ChatStreamingProgressData? get streamingProgress => _streamingProgress;
   bool get hasPendingStreamingStart => _hasPendingStreamingStart;
   bool get isWaitingForFirstStreamEvent => _isWaitingForFirstStreamEvent;
+  bool get isReplacementMode => _isReplacementMode;
   String? get pendingNavigationItineraryId => _pendingNavigationItineraryId;
   String? get pendingDirectItineraryNavigationId =>
       _pendingDirectItineraryNavigationId;
@@ -176,6 +178,28 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     }
   }
 
+  bool _metadataRequestsReplacement(Map<String, dynamic>? metadata) {
+    final intent = metadata?['intent']?.toString().trim().toLowerCase();
+    final mode = metadata?['conversation_mode']
+        ?.toString()
+        .trim()
+        .toLowerCase();
+    return intent == 'change_itinerary_step' ||
+        mode == 'replacement' ||
+        mode == 'step_replacement';
+  }
+
+  void _syncReplacementMode(AraSessionModel session) {
+    final mode = session.preferences?.conversationMode?.trim().toLowerCase();
+    if (mode == 'replacement' || mode == 'step_replacement') {
+      _isReplacementMode = true;
+      return;
+    }
+    if (_sessionResetsTrip(session) || mode == 'new_trip') {
+      _isReplacementMode = false;
+    }
+  }
+
   Future<bool> startSessionFromHome({
     required String initialMessage,
     required LatLng center,
@@ -188,6 +212,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     final text = initialMessage.trim();
     if (text.isEmpty || _isBusy) return false;
     final displayText = _visibleMessageText(text, visibleText: visibleText);
+    _isReplacementMode = _metadataRequestsReplacement(metadata);
 
     _sessionId = null;
     final now = DateTime.now();
@@ -223,6 +248,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
             metadata: metadata,
           );
       _sessionId = session.sessionId;
+      _syncReplacementMode(session);
       await _replaceThinkingWithSession(session);
       return true;
     } catch (error) {
@@ -638,6 +664,7 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
     if (session.sessionId.trim().isNotEmpty) {
       _sessionId = session.sessionId;
     }
+    _syncReplacementMode(session);
     final assistantMessage = session.assistantMessage;
     final assistantText = session.assistantText;
     final turnType = assistantMessage?.turnType?.trim().toLowerCase();
@@ -669,6 +696,8 @@ class ChatNotifier extends Notifier<List<MessageEntity>> {
         ref.invalidate(itineraryDetailProvider(itineraryId));
         ref.invalidate(itineraryPoisProvider(itineraryId));
         _refreshFilteredMapIfNeeded(itineraryId);
+      } else {
+        await ref.read(itineraryProvider.notifier).refreshCurrent();
       }
     }
     if (isStepReplacementCompleted) {
@@ -1181,6 +1210,11 @@ final chatPendingNavigationProvider = Provider<String?>((ref) {
 final chatWaitingForFirstStreamEventProvider = Provider<bool>((ref) {
   ref.watch(chatProvider);
   return ref.read(chatProvider.notifier).isWaitingForFirstStreamEvent;
+});
+
+final chatReplacementModeProvider = Provider<bool>((ref) {
+  ref.watch(chatProvider);
+  return ref.read(chatProvider.notifier).isReplacementMode;
 });
 
 final chatPendingDirectItineraryNavigationProvider = Provider<String?>((ref) {

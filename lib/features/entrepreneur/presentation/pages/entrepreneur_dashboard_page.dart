@@ -125,95 +125,99 @@ class _ActivateEntrepreneurPanelState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isMobile = AppResponsive.isMobile(context);
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: AppResponsive.maxContentWidth(context),
-        ),
-        child: Padding(
-          padding: AppResponsive.pagePadding(context),
-          child: Column(
-            children: [
-              const _HeroCard(
-                title: 'Activa tu espacio emprendedor',
-                subtitle:
-                    'Gestiona tus lugares, revisa métricas y prepara tu presencia para futuras reservas dentro de Ruta Viva.',
-                badge: 'Comunidad local',
-                leading: AppBackButton(
-                  fallbackRouteName: AppRouteNames.profile,
-                  color: Colors.white,
-                ),
-                action: SizedBox.shrink(),
-              ),
-              SizedBox(height: isMobile ? 14 : 16),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(isMobile ? 16 : 18),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(
-                    AppResponsive.cardRadius(context),
+    return SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: AppResponsive.maxContentWidth(context),
+          ),
+          child: Padding(
+            padding: AppResponsive.pagePadding(context),
+            child: Column(
+              children: [
+                const _HeroCard(
+                  title: 'Activa tu espacio emprendedor',
+                  subtitle:
+                      'Gestiona tus lugares, revisa métricas y prepara tu presencia para futuras reservas dentro de Ruta Viva.',
+                  badge: 'Comunidad local',
+                  leading: AppBackButton(
+                    fallbackRouteName: AppRouteNames.profile,
+                    color: Colors.white,
                   ),
-                  border: Border.all(color: theme.colorScheme.outlineVariant),
-                  boxShadow: AppColors.ambientShadow,
+                  action: SizedBox.shrink(),
                 ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Verificación de identidad',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                SizedBox(height: isMobile ? 14 : 16),
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(isMobile ? 16 : 18),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(
+                      AppResponsive.cardRadius(context),
+                    ),
+                    border: Border.all(color: theme.colorScheme.outlineVariant),
+                    boxShadow: AppColors.ambientShadow,
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Verificación de identidad',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Ingresa tu RUT chileno para verificar tu perfil emprendedor.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      if (_errorMessage != null) ...[
-                        ErrorBanner(
-                          message: _errorMessage!,
-                          onDismiss: () => setState(() => _errorMessage = null),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Ingresa tu RUT chileno para verificar tu perfil emprendedor.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 14),
+                        if (_errorMessage != null) ...[
+                          ErrorBanner(
+                            message: _errorMessage!,
+                            onDismiss: () =>
+                                setState(() => _errorMessage = null),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        TextFormField(
+                          controller: _rutController,
+                          enabled: !widget.isLoading,
+                          decoration: const InputDecoration(
+                            labelText: 'RUT',
+                            hintText: '12345678-9',
+                            prefixIcon: Icon(Icons.badge_outlined),
+                          ),
+                          validator: _validateRut,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: widget.isLoading ? null : _activate,
+                          icon: widget.isLoading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.verified_user_outlined),
+                          label: Text(
+                            widget.isLoading ? 'Activando...' : 'Activar modo',
+                          ),
+                        ),
                       ],
-                      TextFormField(
-                        controller: _rutController,
-                        enabled: !widget.isLoading,
-                        decoration: const InputDecoration(
-                          labelText: 'RUT',
-                          hintText: '12345678-9',
-                          prefixIcon: Icon(Icons.badge_outlined),
-                        ),
-                        validator: _validateRut,
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: widget.isLoading ? null : _activate,
-                        icon: widget.isLoading
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.verified_user_outlined),
-                        label: Text(
-                          widget.isLoading ? 'Activando...' : 'Activar modo',
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -589,6 +593,12 @@ class _PlacesSection extends ConsumerWidget {
     }
   }
 
+  int _crossAxisCount(BuildContext context) {
+    if (AppResponsive.isDesktop(context)) return 3;
+    if (AppResponsive.isTablet(context)) return 2;
+    return 1;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -600,36 +610,56 @@ class _PlacesSection extends ConsumerWidget {
         ),
       );
     }
+    final crossAxisCount = _crossAxisCount(context);
+    Widget buildCard(PoiModel poi) {
+      return _PlaceCard(
+        poi: poi,
+        onOpen: () => context.pushNamedSafe(
+          AppRouteNames.poiDetail,
+          pathParameters: {'id': poi.id},
+        ),
+        onAnalytics: () => context.pushNamedSafe(
+          AppRouteNames.poiDashboard,
+          pathParameters: {'id': poi.id},
+        ),
+        onPosts: () => context.pushNamedSafe(
+          AppRouteNames.poiPosts,
+          pathParameters: {'id': poi.id},
+        ),
+        onEdit: () => context.pushNamedSafe(
+          AppRouteNames.editPoi,
+          pathParameters: {'id': poi.id},
+        ),
+        onDelete: () => _deletePoi(context, ref, poi),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Tus lugares', style: theme.textTheme.titleLarge),
         const SizedBox(height: 12),
-        ...items.map(
-          (poi) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _PlaceCard(
-              poi: poi,
-              onOpen: () => context.pushNamedSafe(
-                AppRouteNames.poiDetail,
-                pathParameters: {'id': poi.id},
-              ),
-              onAnalytics: () => context.pushNamedSafe(
-                AppRouteNames.poiDashboard,
-                pathParameters: {'id': poi.id},
-              ),
-              onPosts: () => context.pushNamedSafe(
-                AppRouteNames.poiPosts,
-                pathParameters: {'id': poi.id},
-              ),
-              onEdit: () => context.pushNamedSafe(
-                AppRouteNames.editPoi,
-                pathParameters: {'id': poi.id},
-              ),
-              onDelete: () => _deletePoi(context, ref, poi),
+        if (crossAxisCount == 1)
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: items.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => buildCard(items[index]),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: 16 / 14,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
             ),
+            itemCount: items.length,
+            itemBuilder: (context, index) => buildCard(items[index]),
           ),
-        ),
       ],
     );
   }
@@ -655,7 +685,6 @@ class _PlaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isMobile = AppResponsive.isMobile(context);
     final actions = [
       IconButton(
         tooltip: 'Posts',
@@ -684,45 +713,52 @@ class _PlaceCard extends StatelessWidget {
       ),
     ];
 
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 14 : 16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(AppResponsive.cardRadius(context)),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        boxShadow: AppColors.ambientShadow,
-      ),
-      child: Flex(
-        direction: isMobile ? Axis.vertical : Axis.horizontal,
-        crossAxisAlignment: isMobile
-            ? CrossAxisAlignment.start
-            : CrossAxisAlignment.center,
-        children: [
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useVertical = constraints.maxWidth < 420;
+        return Container(
+          padding: EdgeInsets.all(useVertical ? 14 : 16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(
+              AppResponsive.cardRadius(context),
+            ),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+            boxShadow: AppColors.ambientShadow,
+          ),
+          child: Flex(
+            direction: useVertical ? Axis.vertical : Axis.horizontal,
+            crossAxisAlignment: useVertical
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.center,
             children: [
-              CircleAvatar(
-                backgroundColor: theme.colorScheme.primary.withValues(
-                  alpha: 0.1,
-                ),
-                child: Icon(
-                  Icons.storefront_rounded,
-                  color: theme.colorScheme.primary,
-                ),
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: theme.colorScheme.primary.withValues(
+                      alpha: 0.1,
+                    ),
+                    child: Icon(
+                      Icons.storefront_rounded,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  if (useVertical) Expanded(child: _PlaceCardText(poi: poi)),
+                ],
               ),
-              const SizedBox(width: 14),
-              if (isMobile) Expanded(child: _PlaceCardText(poi: poi)),
+              if (useVertical) ...[
+                const SizedBox(height: 10),
+                Wrap(spacing: 4, runSpacing: 4, children: actions),
+              ] else ...[
+                const SizedBox(width: 14),
+                Expanded(child: _PlaceCardText(poi: poi)),
+                ...actions,
+              ],
             ],
           ),
-          if (isMobile) ...[
-            const SizedBox(height: 10),
-            Wrap(spacing: 4, runSpacing: 4, children: actions),
-          ] else ...[
-            const SizedBox(width: 14),
-            Expanded(child: _PlaceCardText(poi: poi)),
-            ...actions,
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -808,17 +844,20 @@ class _DashboardError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: AppResponsive.maxContentWidth(context),
-        ),
-        child: Padding(
-          padding: AppResponsive.pagePadding(context),
-          child: InlineErrorWidget(
-            message:
-                'No pudimos cargar tu panel emprendedor. Revisa tu conexión e intenta nuevamente.',
-            onRetry: onRetry,
+    return SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: AppResponsive.maxContentWidth(context),
+          ),
+          child: Padding(
+            padding: AppResponsive.pagePadding(context),
+            child: InlineErrorWidget(
+              message:
+                  'No pudimos cargar tu panel emprendedor. Revisa tu conexión e intenta nuevamente.',
+              onRetry: onRetry,
+            ),
           ),
         ),
       ),

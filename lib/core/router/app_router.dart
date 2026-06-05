@@ -12,7 +12,7 @@ import '../../features/entrepreneur/presentation/pages/poi_posts_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/widgets/mist_navigation.dart';
 import '../../features/itinerary/presentation/pages/itinerary_detail_page.dart';
-import '../../features/itinerary/presentation/pages/itinerary_history_page.dart';
+import '../../features/itinerary/presentation/pages/itinerary_master_detail_page.dart';
 import '../../features/map/presentation/pages/create_poi_page.dart';
 import '../../features/map/presentation/pages/edit_poi_page.dart';
 import '../../features/map/presentation/pages/map_screen.dart';
@@ -225,7 +225,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.itineraryHistory,
             name: AppRouteNames.itineraryHistory,
-            builder: (context, state) => const ItineraryHistoryPage(),
+            builder: (context, state) => const ItineraryMasterDetailPage(),
           ),
           GoRoute(
             path: AppRoutes.profile,

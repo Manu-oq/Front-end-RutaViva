@@ -63,6 +63,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final waitingForFirstStreamEvent = ref.watch(
       chatWaitingForFirstStreamEventProvider,
     );
+    final isReplacementMode = ref.watch(chatReplacementModeProvider);
     final theme = Theme.of(context);
     final actionsLocked = chatNotifier.isInputLocked;
     final isMobile = AppResponsive.isMobile(context);
@@ -74,6 +75,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -91,79 +93,89 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               constraints: BoxConstraints(
                 maxWidth: AppResponsive.maxContentWidth(context),
               ),
-              child: Column(
-                children: [
-                  const ChatHeader(),
-                  const TripProgressBar(),
-                  if (itineraryState.current != null)
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        isMobile ? 16 : 20,
-                        0,
-                        isMobile ? 16 : 20,
-                        12,
-                      ),
-                      child: _LastItineraryBanner(
-                        title: itineraryState.current!.title,
-                        isLoading: itineraryState.isLoading,
-                        onOpen: () => _openItineraryDetail(
-                          context,
-                          itineraryId: itineraryState.current!.id,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Column(
+                    children: [
+                      const ChatHeader(),
+                      if (!isReplacementMode) const TripProgressBar(),
+                      if (itineraryState.current != null && !isReplacementMode)
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            isMobile ? 16 : 20,
+                            0,
+                            isMobile ? 16 : 20,
+                            12,
+                          ),
+                          child: _LastItineraryBanner(
+                            title: itineraryState.current!.title,
+                            isLoading: itineraryState.isLoading,
+                            onOpen: () => _openItineraryDetail(
+                              context,
+                              itineraryId: itineraryState.current!.id,
+                            ),
+                          ),
+                        ),
+                      Expanded(
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMobile ? 14 : 20,
+                          ),
+                          itemCount: messages.length,
+                          itemBuilder: (context, index) {
+                            final msg = messages[index];
+                            return ChatBubble(
+                              message: msg.text,
+                              isUser: msg.isUser,
+                              isTyping: msg.isTyping,
+                              evidenceLevel: msg.evidenceLevel,
+                              actions: msg.actions,
+                              itineraryCard: msg.itineraryCard,
+                              candidatePois: msg.candidatePois,
+                              progressPhase: msg.progressPhase,
+                              selectedActionId: msg.selectedActionId,
+                              actionsLocked: msg.actionsLocked,
+                              disclaimerText: msg.disclaimerText,
+                              onAction: actionsLocked
+                                  ? null
+                                  : (action) =>
+                                        _handleAction(context, ref, action),
+                              onOpenItinerary: (id) => _openItineraryDetail(
+                                context,
+                                itineraryId: id,
+                              ),
+                              onOpenPoi: (candidate) =>
+                                  _openCandidateDetail(context, candidate),
+                              onShowPoiOnMap: (candidate) =>
+                                  _showCandidateOnMap(context, ref, candidate),
+                              onUseCandidate: actionsLocked
+                                  ? null
+                                  : (candidate) =>
+                                        _useCandidate(ref, candidate),
+                            );
+                          },
                         ),
                       ),
-                    ),
-                  Expanded(
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 14 : 20,
+                      if (waitingForFirstStreamEvent)
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            isMobile ? 14 : 20,
+                            6,
+                            isMobile ? 14 : 20,
+                            0,
+                          ),
+                          child: const _GeneratingItineraryIndicator(),
+                        ),
+                      Padding(
+                        padding: EdgeInsets.all(isMobile ? 14 : 20),
+                        child: const ChatInputField(),
                       ),
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        final msg = messages[index];
-                        return ChatBubble(
-                          message: msg.text,
-                          isUser: msg.isUser,
-                          isTyping: msg.isTyping,
-                          evidenceLevel: msg.evidenceLevel,
-                          actions: msg.actions,
-                          itineraryCard: msg.itineraryCard,
-                          candidatePois: msg.candidatePois,
-                          progressPhase: msg.progressPhase,
-                          selectedActionId: msg.selectedActionId,
-                          actionsLocked: msg.actionsLocked,
-                          disclaimerText: msg.disclaimerText,
-                          onAction: actionsLocked
-                              ? null
-                              : (action) => _handleAction(context, ref, action),
-                          onOpenItinerary: (id) =>
-                              _openItineraryDetail(context, itineraryId: id),
-                          onOpenPoi: (candidate) =>
-                              _openCandidateDetail(context, candidate),
-                          onShowPoiOnMap: (candidate) =>
-                              _showCandidateOnMap(context, ref, candidate),
-                          onUseCandidate: actionsLocked
-                              ? null
-                              : (candidate) => _useCandidate(ref, candidate),
-                        );
-                      },
-                    ),
-                  ),
-                  if (waitingForFirstStreamEvent)
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        isMobile ? 14 : 20,
-                        6,
-                        isMobile ? 14 : 20,
-                        0,
-                      ),
-                      child: const _GeneratingItineraryIndicator(),
-                    ),
-                  Padding(
-                    padding: EdgeInsets.all(isMobile ? 14 : 20),
-                    child: const ChatInputField(),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),

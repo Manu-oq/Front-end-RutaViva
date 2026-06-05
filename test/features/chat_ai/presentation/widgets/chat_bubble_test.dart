@@ -65,7 +65,7 @@ void main() {
     expect(find.text('Dato no confirmado'), findsOneWidget);
   });
 
-  testWidgets('ChatBubble keeps long Ara text untruncated', (tester) async {
+  testWidgets('ChatBubble limita textos largos de Ara', (tester) async {
     const text =
         '¡Dale! Villarrica es ideal para familias. Encontré varias opciones cerca del lago. '
         'También puedo considerar actividades tranquilas y tiempos de descanso. '
@@ -83,11 +83,11 @@ void main() {
     );
 
     final textWidget = tester.widget<Text>(find.text(text));
-    expect(textWidget.maxLines, isNull);
-    expect(textWidget.overflow, isNull);
+    expect(textWidget.maxLines, equals(12));
+    expect(textWidget.overflow, TextOverflow.ellipsis);
   });
 
-  testWidgets('ChatBubble muestra carrusel horizontal cuando llegan POIs', (
+  testWidgets('ChatBubble muestra cards de POIs en lista vertical', (
     tester,
   ) async {
     final pois = List.generate(
@@ -118,11 +118,12 @@ void main() {
 
     expect(find.text('5 opciones recomendadas'), findsOneWidget);
     expect(
-      find.text('Desliza y toca una card para cambiar el lugar'),
+      find.text('Desliza hacia abajo y toca una card para cambiar el lugar'),
       findsOneWidget,
     );
     final listView = tester.widget<ListView>(find.byType(ListView));
-    expect(listView.scrollDirection, Axis.horizontal);
+    expect(listView.scrollDirection, Axis.vertical);
+    expect(listView.shrinkWrap, isTrue);
   });
 
   testWidgets('ChatBubble permite seleccionar una card de POI', (tester) async {

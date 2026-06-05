@@ -25,7 +25,7 @@ class PoiGalleryHeader extends StatelessWidget {
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
 
     return SliverAppBar(
-      expandedHeight: 390,
+      expandedHeight: MediaQuery.sizeOf(context).height * 0.35,
       pinned: true,
       stretch: true,
       elevation: 0,

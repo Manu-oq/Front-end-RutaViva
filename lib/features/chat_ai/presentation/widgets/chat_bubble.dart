@@ -211,7 +211,10 @@ class _CandidatePoiList extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Icon(Icons.swipe_rounded, color: theme.colorScheme.primary),
+                  Icon(
+                    Icons.swipe_down_rounded,
+                    color: theme.colorScheme.primary,
+                  ),
                 ],
               ),
             ),
@@ -222,7 +225,7 @@ class _CandidatePoiList extends StatelessWidget {
           child: Text(
             candidates.length == 1
                 ? 'Toca la card para elegir este lugar'
-                : 'Desliza y toca una card para cambiar el lugar',
+                : 'Desliza hacia abajo y toca una card para cambiar el lugar',
             style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
@@ -230,25 +233,24 @@ class _CandidatePoiList extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 214,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.zero,
-            itemCount: candidates.length,
-            itemBuilder: (context, index) => SizedBox(
-              width: 280,
-              child: _CandidatePoiCard(
-                candidate: candidates[index],
-                actionsLocked: actionsLocked,
-                onOpenPoi: onOpenPoi,
-                onShowPoiOnMap: onShowPoiOnMap,
-                onUseCandidate: onUseCandidate,
-              ),
+        ListView.separated(
+          scrollDirection: Axis.vertical,
+          shrinkWrap: true,
+          primary: false,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          itemCount: candidates.length,
+          itemBuilder: (context, index) => SizedBox(
+            width: double.infinity,
+            child: _CandidatePoiCard(
+              candidate: candidates[index],
+              actionsLocked: actionsLocked,
+              onOpenPoi: onOpenPoi,
+              onShowPoiOnMap: onShowPoiOnMap,
+              onUseCandidate: onUseCandidate,
             ),
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
           ),
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
         ),
       ],
     );
@@ -646,6 +648,8 @@ class _BubbleText extends StatelessWidget {
     final theme = Theme.of(context);
     return Text(
       message,
+      maxLines: 12,
+      overflow: TextOverflow.ellipsis,
       style: theme.textTheme.bodyLarge?.copyWith(
         color: isUser
             ? theme.colorScheme.onPrimary

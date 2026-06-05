@@ -36,7 +36,7 @@ class DayHeader extends StatelessWidget {
   }
 }
 
-class DayDropSection extends StatelessWidget {
+class DayDropSection extends StatefulWidget {
   final String label;
   final DateTime day;
   final List<ItineraryStepModel> steps;
@@ -60,12 +60,30 @@ class DayDropSection extends StatelessWidget {
   });
 
   @override
+  State<DayDropSection> createState() => _DayDropSectionState();
+}
+
+class _DayDropSectionState extends State<DayDropSection> {
+  bool _pulseActive = false;
+
+  void _pulse() {
+    setState(() => _pulseActive = true);
+    Future.delayed(const Duration(milliseconds: 220), () {
+      if (mounted) setState(() => _pulseActive = false);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return DragTarget<ItineraryStepModel>(
-      onWillAcceptWithDetails: (_) => isEditable && !isSavingReorder,
-      onAcceptWithDetails: steps.isEmpty
-          ? (details) => onDrop(details.data, day, 0)
+      onWillAcceptWithDetails: (_) =>
+          widget.isEditable && !widget.isSavingReorder,
+      onAcceptWithDetails: widget.steps.isEmpty
+          ? (details) {
+              _pulse();
+              widget.onDrop(details.data, widget.day, 0);
+            }
           : null,
       builder: (context, candidateData, rejectedData) {
         final isDragTarget = candidateData.isNotEmpty;
@@ -76,6 +94,8 @@ class DayDropSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: isDragTarget
                 ? theme.colorScheme.primary.withValues(alpha: 0.10)
+                : _pulseActive
+                ? theme.colorScheme.primary.withValues(alpha: 0.14)
                 : theme.colorScheme.surface.withValues(alpha: 0.86),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
@@ -97,25 +117,25 @@ class DayDropSection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (isSavingReorder) ...[
+              if (widget.isSavingReorder) ...[
                 const LinearProgressIndicator(minHeight: 3),
                 const SizedBox(height: 10),
               ],
               Row(
                 children: [
-                  Expanded(child: DayHeader(label: label)),
+                  Expanded(child: DayHeader(label: widget.label)),
                   TextButton.icon(
-                    onPressed: onOpenMap,
+                    onPressed: widget.onOpenMap,
                     icon: const Icon(Icons.map_outlined),
                     label: const Text('Ver día'),
                   ),
                 ],
               ),
-              if (steps.isEmpty)
+              if (widget.steps.isEmpty)
                 StepDropTarget(
-                  day: day,
+                  day: widget.day,
                   index: 0,
-                  enabled: isEditable && !isSavingReorder,
+                  enabled: widget.isEditable && !widget.isSavingReorder,
                   onDrop: _dropAt,
                   child: const EmptyDayCard(),
                 )
@@ -126,29 +146,42 @@ class DayDropSection extends StatelessWidget {
                   alignment: Alignment.topCenter,
                   child: Column(
                     children: [
-                      for (final entry in steps.indexed) ...[
+                      for (final entry in widget.steps.indexed) ...[
                         StepDropTarget(
-                          day: day,
+                          day: widget.day,
                           index: entry.$1,
-                          enabled: isEditable && !isSavingReorder,
+                          enabled: widget.isEditable && !widget.isSavingReorder,
                           onDrop: _dropAt,
                           indicatorAlignment: Alignment.center,
                           child: const SizedBox(height: 36),
                         ),
                         AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 240),
-                          switchInCurve: Curves.easeOutCubic,
-                          switchOutCurve: Curves.easeInCubic,
+                          duration: const Duration(milliseconds: 300),
+                          switchInCurve: Curves.elasticOut,
+                          switchOutCurve: Curves.easeInBack,
+                          layoutBuilder: (currentChild, previousChildren) {
+                            return currentChild ?? const SizedBox.shrink();
+                          },
+                          transitionBuilder: (child, animation) {
+                            return ScaleTransition(
+                              scale: animation,
+                              child: FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              ),
+                            );
+                          },
                           child: KeyedSubtree(
                             key: ValueKey('step-card-${entry.$2.id}'),
-                            child: stepBuilder(context, entry.$2),
+                            child: widget.stepBuilder(context, entry.$2),
                           ),
                         ),
-                        if (entry.$1 == steps.length - 1)
+                        if (entry.$1 == widget.steps.length - 1)
                           StepDropTarget(
-                            day: day,
+                            day: widget.day,
                             index: entry.$1 + 1,
-                            enabled: isEditable && !isSavingReorder,
+                            enabled:
+                                widget.isEditable && !widget.isSavingReorder,
                             onDrop: _dropAt,
                             indicatorAlignment: Alignment.center,
                             child: const SizedBox(height: 36),
@@ -165,11 +198,18 @@ class DayDropSection extends StatelessWidget {
   }
 
   void _dropAt(ItineraryStepModel movedStep, DateTime day, int requestedIndex) {
-    onDrop(movedStep, day, _effectiveDropIndex(movedStep, requestedIndex));
+    _pulse();
+    widget.onDrop(
+      movedStep,
+      day,
+      _effectiveDropIndex(movedStep, requestedIndex),
+    );
   }
 
   int _effectiveDropIndex(ItineraryStepModel movedStep, int requestedIndex) {
-    final originalIndex = steps.indexWhere((step) => step.id == movedStep.id);
+    final originalIndex = widget.steps.indexWhere(
+      (step) => step.id == movedStep.id,
+    );
     if (originalIndex < 0 || originalIndex >= requestedIndex) {
       return requestedIndex;
     }

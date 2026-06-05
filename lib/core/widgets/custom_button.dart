@@ -23,30 +23,32 @@ class CustomButton extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: isMobile ? 52 : 56,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isPrimary
-              ? theme.colorScheme.primary
-              : theme.colorScheme.surfaceContainerHighest,
-          foregroundColor: isPrimary
-              ? theme.colorScheme.onPrimary
-              : theme.colorScheme.primary,
-          elevation: 0,
-          shape: const StadiumBorder(),
-        ),
-        child: isLoading
-            ? const CircularProgressIndicator(strokeWidth: 2)
-            : Text(
-                text,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: isPrimary
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.primary,
-                  fontSize: 16,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: isMobile ? 52 : 56),
+        child: ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isPrimary
+                ? theme.colorScheme.primary
+                : theme.colorScheme.surfaceContainerHighest,
+            foregroundColor: isPrimary
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.primary,
+            elevation: 0,
+            shape: const StadiumBorder(),
+          ),
+          child: isLoading
+              ? const CircularProgressIndicator(strokeWidth: 2)
+              : Text(
+                  text,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: isPrimary
+                        ? theme.colorScheme.onPrimary
+                        : theme.colorScheme.primary,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }

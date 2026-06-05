@@ -12,6 +12,47 @@ import 'package:ruta_viva/features/itinerary/presentation/pages/itinerary_detail
 import 'package:ruta_viva/features/itinerary/presentation/widgets/day_drop_section.dart';
 
 void main() {
+  testWidgets('DaySelector inicia en primer día y filtra al seleccionar otro día', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          itineraryDetailProvider.overrideWith((ref, itineraryId) async {
+            return _itineraryWithTwoDays();
+          }),
+        ],
+        child: const MaterialApp(
+          home: ItineraryDetailPage(itineraryId: 'itinerary-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Día 1 — Paso 1'), findsAtLeastNWidgets(1));
+    expect(
+      find.text(
+        'Ara dejó este día libre para descanso, traslado o exploración espontánea.',
+      ),
+      findsNothing,
+    );
+    expect(find.text('Ver todos'), findsNothing);
+
+    await tester.tap(find.text('Sáb 3'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Día 1 — Paso 1'), findsNothing);
+    expect(
+      find.text(
+        'Ara dejó este día libre para descanso, traslado o exploración espontánea.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Ver todos'), findsNothing);
+  });
+
   testWidgets('drag step to another day updates state', (tester) async {
     tester.view.physicalSize = const Size(800, 2400);
     tester.view.devicePixelRatio = 1.0;
@@ -36,21 +77,18 @@ void main() {
       find.text(
         'Ara dejó este día libre para descanso, traslado o exploración espontánea.',
       ),
-      findsOneWidget,
+      findsNothing,
     );
 
     final draggable = find
         .byWidgetPredicate((w) => w is LongPressDraggable)
         .first;
-    final target = find.text(
-      'Ara dejó este día libre para descanso, traslado o exploración espontánea.',
-    );
 
     final gesture = await tester.startGesture(tester.getCenter(draggable));
     await tester.pump();
     await tester.pump(kLongPressTimeout);
-    await tester.pump();
-    await gesture.moveTo(tester.getCenter(target));
+    await tester.pump(const Duration(milliseconds: 260));
+    await gesture.moveTo(tester.getCenter(find.text('Sábado')));
     await tester.pump();
     await tester.pump();
     await gesture.up();
@@ -64,6 +102,56 @@ void main() {
       findsNothing,
     );
     expect(find.text('Día 1 — Paso 1'), findsAtLeastNWidgets(1));
+
+    repo.completeReorder();
+    await tester.pump(const Duration(milliseconds: 300));
+  });
+
+  testWidgets('drawer inter-día aparece y mueve al inicio del día destino', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    final repo = _ReorderSpyRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          itineraryRepositoryProvider.overrideWith((ref) => repo),
+          itineraryDetailProvider.overrideWith((ref, itineraryId) async {
+            return _itineraryWithTwoDays();
+          }),
+        ],
+        child: const MaterialApp(
+          home: ItineraryDetailPage(itineraryId: 'itinerary-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final draggable = find
+        .byWidgetPredicate((w) => w is LongPressDraggable)
+        .first;
+    final gesture = await tester.startGesture(tester.getCenter(draggable));
+    await tester.pump();
+    await tester.pump(kLongPressTimeout);
+    await tester.pump(const Duration(milliseconds: 260));
+
+    expect(find.text('Mover a'), findsOneWidget);
+    expect(find.text('Sábado'), findsOneWidget);
+
+    await gesture.moveTo(tester.getCenter(find.text('Sábado')));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(repo.calledSteps, isNotNull);
+    final movedStep = repo.calledSteps!.firstWhere(
+      (s) => s['step_id'] == 'step-1',
+    );
+    expect(movedStep['day_index'], equals(2));
+    expect(movedStep['position'], equals(0));
+    expect(find.text('Movido a Sábado'), findsOneWidget);
+    expect(find.text('Ver todos'), findsNothing);
 
     repo.completeReorder();
     await tester.pump(const Duration(milliseconds: 300));
@@ -122,15 +210,12 @@ void main() {
     final draggable = find
         .byWidgetPredicate((w) => w is LongPressDraggable)
         .first;
-    final target = find.text(
-      'Ara dejó este día libre para descanso, traslado o exploración espontánea.',
-    );
 
     final gesture = await tester.startGesture(tester.getCenter(draggable));
     await tester.pump();
     await tester.pump(kLongPressTimeout);
-    await tester.pump();
-    await gesture.moveTo(tester.getCenter(target));
+    await tester.pump(const Duration(milliseconds: 260));
+    await gesture.moveTo(tester.getCenter(find.text('Sábado')));
     await tester.pump();
     await tester.pump();
     await gesture.up();
@@ -200,15 +285,12 @@ void main() {
     final draggable = find
         .byWidgetPredicate((w) => w is LongPressDraggable)
         .first;
-    final target = find.text(
-      'Ara dejó este día libre para descanso, traslado o exploración espontánea.',
-    );
 
     final gesture = await tester.startGesture(tester.getCenter(draggable));
     await tester.pump();
     await tester.pump(kLongPressTimeout);
-    await tester.pump();
-    await gesture.moveTo(tester.getCenter(target));
+    await tester.pump(const Duration(milliseconds: 260));
+    await gesture.moveTo(tester.getCenter(find.text('Sábado')));
     await tester.pump();
     await tester.pump();
     await gesture.up();

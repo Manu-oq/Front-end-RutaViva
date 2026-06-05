@@ -14,7 +14,16 @@ import '../../data/repositories/itinerary_repository.dart';
 import '../providers/itinerary_provider.dart';
 
 class ItineraryHistoryPage extends ConsumerWidget {
-  const ItineraryHistoryPage({super.key});
+  final bool embedded;
+  final String? selectedItineraryId;
+  final ValueChanged<ItineraryModel>? onItinerarySelected;
+
+  const ItineraryHistoryPage({
+    super.key,
+    this.embedded = false,
+    this.selectedItineraryId,
+    this.onItinerarySelected,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,100 +31,114 @@ class ItineraryHistoryPage extends ConsumerWidget {
     final itineraries = ref.watch(itineraryHistoryProvider);
     final isMobile = AppResponsive.isMobile(context);
 
+    final content = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            theme.colorScheme.surfaceContainerLow,
+            theme.colorScheme.surfaceContainerLowest,
+          ],
+        ),
+      ),
+      child: itineraries.when(
+        data: (items) {
+          if (items.isEmpty) {
+            return _EmptyItineraryHistory(
+              onCreate: () => context.goNamed(AppRouteNames.home),
+            );
+          }
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: AppResponsive.maxContentWidth(context),
+              ),
+              child: RefreshIndicator(
+                onRefresh: () async => ref.invalidate(itineraryHistoryProvider),
+                child: ListView.separated(
+                  padding: AppResponsive.value<EdgeInsets>(
+                    context,
+                    mobile: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                    tablet: const EdgeInsets.fromLTRB(20, 16, 20, 104),
+                    desktop: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                  ),
+                  itemBuilder: (context, index) {
+                    final itinerary = items[index];
+                    return _ItineraryCard(
+                      itinerary: itinerary,
+                      selected: itinerary.id == selectedItineraryId,
+                      onTap: () {
+                        final callback = onItinerarySelected;
+                        if (callback != null) {
+                          callback(itinerary);
+                          return;
+                        }
+                        context.pushNamedSafe(
+                          AppRouteNames.itineraryDetail,
+                          pathParameters: {'id': itinerary.id},
+                        );
+                      },
+                      onDelete: () => _deleteItinerary(context, ref, itinerary),
+                    );
+                  },
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 14),
+                  itemCount: items.length,
+                ),
+              ),
+            ),
+          );
+        },
+        loading: () => Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: AppResponsive.maxContentWidth(context),
+            ),
+            child: ListView.separated(
+              padding: AppResponsive.value<EdgeInsets>(
+                context,
+                mobile: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                tablet: const EdgeInsets.fromLTRB(20, 16, 20, 104),
+                desktop: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              ),
+              itemBuilder: (context, index) => SkeletonContainer(
+                height: isMobile ? 128 : 142,
+                borderRadius: const BorderRadius.all(Radius.circular(26)),
+              ),
+              separatorBuilder: (context, index) => const SizedBox(height: 14),
+              itemCount: 4,
+            ),
+          ),
+        ),
+        error: (error, stackTrace) => Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: AppResponsive.maxContentWidth(context),
+            ),
+            child: Padding(
+              padding: AppResponsive.pagePadding(context),
+              child: InlineErrorWidget(
+                message: 'No se pudo cargar el historial. Intenta nuevamente.',
+                onRetry: () => ref.invalidate(itineraryHistoryProvider),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (embedded) {
+      return content;
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(fallbackRouteName: AppRouteNames.home),
         title: const Text('Mis itinerarios'),
       ),
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              theme.colorScheme.surfaceContainerLow,
-              theme.colorScheme.surfaceContainerLowest,
-            ],
-          ),
-        ),
-        child: itineraries.when(
-          data: (items) {
-            if (items.isEmpty) {
-              return _EmptyItineraryHistory(
-                onCreate: () => context.goNamed(AppRouteNames.home),
-              );
-            }
-
-            return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: AppResponsive.maxContentWidth(context),
-                ),
-                child: RefreshIndicator(
-                  onRefresh: () async =>
-                      ref.invalidate(itineraryHistoryProvider),
-                  child: ListView.separated(
-                    padding: AppResponsive.value<EdgeInsets>(
-                      context,
-                      mobile: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                      tablet: const EdgeInsets.fromLTRB(20, 16, 20, 104),
-                      desktop: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                    ),
-                    itemBuilder: (context, index) {
-                      final itinerary = items[index];
-                      return _ItineraryCard(
-                        itinerary: itinerary,
-                        onDelete: () =>
-                            _deleteItinerary(context, ref, itinerary),
-                      );
-                    },
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 14),
-                    itemCount: items.length,
-                  ),
-                ),
-              ),
-            );
-          },
-          loading: () => Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: AppResponsive.maxContentWidth(context),
-              ),
-              child: ListView.separated(
-                padding: AppResponsive.value<EdgeInsets>(
-                  context,
-                  mobile: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                  tablet: const EdgeInsets.fromLTRB(20, 16, 20, 104),
-                  desktop: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                ),
-                itemBuilder: (context, index) => SkeletonContainer(
-                  height: isMobile ? 128 : 142,
-                  borderRadius: const BorderRadius.all(Radius.circular(26)),
-                ),
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 14),
-                itemCount: 4,
-              ),
-            ),
-          ),
-          error: (error, stackTrace) => Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: AppResponsive.maxContentWidth(context),
-              ),
-              child: Padding(
-                padding: AppResponsive.pagePadding(context),
-                child: InlineErrorWidget(
-                  message:
-                      'No se pudo cargar el historial. Intenta nuevamente.',
-                  onRetry: () => ref.invalidate(itineraryHistoryProvider),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      body: content,
     );
   }
 
@@ -175,9 +198,16 @@ class ItineraryHistoryPage extends ConsumerWidget {
 
 class _ItineraryCard extends StatelessWidget {
   final ItineraryModel itinerary;
+  final bool selected;
+  final VoidCallback onTap;
   final VoidCallback onDelete;
 
-  const _ItineraryCard({required this.itinerary, required this.onDelete});
+  const _ItineraryCard({
+    required this.itinerary,
+    required this.selected,
+    required this.onTap,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -187,14 +217,16 @@ class _ItineraryCard extends StatelessWidget {
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(28),
         boxShadow: AppColors.ambientShadow,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        border: Border.all(
+          color: selected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outlineVariant,
+          width: selected ? 1.6 : 1,
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(28),
-        onTap: () => context.pushNamedSafe(
-          AppRouteNames.itineraryDetail,
-          pathParameters: {'id': itinerary.id},
-        ),
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(

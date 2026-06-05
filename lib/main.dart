@@ -31,9 +31,17 @@ class RutaVivaApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
-      builder: (context, child) => ChatStreamingEffectsListener(
-        child: Stack(children: [child!, const GlobalLoadingOverlay()]),
-      ),
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: AppTheme.clampedTextScaler(context),
+          ),
+          child: ChatStreamingEffectsListener(
+            child: Stack(children: [child!, const GlobalLoadingOverlay()]),
+          ),
+        );
+      },
       title: 'Ruta Viva',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

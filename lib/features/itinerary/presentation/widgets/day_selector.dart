@@ -3,22 +3,28 @@ import 'package:flutter/material.dart';
 class DaySelector extends StatefulWidget {
   final List<DateTime> days;
   final List<String> labels;
+  final void Function(int index, DateTime day) onSelected;
 
-  const DaySelector({super.key, required this.days, required this.labels});
+  const DaySelector({
+    super.key,
+    required this.days,
+    required this.labels,
+    required this.onSelected,
+  });
 
   @override
   State<DaySelector> createState() => _DaySelectorState();
 }
 
 class _DaySelectorState extends State<DaySelector> {
-  int _selectedIndex = 0;
+  int? _selectedIndex;
 
   @override
   Widget build(BuildContext context) {
     final days = widget.days;
-    final safeIndex = days.isEmpty
-        ? 0
-        : _selectedIndex.clamp(0, days.length - 1);
+    final safeIndex = _selectedIndex == null || days.isEmpty
+        ? null
+        : _selectedIndex!.clamp(0, days.length - 1);
     final theme = Theme.of(context);
     final textScale = MediaQuery.textScalerOf(context).scale(14);
     return LayoutBuilder(
@@ -28,7 +34,10 @@ class _DaySelectorState extends State<DaySelector> {
           final selected = index == safeIndex;
           return ChoiceChip(
             selected: selected,
-            onSelected: (_) => setState(() => _selectedIndex = index),
+            onSelected: (_) {
+              setState(() => _selectedIndex = index);
+              widget.onSelected(index, widget.days[index]);
+            },
             label: Text(
               widget.labels[index],
               maxLines: useWrap ? 2 : 1,

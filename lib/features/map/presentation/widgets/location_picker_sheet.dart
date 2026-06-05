@@ -132,11 +132,17 @@ class _LocationPickerSheetState extends ConsumerState<_LocationPickerSheet> {
           final maxHeight = constraints.maxHeight.isFinite
               ? constraints.maxHeight
               : viewport.height;
+          final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
+          final availableHeight = (maxHeight - keyboardHeight)
+              .clamp(320.0, maxHeight)
+              .toDouble();
           final height = AppResponsive.value<double>(
             context,
-            mobile: (maxHeight * 0.92).clamp(520.0, 760.0).toDouble(),
-            tablet: (maxHeight * 0.86).clamp(560.0, 820.0).toDouble(),
-            desktop: 700,
+            mobile: (availableHeight * 0.92).clamp(320.0, 760.0).toDouble(),
+            tablet: (availableHeight * 0.86).clamp(360.0, 820.0).toDouble(),
+            desktop: keyboardHeight > 0
+                ? (availableHeight * 0.92).clamp(420.0, 700.0).toDouble()
+                : 700,
           );
           final compactHeight = AppResponsive.isCompactHeight(context);
 

@@ -363,299 +363,375 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isCompactHeight = constraints.maxHeight < 700;
-          final sidePadding = constraints.maxWidth >= 720 ? 20.0 : 16.0;
-          final topSpacing = isCompactHeight ? 8.0 : 14.0;
-          final overlaySpacing = isCompactHeight ? 10.0 : 14.0;
-
-          return Stack(
-            children: [
-              FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: mapState.center,
-                  initialZoom: mapState.focusedPoiId != null ? 15.0 : 11.0,
-                  minZoom: 7,
-                  maxZoom: 18,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.all,
+          final isLandscape =
+              constraints.maxWidth > constraints.maxHeight &&
+              constraints.maxWidth >= 640;
+          if (isLandscape) {
+            return Row(
+              children: [
+                Expanded(
+                  flex: 60,
+                  child: _buildMapCanvas(
+                    context: context,
+                    constraints: constraints,
+                    mapState: mapState,
+                    showHeaderOverlay: false,
+                    showFiltersOverlay: false,
+                    showSearchOverlay: false,
                   ),
-                  onPositionChanged: (position, hasGesture) {
-                    final center = position.center;
-                    final zoom = position.zoom;
-                    if (hasGesture) {
-                      _updateCamera(center, zoom);
-                      if (ref.read(mapProvider).isGlobalMode) {
-                        _scheduleViewportRefresh(center);
-                      }
-                    }
-                  },
                 ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.rutaviva.app',
-                  ),
-                  ValueListenableBuilder<_MarkerDensity>(
-                    valueListenable: _markerDensity,
-                    builder: (context, density, _) {
-                      if (!_canBuildMarkerLayer(context)) {
-                        return const MarkerLayer(markers: []);
-                      }
-                      final visibleMarkers = _stableMarkers(
-                        mapState.visiblePoints,
-                        mapState,
-                      );
-                      return RepaintBoundary(
-                        child: MarkerLayer(
-                          key: ValueKey(_lastMarkerSignature),
-                          markers: visibleMarkers
-                              .map((marker) {
-                                return Marker(
-                                  point: marker.point.coordinates,
-                                  width: marker.size,
-                                  height: marker.showLabel
-                                      ? marker.size + 24
-                                      : marker.size,
-                                  child: CustomMapMarker(
-                                    point: marker.point,
-                                    compact: !marker.showLabel,
-                                    showLabel: marker.showLabel,
-                                    highlighted: marker.highlighted,
-                                  ),
-                                );
-                              })
-                              .toList(growable: false),
-                        ),
-                      );
+                VerticalDivider(
+                  width: 1,
+                  color: theme.colorScheme.outlineVariant,
+                ),
+                Expanded(
+                  flex: 40,
+                  child: _MapLandscapePanel(
+                    controller: _searchController,
+                    backFallbackRouteName: widget.backFallbackRouteName,
+                    isLoading: _isResolvingSearch || mapState.isLoading,
+                    activeSearchQuery: _activeMapSearchQuery,
+                    mapState: mapState,
+                    categories: ref.watch(categoriesProvider),
+                    onSearch: _searchMap,
+                    onClearSearch: _clearSearch,
+                    onClearFilters: () {
+                      setState(() => _activeMapSearchQuery = null);
+                      _searchController.clear();
+                      ref
+                          .read(mapProvider.notifier)
+                          .clearCategoryFilters(
+                            center: _mapController.camera.center,
+                          );
                     },
-                  ),
-                ],
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 80,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onVerticalDragUpdate: (details) {
-                    if (!mapState.isGlobalMode) return;
-                    setState(() {
-                      _pullRefreshOffset =
-                          (_pullRefreshOffset + details.delta.dy).clamp(0, 90);
-                    });
-                  },
-                  onVerticalDragEnd: (_) {
-                    if (!mapState.isGlobalMode) return;
-                    if (_pullRefreshOffset > 60 && !mapState.isLoading) {
-                      _onPullRefresh();
-                    } else {
-                      setState(() => _pullRefreshOffset = 0);
-                    }
-                  },
-                  child: _pullRefreshOffset > 0
-                      ? Center(
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              top: _pullRefreshOffset - 28,
-                            ),
-                            child: SizedBox(
-                              width: 32,
-                              height: 32,
-                              child: _isPullRefreshing
-                                  ? const CircularProgressIndicator(
-                                      strokeWidth: 3,
-                                    )
-                                  : Icon(
-                                      Icons.refresh_rounded,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary
-                                          .withValues(
-                                            alpha: (_pullRefreshOffset / 90)
-                                                .clamp(0.2, 1.0),
-                                          ),
-                                      size: 28,
-                                    ),
-                            ),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.center,
-                        colors: [
-                          theme.colorScheme.surface.withValues(alpha: 0.26),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
+                    onToggleFilter: (id) {
+                      setState(() => _activeMapSearchQuery = null);
+                      _searchController.clear();
+                      ref
+                          .read(mapProvider.notifier)
+                          .toggleCategoryFilter(
+                            id,
+                            center: _mapController.camera.center,
+                          );
+                    },
+                    onSelectPoint: _focusSearchResult,
+                    onRefresh: _refreshNearby,
+                    onZoomIn: () {
+                      final newZoom = _mapController.camera.zoom + 1;
+                      final center = _mapController.camera.center;
+                      _updateCamera(center, newZoom);
+                      _mapController.move(center, newZoom);
+                    },
+                    onZoomOut: () {
+                      final newZoom = _mapController.camera.zoom - 1;
+                      final center = _mapController.camera.center;
+                      _updateCamera(center, newZoom);
+                      _mapController.move(center, newZoom);
+                    },
+                    onLocateUser: _locateUser,
                   ),
                 ),
-              ),
-              Positioned(
-                top: 0,
-                left: sidePadding,
-                right: sidePadding,
-                child: SafeArea(
-                  bottom: false,
-                  child: Column(
-                    children: [
-                      SizedBox(height: topSpacing),
-                      _MapHeader(
-                        controller: _searchController,
-                        backFallbackRouteName: widget.backFallbackRouteName,
-                        isLoading: _isResolvingSearch || mapState.isLoading,
-                        activeSearchQuery: _activeMapSearchQuery,
-                        hasActiveSearch: _activeMapSearchQuery != null,
-                        onSearch: _searchMap,
-                        onClearSearch: _clearSearch,
-                      ),
-                      AnimatedOpacity(
-                        opacity: mapState.isGlobalMode ? 1.0 : 0.0,
-                        duration: AppDurations.long,
-                        curve: Curves.easeOut,
-                        child: AnimatedSlide(
-                          offset: Offset(
-                            0,
-                            mapState.isGlobalMode ? 0.0 : -0.12,
-                          ),
-                          duration: AppDurations.long,
-                          curve: Curves.easeOut,
-                          child: IgnorePointer(
-                            ignoring: !mapState.isGlobalMode,
-                            child: Padding(
-                              padding: EdgeInsets.only(top: overlaySpacing),
-                              child: _MapCategoryFilters(
-                                categories: ref.watch(categoriesProvider),
-                                selectedCategoryIds:
-                                    mapState.selectedCategoryIds,
-                                isLoading: mapState.isLoading,
-                                onClear: () {
-                                  setState(() => _activeMapSearchQuery = null);
-                                  _searchController.clear();
-                                  ref
-                                      .read(mapProvider.notifier)
-                                      .clearCategoryFilters(
-                                        center: _mapController.camera.center,
-                                      );
-                                },
-                                onToggle: (id) {
-                                  setState(() => _activeMapSearchQuery = null);
-                                  _searchController.clear();
-                                  ref
-                                      .read(mapProvider.notifier)
-                                      .toggleCategoryFilter(
-                                        id,
-                                        center: _mapController.camera.center,
-                                      );
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: sidePadding,
-                right: sidePadding,
-                bottom: 0,
-                child: SafeArea(
-                  top: false,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (mapState.errorMessage != null)
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: overlaySpacing,
-                                ),
-                                child: _MapNotice(
-                                  icon: Icons.warning_amber_rounded,
-                                  message: mapState.errorMessage!,
-                                  actionLabel: 'Reintentar',
-                                  onAction: mapState.isLoading
-                                      ? null
-                                      : _refreshNearby,
-                                ),
-                              ),
-                            if (!mapState.isLoading &&
-                                mapState.errorMessage == null &&
-                                mapState.visiblePoints.isEmpty)
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: overlaySpacing,
-                                ),
-                                child: _MapNotice(
-                                  icon: Icons.travel_explore,
-                                  message:
-                                      'No hay lugares para mostrar todavía. Prueba refrescar o buscar desde Inicio.',
-                                  actionLabel: 'Refrescar',
-                                  onAction: _refreshNearby,
-                                ),
-                              ),
-                            if (mapState.isGlobalMode &&
-                                _activeMapSearchQuery != null &&
-                                mapState.visiblePoints.isNotEmpty)
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  right: constraints.maxWidth >= 720 ? 8 : 0,
-                                  bottom: overlaySpacing,
-                                ),
-                                child: _MapSearchResultsPanel(
-                                  points: mapState.visiblePoints,
-                                  selectedPointId: mapState.selectedPoint?.id,
-                                  onSelect: _focusSearchResult,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: overlaySpacing),
-                      Padding(
-                        padding: EdgeInsets.only(
-                          bottom: isCompactHeight ? 8 : 12,
-                        ),
-                        child: _MapActionRail(
-                          onZoomIn: () {
-                            final newZoom = _mapController.camera.zoom + 1;
-                            final center = _mapController.camera.center;
-                            _updateCamera(center, newZoom);
-                            _mapController.move(center, newZoom);
-                          },
-                          onZoomOut: () {
-                            final newZoom = _mapController.camera.zoom - 1;
-                            final center = _mapController.camera.center;
-                            _updateCamera(center, newZoom);
-                            _mapController.move(center, newZoom);
-                          },
-                          onLocateUser: _locateUser,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+              ],
+            );
+          }
+
+          return _buildMapCanvas(
+            context: context,
+            constraints: constraints,
+            mapState: mapState,
           );
         },
       ),
+    );
+  }
+
+  Widget _buildMapCanvas({
+    required BuildContext context,
+    required BoxConstraints constraints,
+    required MapState mapState,
+    bool showHeaderOverlay = true,
+    bool showFiltersOverlay = true,
+    bool showSearchOverlay = true,
+  }) {
+    final theme = Theme.of(context);
+    final isCompactHeight = constraints.maxHeight < 700;
+    final sidePadding = constraints.maxWidth >= 720 ? 20.0 : 16.0;
+    final topSpacing = isCompactHeight ? 8.0 : 14.0;
+    final overlaySpacing = isCompactHeight ? 10.0 : 14.0;
+
+    return Stack(
+      children: [
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: mapState.center,
+            initialZoom: mapState.focusedPoiId != null ? 15.0 : 11.0,
+            minZoom: 7,
+            maxZoom: 18,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all,
+            ),
+            onPositionChanged: (position, hasGesture) {
+              final center = position.center;
+              final zoom = position.zoom;
+              if (hasGesture) {
+                _updateCamera(center, zoom);
+                if (ref.read(mapProvider).isGlobalMode) {
+                  _scheduleViewportRefresh(center);
+                }
+              }
+            },
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.rutaviva.app',
+            ),
+            ValueListenableBuilder<_MarkerDensity>(
+              valueListenable: _markerDensity,
+              builder: (context, density, _) {
+                if (!_canBuildMarkerLayer(context)) {
+                  return const MarkerLayer(markers: []);
+                }
+                final visibleMarkers = _stableMarkers(
+                  mapState.visiblePoints,
+                  mapState,
+                );
+                return RepaintBoundary(
+                  child: MarkerLayer(
+                    key: ValueKey(_lastMarkerSignature),
+                    markers: visibleMarkers
+                        .map((marker) {
+                          return Marker(
+                            point: marker.point.coordinates,
+                            width: marker.size,
+                            height: marker.showLabel
+                                ? marker.size + 24
+                                : marker.size,
+                            child: CustomMapMarker(
+                              point: marker.point,
+                              compact: !marker.showLabel,
+                              showLabel: marker.showLabel,
+                              highlighted: marker.highlighted,
+                            ),
+                          );
+                        })
+                        .toList(growable: false),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 80,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onVerticalDragUpdate: (details) {
+              if (!mapState.isGlobalMode) return;
+              setState(() {
+                _pullRefreshOffset = (_pullRefreshOffset + details.delta.dy)
+                    .clamp(0, 90);
+              });
+            },
+            onVerticalDragEnd: (_) {
+              if (!mapState.isGlobalMode) return;
+              if (_pullRefreshOffset > 60 && !mapState.isLoading) {
+                _onPullRefresh();
+              } else {
+                setState(() => _pullRefreshOffset = 0);
+              }
+            },
+            child: _pullRefreshOffset > 0
+                ? Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: _pullRefreshOffset - 28),
+                      child: SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: _isPullRefreshing
+                            ? const CircularProgressIndicator(strokeWidth: 3)
+                            : Icon(
+                                Icons.refresh_rounded,
+                                color: Theme.of(context).colorScheme.primary
+                                    .withValues(
+                                      alpha: (_pullRefreshOffset / 90).clamp(
+                                        0.2,
+                                        1.0,
+                                      ),
+                                    ),
+                                size: 28,
+                              ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.center,
+                  colors: [
+                    theme.colorScheme.surface.withValues(alpha: 0.26),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (showHeaderOverlay)
+          Positioned(
+            top: 0,
+            left: sidePadding,
+            right: sidePadding,
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  SizedBox(height: topSpacing),
+                  _MapHeader(
+                    controller: _searchController,
+                    backFallbackRouteName: widget.backFallbackRouteName,
+                    isLoading: _isResolvingSearch || mapState.isLoading,
+                    activeSearchQuery: _activeMapSearchQuery,
+                    hasActiveSearch: _activeMapSearchQuery != null,
+                    onSearch: _searchMap,
+                    onClearSearch: _clearSearch,
+                  ),
+                  if (showFiltersOverlay)
+                    AnimatedOpacity(
+                      opacity: mapState.isGlobalMode ? 1.0 : 0.0,
+                      duration: AppDurations.long,
+                      curve: Curves.easeOut,
+                      child: AnimatedSlide(
+                        offset: Offset(0, mapState.isGlobalMode ? 0.0 : -0.12),
+                        duration: AppDurations.long,
+                        curve: Curves.easeOut,
+                        child: IgnorePointer(
+                          ignoring: !mapState.isGlobalMode,
+                          child: Padding(
+                            padding: EdgeInsets.only(top: overlaySpacing),
+                            child: _MapCategoryFilters(
+                              categories: ref.watch(categoriesProvider),
+                              selectedCategoryIds: mapState.selectedCategoryIds,
+                              isLoading: mapState.isLoading,
+                              onClear: () {
+                                setState(() => _activeMapSearchQuery = null);
+                                _searchController.clear();
+                                ref
+                                    .read(mapProvider.notifier)
+                                    .clearCategoryFilters(
+                                      center: _mapController.camera.center,
+                                    );
+                              },
+                              onToggle: (id) {
+                                setState(() => _activeMapSearchQuery = null);
+                                _searchController.clear();
+                                ref
+                                    .read(mapProvider.notifier)
+                                    .toggleCategoryFilter(
+                                      id,
+                                      center: _mapController.camera.center,
+                                    );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        Positioned(
+          left: sidePadding,
+          right: sidePadding,
+          bottom: 0,
+          child: SafeArea(
+            top: false,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (mapState.errorMessage != null)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: overlaySpacing),
+                          child: _MapNotice(
+                            icon: Icons.warning_amber_rounded,
+                            message: mapState.errorMessage!,
+                            actionLabel: 'Reintentar',
+                            onAction: mapState.isLoading
+                                ? null
+                                : _refreshNearby,
+                          ),
+                        ),
+                      if (!mapState.isLoading &&
+                          mapState.errorMessage == null &&
+                          mapState.visiblePoints.isEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: overlaySpacing),
+                          child: _MapNotice(
+                            icon: Icons.travel_explore,
+                            message:
+                                'No hay lugares para mostrar todavía. Prueba refrescar o buscar desde Inicio.',
+                            actionLabel: 'Refrescar',
+                            onAction: _refreshNearby,
+                          ),
+                        ),
+                      if (showSearchOverlay &&
+                          mapState.isGlobalMode &&
+                          _activeMapSearchQuery != null &&
+                          mapState.visiblePoints.isNotEmpty)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            right: constraints.maxWidth >= 720 ? 8 : 0,
+                            bottom: overlaySpacing,
+                          ),
+                          child: _MapSearchResultsPanel(
+                            points: mapState.visiblePoints,
+                            selectedPointId: mapState.selectedPoint?.id,
+                            onSelect: _focusSearchResult,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: overlaySpacing),
+                Padding(
+                  padding: EdgeInsets.only(bottom: isCompactHeight ? 8 : 12),
+                  child: _MapActionRail(
+                    onZoomIn: () {
+                      final newZoom = _mapController.camera.zoom + 1;
+                      final center = _mapController.camera.center;
+                      _updateCamera(center, newZoom);
+                      _mapController.move(center, newZoom);
+                    },
+                    onZoomOut: () {
+                      final newZoom = _mapController.camera.zoom - 1;
+                      final center = _mapController.camera.center;
+                      _updateCamera(center, newZoom);
+                      _mapController.move(center, newZoom);
+                    },
+                    onLocateUser: _locateUser,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -937,6 +1013,206 @@ class _MapSearchResultsPanel extends StatelessWidget {
   }
 }
 
+class _MapLandscapePanel extends StatelessWidget {
+  final TextEditingController controller;
+  final String backFallbackRouteName;
+  final bool isLoading;
+  final String? activeSearchQuery;
+  final MapState mapState;
+  final AsyncValue<List<CategoryModel>> categories;
+  final VoidCallback onSearch;
+  final VoidCallback onClearSearch;
+  final VoidCallback onClearFilters;
+  final ValueChanged<int> onToggleFilter;
+  final ValueChanged<MapPoint> onSelectPoint;
+  final VoidCallback onRefresh;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+  final VoidCallback onLocateUser;
+
+  const _MapLandscapePanel({
+    required this.controller,
+    required this.backFallbackRouteName,
+    required this.isLoading,
+    required this.activeSearchQuery,
+    required this.mapState,
+    required this.categories,
+    required this.onSearch,
+    required this.onClearSearch,
+    required this.onClearFilters,
+    required this.onToggleFilter,
+    required this.onSelectPoint,
+    required this.onRefresh,
+    required this.onZoomIn,
+    required this.onZoomOut,
+    required this.onLocateUser,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final visible = mapState.visiblePoints.take(30).toList(growable: false);
+    return SafeArea(
+      child: Material(
+        color: theme.colorScheme.surface,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+          children: [
+            _MapHeader(
+              controller: controller,
+              backFallbackRouteName: backFallbackRouteName,
+              isLoading: isLoading,
+              activeSearchQuery: activeSearchQuery,
+              hasActiveSearch: activeSearchQuery != null,
+              onSearch: onSearch,
+              onClearSearch: onClearSearch,
+            ),
+            const SizedBox(height: 14),
+            _MapCategoryFilters(
+              categories: categories,
+              selectedCategoryIds: mapState.selectedCategoryIds,
+              isLoading: mapState.isLoading,
+              onClear: onClearFilters,
+              onToggle: onToggleFilter,
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    activeSearchQuery == null
+                        ? 'Lugares cercanos'
+                        : 'Resultados para "$activeSearchQuery"',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Acercar',
+                  onPressed: onZoomIn,
+                  icon: const Icon(Icons.add_rounded),
+                ),
+                IconButton(
+                  tooltip: 'Alejar',
+                  onPressed: onZoomOut,
+                  icon: const Icon(Icons.remove_rounded),
+                ),
+                IconButton(
+                  tooltip: 'Mi ubicación',
+                  onPressed: onLocateUser,
+                  icon: const Icon(Icons.my_location_rounded),
+                ),
+              ],
+            ),
+            if (mapState.errorMessage != null) ...[
+              const SizedBox(height: 10),
+              _MapNotice(
+                icon: Icons.warning_amber_rounded,
+                message: mapState.errorMessage!,
+                actionLabel: 'Reintentar',
+                onAction: mapState.isLoading ? null : onRefresh,
+              ),
+            ] else if (!mapState.isLoading && visible.isEmpty) ...[
+              const SizedBox(height: 10),
+              _MapNotice(
+                icon: Icons.travel_explore,
+                message: 'No hay lugares para mostrar todavía.',
+                actionLabel: 'Refrescar',
+                onAction: onRefresh,
+              ),
+            ] else ...[
+              const SizedBox(height: 10),
+              for (final point in visible)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _MapPointListTile(
+                    point: point,
+                    selected: point.id == mapState.selectedPoint?.id,
+                    onTap: () => onSelectPoint(point),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MapPointListTile extends StatelessWidget {
+  final MapPoint point;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _MapPointListTile({
+    required this.point,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = categoryStyleFor(
+      point.categoryIds.isEmpty ? null : point.categoryIds.first,
+      theme.colorScheme,
+    );
+    return Material(
+      color: selected
+          ? theme.colorScheme.primaryContainer
+          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: style.color.withValues(alpha: 0.14),
+                child: Icon(style.icon, color: style.color, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      point.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (point.distanceMeters != null)
+                      Text(
+                        _distanceLabel(point.distanceMeters!),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _distanceLabel(double meters) {
+    if (meters >= 1000) {
+      return '${(meters / 1000).toStringAsFixed(1)} km';
+    }
+    return '${meters.round()} m';
+  }
+}
+
 class _MapSearchResultCard extends StatelessWidget {
   final MapPoint point;
   final bool selected;
@@ -955,8 +1231,12 @@ class _MapSearchResultCard extends StatelessWidget {
       point.categoryIds.isEmpty ? null : point.categoryIds.first,
       theme.colorScheme,
     );
+    final cardWidth = (MediaQuery.sizeOf(context).width * 0.45).clamp(
+      160.0,
+      220.0,
+    );
     return SizedBox(
-      width: 218,
+      width: cardWidth,
       child: Material(
         color: selected
             ? theme.colorScheme.primaryContainer.withValues(alpha: 0.96)

@@ -138,7 +138,11 @@ class ItineraryDetailController {
   }) async {
     var next = state.copyWith(clearFeedback: true);
     final step = state.steps.firstWhere((s) => s.id == stepId);
-    final dateBase = step.dayDate ?? step.arrivalTime ?? itinerary.startDate ?? DateTime.now();
+    final dateBase =
+        step.dayDate ??
+        step.arrivalTime ??
+        itinerary.startDate ??
+        DateTime.now();
     final arrival = DateTime(
       dateBase.year,
       dateBase.month,
@@ -223,6 +227,35 @@ class ItineraryDetailController {
 
     onSaveReorder(payload);
     return next;
+  }
+
+  ItineraryDetailState moveStepToDay(
+    ItineraryDetailState state,
+    ItineraryStepModel movedStep, {
+    required DateTime fromDay,
+    required DateTime toDay,
+    required void Function(List<Map<String, dynamic>> payload) onSaveReorder,
+  }) {
+    if (isSameDay(fromDay, toDay)) {
+      return reorderStep(
+        state,
+        movedStep,
+        toDay,
+        0,
+        onSaveReorder: onSaveReorder,
+      );
+    }
+
+    // Cross-day moves are intentionally inserted at the beginning of the
+    // destination day. The backend recalculates arrival/departure times after
+    // the reorder payload is persisted.
+    return reorderStep(
+      state,
+      movedStep,
+      toDay,
+      0,
+      onSaveReorder: onSaveReorder,
+    );
   }
 
   Future<ItineraryDetailState> saveReorder(

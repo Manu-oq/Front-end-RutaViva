@@ -43,6 +43,11 @@ class AppTheme {
     outlineVariant: const Color(0xFF405548),
   );
 
+  static TextScaler clampedTextScaler(BuildContext context) {
+    final platformScale = MediaQuery.textScalerOf(context).scale(1.0);
+    return TextScaler.linear(platformScale.clamp(0.8, 1.4));
+  }
+
   static ThemeData get lightTheme => _theme(_lightScheme);
   static ThemeData get darkTheme => _theme(_darkScheme);
 

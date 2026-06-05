@@ -108,7 +108,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         ),
       ),
       body: SafeArea(
-        top: false,
         child: Center(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,

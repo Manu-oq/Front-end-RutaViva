@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:ruta_viva/core/error/api_exception.dart';
@@ -12,6 +13,9 @@ import 'package:ruta_viva/features/chat_ai/data/models/ara_session_model.dart';
 import 'package:ruta_viva/features/chat_ai/data/repositories/ara_repository.dart';
 import 'package:ruta_viva/features/chat_ai/domain/entities/message_entity.dart';
 import 'package:ruta_viva/features/chat_ai/presentation/providers/chat_provider.dart';
+import 'package:ruta_viva/features/itinerary/data/models/itinerary_model.dart';
+import 'package:ruta_viva/features/itinerary/data/repositories/itinerary_repository.dart';
+import 'package:ruta_viva/features/itinerary/presentation/providers/itinerary_provider.dart';
 
 void main() {
   group('ChatNotifier estado inicial', () {
@@ -78,6 +82,95 @@ void main() {
       final notifier = container.read(chatProvider.notifier);
 
       expect(notifier.isBusy, isFalse);
+    });
+
+    test(
+      'isReplacementMode se activa con conversationMode replacement',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        final notifier = container.read(chatProvider.notifier);
+
+        await notifier.replaceThinkingWithSessionForTest(
+          const AraSessionModel(
+            sessionId: 'session-replacement',
+            status: 'clarifying',
+            preferences: AraPreferencesModel(conversationMode: 'replacement'),
+          ),
+        );
+
+        expect(container.read(chatReplacementModeProvider), isTrue);
+      },
+    );
+
+    test(
+      'metadata change_itinerary_step activa modo reemplazo inmediatamente',
+      () async {
+        final repository = _FakeAraRepository(
+          createResponse: const AraSessionModel(
+            sessionId: 'session-replacement',
+            status: 'clarifying',
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [araRepositoryProvider.overrideWith((ref) => repository)],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(chatProvider.notifier);
+        final started = await notifier.startSessionFromHome(
+          initialMessage: 'cambiar la parada',
+          center: const LatLng(-39.28, -72.23),
+          metadata: const {'intent': 'change_itinerary_step'},
+        );
+
+        expect(started, isTrue);
+        expect(
+          repository.lastCreateMetadata?['intent'],
+          'change_itinerary_step',
+        );
+        expect(container.read(chatReplacementModeProvider), isTrue);
+      },
+    );
+
+    test('step_replaced sin itineraryId refresca itinerario actual', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final oldItinerary = _itinerary(id: 'iti-current', title: 'Ruta vieja');
+      final freshItinerary = _itinerary(
+        id: 'iti-current',
+        title: 'Ruta actualizada',
+      );
+      final repository = _FakeItineraryRepository(fresh: freshItinerary);
+      final container = ProviderContainer(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          itineraryRepositoryProvider.overrideWith((ref) => repository),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(itineraryProvider.notifier).setCurrent(oldItinerary);
+
+      await container
+          .read(chatProvider.notifier)
+          .replaceThinkingWithSessionForTest(
+            const AraSessionModel(
+              sessionId: 'session-replacement',
+              status: 'step_replaced',
+              assistantMessage: AraChatMessageModel(
+                role: 'assistant',
+                content: 'Listo, reemplacé la parada.',
+              ),
+            ),
+          );
+
+      expect(repository.requestedId, 'iti-current');
+      expect(
+        container.read(itineraryProvider).current?.title,
+        'Ruta actualizada',
+      );
     });
   });
 
@@ -976,15 +1069,68 @@ void main() {
   });
 }
 
+ItineraryModel _itinerary({required String id, required String title}) {
+  return ItineraryModel(
+    id: id,
+    touristId: 'tourist-1',
+    title: title,
+    status: 'planned',
+    isEditable: true,
+    steps: const [],
+  );
+}
+
+class _FakeItineraryRepository extends ItineraryRepository {
+  final ItineraryModel fresh;
+  String? requestedId;
+
+  _FakeItineraryRepository({required this.fresh}) : super(DioClient(Dio()));
+
+  @override
+  Future<ItineraryModel> getItineraryById(String id) async {
+    requestedId = id;
+    return fresh;
+  }
+}
+
 class _FakeAraRepository extends AraRepository {
   final Stream<AraGenerationStreamEvent> Function({
     required String sessionId,
     String? finalInstruction,
   })
   streamFactory;
+  final AraSessionModel? createResponse;
   String? lastSentMessage;
+  Map<String, dynamic>? lastCreateMetadata;
 
-  _FakeAraRepository({required this.streamFactory}) : super(DioClient(Dio()));
+  _FakeAraRepository({
+    this.createResponse,
+    this.streamFactory = _emptyStreamFactory,
+  }) : super(DioClient(Dio()));
+
+  static Stream<AraGenerationStreamEvent> _emptyStreamFactory({
+    required String sessionId,
+    String? finalInstruction,
+  }) {
+    return const Stream.empty();
+  }
+
+  @override
+  Future<AraSessionModel> createSession({
+    required String initialMessage,
+    required LatLng center,
+    required double radius,
+    required DateTime startDate,
+    required DateTime endDate,
+    Map<String, dynamic>? metadata,
+  }) async {
+    lastCreateMetadata = metadata;
+    return createResponse ??
+        const AraSessionModel(
+          sessionId: 'created-session',
+          status: 'clarifying',
+        );
+  }
 
   @override
   Future<AraSessionModel> sendMessage({

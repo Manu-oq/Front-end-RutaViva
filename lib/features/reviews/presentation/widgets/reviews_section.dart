@@ -172,95 +172,100 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
     final summary = ref.watch(reviewSummaryByPoiProvider(widget.poiId));
     final currentUserId = ref.watch(authProvider).user?.id;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_feedbackMessage != null) ...[
-          AppFeedbackBanner(
-            message: _feedbackMessage!,
-            type: _feedbackType,
-            onDismiss: _dismissFeedback,
-          ),
-          const SizedBox(height: 14),
-        ],
-        Text(
-          'Comparte tu experiencia y revisa lo que otros viajeros recomiendan antes de ir.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            height: 1.45,
-          ),
-        ),
-        const SizedBox(height: 14),
-        summary.when(
-          data: (value) => _ReviewSummaryCard(summary: value),
-          loading: () => const SkeletonContainer(height: 154),
-          error: (error, stackTrace) => InlineErrorWidget(
-            message: 'No se pudo cargar el resumen de opiniones.',
-            onRetry: _refreshReviews,
-          ),
-        ),
-        const SizedBox(height: 14),
-        reviews.when(
-          data: (items) {
-            final ownReview = _findOwnReview(items, currentUserId);
-            if (items.isEmpty) {
-              return Column(
-                children: [
-                  _ReviewForm(
-                    controller: _controller,
-                    rating: _rating,
-                    isSubmitting: _isSubmitting,
-                    onRatingChanged: (value) => setState(() => _rating = value),
-                    onSubmit: _submitReview,
-                  ),
-                  const SizedBox(height: 18),
-                  const _EmptyReviewsCard(),
-                ],
-              );
-            }
-
-            return Column(
-              children: [
-                if (ownReview == null) ...[
-                  _ReviewForm(
-                    controller: _controller,
-                    rating: _rating,
-                    isSubmitting: _isSubmitting,
-                    onRatingChanged: (value) => setState(() => _rating = value),
-                    onSubmit: _submitReview,
-                  ),
-                  const SizedBox(height: 18),
-                ] else ...[
-                  _OwnReviewNotice(onEdit: () => _editReview(ownReview)),
-                  const SizedBox(height: 14),
-                ],
-                ...items.map((review) {
-                  final canManage = review.touristId == currentUserId;
-                  return _ReviewTile(
-                    review: review,
-                    canManage: canManage,
-                    onEdit: () => _editReview(review),
-                    onDelete: () => _deleteReview(review),
-                  );
-                }),
-              ],
-            );
-          },
-          loading: () => Column(
-            children: List.generate(
-              3,
-              (index) => Padding(
-                padding: EdgeInsets.only(bottom: index == 2 ? 0 : 12),
-                child: const SkeletonContainer(height: 104),
-              ),
+    return SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_feedbackMessage != null) ...[
+            AppFeedbackBanner(
+              message: _feedbackMessage!,
+              type: _feedbackType,
+              onDismiss: _dismissFeedback,
+            ),
+            const SizedBox(height: 14),
+          ],
+          Text(
+            'Comparte tu experiencia y revisa lo que otros viajeros recomiendan antes de ir.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.45,
             ),
           ),
-          error: (error, stackTrace) => InlineErrorWidget(
-            message: 'No se pudieron cargar las opiniones.',
-            onRetry: _refreshReviews,
+          const SizedBox(height: 14),
+          summary.when(
+            data: (value) => _ReviewSummaryCard(summary: value),
+            loading: () => const SkeletonContainer(height: 154),
+            error: (error, stackTrace) => InlineErrorWidget(
+              message: 'No se pudo cargar el resumen de opiniones.',
+              onRetry: _refreshReviews,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 14),
+          reviews.when(
+            data: (items) {
+              final ownReview = _findOwnReview(items, currentUserId);
+              if (items.isEmpty) {
+                return Column(
+                  children: [
+                    _ReviewForm(
+                      controller: _controller,
+                      rating: _rating,
+                      isSubmitting: _isSubmitting,
+                      onRatingChanged: (value) =>
+                          setState(() => _rating = value),
+                      onSubmit: _submitReview,
+                    ),
+                    const SizedBox(height: 18),
+                    const _EmptyReviewsCard(),
+                  ],
+                );
+              }
+
+              return Column(
+                children: [
+                  if (ownReview == null) ...[
+                    _ReviewForm(
+                      controller: _controller,
+                      rating: _rating,
+                      isSubmitting: _isSubmitting,
+                      onRatingChanged: (value) =>
+                          setState(() => _rating = value),
+                      onSubmit: _submitReview,
+                    ),
+                    const SizedBox(height: 18),
+                  ] else ...[
+                    _OwnReviewNotice(onEdit: () => _editReview(ownReview)),
+                    const SizedBox(height: 14),
+                  ],
+                  ...items.map((review) {
+                    final canManage = review.touristId == currentUserId;
+                    return _ReviewTile(
+                      review: review,
+                      canManage: canManage,
+                      onEdit: () => _editReview(review),
+                      onDelete: () => _deleteReview(review),
+                    );
+                  }),
+                ],
+              );
+            },
+            loading: () => Column(
+              children: List.generate(
+                3,
+                (index) => Padding(
+                  padding: EdgeInsets.only(bottom: index == 2 ? 0 : 12),
+                  child: const SkeletonContainer(height: 104),
+                ),
+              ),
+            ),
+            error: (error, stackTrace) => InlineErrorWidget(
+              message: 'No se pudieron cargar las opiniones.',
+              onRetry: _refreshReviews,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
