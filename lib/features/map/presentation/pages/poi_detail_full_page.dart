@@ -135,6 +135,8 @@ class _PoiDetailBody extends ConsumerWidget {
                                 poi.description?.trim().isNotEmpty == true
                                     ? poi.description!.trim()
                                     : 'Aún no hay una descripción completa para este lugar. Puedes visitarlo, subir una foto o dejar tu opinión para ayudar a otros viajeros.',
+                                maxLines: 5,
+                                overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodyLarge?.copyWith(
                                   height: 1.55,
                                   color: theme.colorScheme.onSurfaceVariant,
@@ -255,6 +257,8 @@ class _TitleCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               'Creado por ${poi.createdByUserName}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
@@ -264,6 +268,8 @@ class _TitleCard extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             poi.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.displaySmall?.copyWith(
               fontWeight: FontWeight.w900,
               height: 1.05,
@@ -320,6 +326,8 @@ class _InfoPill extends StatelessWidget {
           Flexible(
             child: Text(
               label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelMedium?.copyWith(
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w800,
@@ -356,6 +364,8 @@ class _AccessNote extends StatelessWidget {
           Expanded(
             child: Text(
               text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface,
                 height: 1.35,
@@ -396,7 +406,11 @@ class _ContactCard extends StatelessWidget {
               onPressed: () =>
                   UrlLauncherHelper.launchPhone(context, poi.phone!),
               icon: const Icon(Icons.phone_rounded),
-              label: Text('Llamar ${poi.phone}'),
+              label: Text(
+                'Llamar ${poi.phone}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
           if (poi.email != null) ...[
@@ -408,7 +422,11 @@ class _ContactCard extends StatelessWidget {
                 subject: 'Consulta desde Ruta Viva',
               ),
               icon: const Icon(Icons.mail_rounded),
-              label: Text(poi.email!),
+              label: Text(
+                poi.email!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ],
@@ -447,6 +465,8 @@ class _DetailPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelMedium?.copyWith(
               color: pillForeground,
               fontWeight: FontWeight.w800,

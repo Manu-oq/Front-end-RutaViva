@@ -82,6 +82,8 @@ class _LodgingPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             _label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.primary,
               fontWeight: FontWeight.w800,

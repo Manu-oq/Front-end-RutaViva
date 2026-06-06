@@ -41,11 +41,23 @@ class CulturalInsightCard extends StatelessWidget {
                 child: Icon(icon, size: 18),
               ),
               const SizedBox(width: 12),
-              Expanded(child: Text(label, style: theme.textTheme.titleMedium)),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
-          Text(text, style: theme.textTheme.bodyLarge),
+          Text(
+            text,
+            maxLines: 6,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyLarge,
+          ),
           if (action != null) ...[
             const SizedBox(height: 10),
             Align(alignment: Alignment.centerRight, child: action!),

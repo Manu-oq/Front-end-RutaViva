@@ -371,6 +371,8 @@ class _RatingHeader extends StatelessWidget {
             children: [
               Text(
                 average,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.displaySmall?.copyWith(
                   fontWeight: FontWeight.w900,
                   height: 1,
@@ -379,6 +381,8 @@ class _RatingHeader extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 total == 1 ? '1 opinión' : '$total opiniones',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -666,6 +670,8 @@ class _ReviewTile extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           _shortDate(review.createdAt),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -678,6 +684,8 @@ class _ReviewTile extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         review.textContent,
+                        maxLines: 6,
+                        overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           height: 1.45,
                         ),

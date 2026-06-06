@@ -441,10 +441,20 @@ class _AnalyticCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(label, style: theme.textTheme.labelMedium),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelMedium,
+            ),
             if (subtitle != null) ...[
               const SizedBox(height: 2),
-              Text(subtitle!, style: theme.textTheme.bodySmall),
+              Text(
+                subtitle!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
             ],
           ],
         ),

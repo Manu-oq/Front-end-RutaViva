@@ -163,7 +163,7 @@ class _PoiListTile extends ConsumerWidget {
           child: Icon(Icons.place_outlined, color: theme.colorScheme.primary),
         ),
         title: Text(point.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(point.categoryLabel(names)),
+        subtitle: Text(point.categoryLabel(names), maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () => context.pushNamedSafe(
           AppRouteNames.poiDetail,

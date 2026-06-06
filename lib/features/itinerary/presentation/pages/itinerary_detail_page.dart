@@ -370,14 +370,16 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
               ),
             ),
             const SizedBox(height: 10),
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 60,
-                    child: RefreshIndicator(
-                      onRefresh: _onRefresh,
-                      child: ListView.builder(
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 60,
+                      child: Scrollbar(
+                        thumbVisibility: AppResponsive.isDesktop(context),
+                        child: RefreshIndicator(
+                          onRefresh: _onRefresh,
+                          child: ListView.builder(
                         padding: EdgeInsets.fromLTRB(
                           contentPadding.left,
                           0,
@@ -431,7 +433,8 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                       ),
                     ),
                   ),
-                  const VerticalDivider(width: 1),
+                ),
+                    const VerticalDivider(width: 1),
                   Expanded(
                     flex: 40,
                     child: _ItineraryMiniMap(

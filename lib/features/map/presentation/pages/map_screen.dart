@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/app_durations.dart';
+import '../../../../core/utils/responsive.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/utils/location_handler.dart';
@@ -363,9 +364,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isLandscape =
-              constraints.maxWidth > constraints.maxHeight &&
-              constraints.maxWidth >= 640;
+          final isLandscape = AppResponsive.isLandscape(context);
           if (isLandscape) {
             return Row(
               children: [
@@ -1052,11 +1051,19 @@ class _MapLandscapePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final visible = mapState.visiblePoints.take(30).toList(growable: false);
+    final isDesktop = AppResponsive.isDesktop(context);
     return SafeArea(
       child: Material(
         color: theme.colorScheme.surface,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        child: Scrollbar(
+          thumbVisibility: isDesktop,
+          child: ListView(
+            padding: EdgeInsets.fromLTRB(
+              AppResponsive.value<double>(context, mobile: 16, tablet: 20, desktop: 24),
+              12,
+              AppResponsive.value<double>(context, mobile: 16, tablet: 20, desktop: 24),
+              20,
+            ),
           children: [
             _MapHeader(
               controller: controller,
@@ -1083,6 +1090,8 @@ class _MapLandscapePanel extends StatelessWidget {
                     activeSearchQuery == null
                         ? 'Lugares cercanos'
                         : 'Resultados para "$activeSearchQuery"',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
@@ -1136,7 +1145,8 @@ class _MapLandscapePanel extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }
 
@@ -1190,6 +1200,8 @@ class _MapPointListTile extends StatelessWidget {
                     if (point.distanceMeters != null)
                       Text(
                         _distanceLabel(point.distanceMeters!),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -1382,13 +1394,15 @@ class _MapFilterChip extends StatelessWidget {
               children: [
                 Icon(icon, size: 17, color: foreground),
                 const SizedBox(width: 7),
-                Text(
-                  label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: foreground,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: foreground,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
               ],
             ),
           ),
@@ -1522,6 +1536,8 @@ class _MapNotice extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   message,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.bodyMedium,
                                 ),
                               ),
@@ -1533,7 +1549,11 @@ class _MapNotice extends StatelessWidget {
                               alignment: Alignment.centerRight,
                               child: TextButton(
                                 onPressed: onAction,
-                                child: Text(actionLabel!),
+                                child: Text(
+                                  actionLabel!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
                           ],
@@ -1550,6 +1570,8 @@ class _MapNotice extends StatelessWidget {
                           Expanded(
                             child: Text(
                               message,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodyMedium,
                             ),
                           ),
@@ -1557,7 +1579,11 @@ class _MapNotice extends StatelessWidget {
                             const SizedBox(width: 8),
                             TextButton(
                               onPressed: onAction,
-                              child: Text(actionLabel!),
+                              child: Text(
+                                actionLabel!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ],

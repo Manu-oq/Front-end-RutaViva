@@ -171,6 +171,46 @@ void main() {
       );
     });
   });
+
+  group('AppResponsive isLandscape', () {
+    testWidgets('retorna false en portrait (width < height)', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: _TestHarness(
+            builder: (context) {
+              expect(AppResponsive.isLandscape(context), isFalse);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+    });
+
+    testWidgets('retorna true en landscape (width > height)', (tester) async {
+      tester.view.physicalSize = const Size(800, 400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: _TestHarness(
+            builder: (context) {
+              expect(AppResponsive.isLandscape(context), isTrue);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+    });
+  });
 }
 
 class _TestHarness extends StatelessWidget {

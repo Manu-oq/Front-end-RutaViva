@@ -250,6 +250,8 @@ class _BookmarksHeader extends StatelessWidget {
                     const SizedBox(width: 7),
                     Text(
                       countLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,

@@ -23,7 +23,7 @@ class _ItineraryMasterDetailPageState
 
   @override
   Widget build(BuildContext context) {
-    if (!AppResponsive.isDesktop(context)) {
+    if (AppResponsive.isMobile(context) && !AppResponsive.isLandscape(context)) {
       return const ItineraryHistoryPage();
     }
 
@@ -46,9 +46,13 @@ class _ItineraryMasterDetailPageState
               flex: 2,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  border: Border(
-                    right: BorderSide(color: theme.colorScheme.outlineVariant),
-                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.shadow.withValues(alpha: 0.06),
+                      blurRadius: 16,
+                      offset: const Offset(4, 0),
+                    ),
+                  ],
                 ),
                 child: Material(
                   color: theme.colorScheme.surface,
@@ -115,12 +119,23 @@ class _NoItinerarySelectedPane extends StatelessWidget {
       child: Center(
         child: Padding(
           padding: AppResponsive.pagePadding(context),
-          child: Text(
-            'Selecciona un itinerario para ver el detalle.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.route_outlined,
+                size: 56,
+                color: theme.colorScheme.outlineVariant,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Selecciona un itinerario para ver el detalle.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
       ),

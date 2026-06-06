@@ -58,6 +58,8 @@ class ItineraryHero extends StatelessWidget {
           const SizedBox(height: 22),
           Text(
             itinerary.title,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
             style:
                 (isMobile
                         ? theme.textTheme.headlineMedium

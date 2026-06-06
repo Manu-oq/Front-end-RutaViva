@@ -263,6 +263,8 @@ class _ItineraryCard extends StatelessWidget {
                         const SizedBox(height: 6),
                         Text(
                           '${_dateRange(itinerary)} • ${itinerary.steps.length} paradas',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall,
                         ),
                       ],
@@ -316,6 +318,8 @@ class _ItineraryCard extends StatelessWidget {
                       ),
                       child: Text(
                         step.poiName ?? 'Parada ${step.stepOrder}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.primary,
                         ),

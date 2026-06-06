@@ -471,6 +471,8 @@ class _CandidateMetaPill extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelSmall?.copyWith(
               color: color,
               fontWeight: FontWeight.w800,
@@ -498,6 +500,8 @@ class _EvidencePill extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.tertiary,
           fontWeight: FontWeight.w800,
@@ -540,7 +544,11 @@ class _ItineraryChatCard extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    Text('${card.stepsCount} paradas sugeridas'),
+                    Text(
+                      '${card.stepsCount} paradas sugeridas',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
@@ -585,7 +593,11 @@ class _ActionList extends StatelessWidget {
             icon: isSelected
                 ? const Icon(Icons.check_rounded, size: 16)
                 : const Icon(Icons.auto_awesome_rounded, size: 16),
-            label: Text(action.label),
+            label: Text(
+              action.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               shape: RoundedRectangleBorder(
@@ -600,7 +612,11 @@ class _ActionList extends StatelessWidget {
             icon: isSelected
                 ? const Icon(Icons.check_rounded, size: 16)
                 : const Icon(Icons.hotel_rounded, size: 16),
-            label: Text(action.label),
+            label: Text(
+              action.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               shape: RoundedRectangleBorder(
@@ -612,10 +628,18 @@ class _ActionList extends StatelessWidget {
             onPressed: actionsLocked || onAction == null
                 ? null
                 : () => onAction!(action),
-            child: Text(action.label),
+            child: Text(
+              action.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           _ => ActionChip(
-            label: Text(action.label),
+            label: Text(
+              action.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             avatar: isSelected
                 ? const Icon(Icons.check_rounded, size: 16)
                 : null,

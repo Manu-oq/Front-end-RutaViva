@@ -209,12 +209,16 @@ class DayWeatherCard extends StatelessWidget {
             if (item.summary != null && item.summary!.isNotEmpty)
               Text(
                 item.summary!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium,
               ),
             if (item.summary != null && item.summary!.isNotEmpty)
               const SizedBox(height: 4),
             Text(
               _temperatureLine(item),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

@@ -435,7 +435,11 @@ class _CategorySelector extends StatelessWidget {
         children: items.map((category) {
           final selected = selectedCategoryIds.contains(category.id);
           return FilterChip(
-            label: Text(category.name),
+            label: Text(
+              category.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             selected: selected,
             onSelected: (value) => onToggle(category.id, value),
           );

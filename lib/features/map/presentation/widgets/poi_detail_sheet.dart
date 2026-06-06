@@ -102,11 +102,18 @@ class PoiDetailSheet extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              Text(point.name, style: theme.textTheme.headlineLarge),
+              Text(
+                point.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.headlineLarge,
+              ),
               const SizedBox(height: 10),
               Text(
                 point.description ??
                     'Un lugar por descubrir. Visítalo para conocer su historia de primera mano.',
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   fontStyle: point.description == null
                       ? FontStyle.italic

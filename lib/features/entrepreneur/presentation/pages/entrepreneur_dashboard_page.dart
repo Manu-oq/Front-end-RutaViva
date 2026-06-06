@@ -266,7 +266,9 @@ class _EntrepreneurDashboard extends ConsumerWidget {
     return pois.when(
       data: (items) => RefreshIndicator(
         onRefresh: () => _refreshDashboard(ref),
-        child: CustomScrollView(
+        child: Scrollbar(
+          thumbVisibility: AppResponsive.isDesktop(context),
+          child: CustomScrollView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
@@ -333,6 +335,7 @@ class _EntrepreneurDashboard extends ConsumerWidget {
             ),
           ],
         ),
+        ),
       ),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stackTrace) => _DashboardError(
@@ -388,6 +391,8 @@ class _HeroCard extends StatelessWidget {
             ),
             child: Text(
               badge,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelMedium?.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
@@ -397,6 +402,8 @@ class _HeroCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style:
                 (isMobile
                         ? theme.textTheme.headlineMedium
@@ -409,6 +416,8 @@ class _HeroCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: Colors.white.withValues(alpha: 0.82),
               height: 1.45,
@@ -523,16 +532,31 @@ class _MetricCard extends StatelessWidget {
           children: [
             Icon(icon, color: theme.colorScheme.primary),
             const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(value, style: theme.textTheme.titleLarge),
-                  Text(label, style: theme.textTheme.labelLarge),
-                  Text(detail, style: theme.textTheme.bodySmall),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleLarge,
+                    ),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge,
+                    ),
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -784,6 +808,8 @@ class _PlaceCardText extends StatelessWidget {
         ),
         Text(
           '${poi.categoryIds.length} categorías',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

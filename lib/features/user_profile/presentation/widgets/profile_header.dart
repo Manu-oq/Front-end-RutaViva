@@ -125,6 +125,8 @@ class ProfileHeader extends StatelessWidget {
                 const SizedBox(height: 24),
                 Text(
                   'Hola, $displayName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style:
                       (isMobile
                               ? theme.textTheme.headlineMedium
@@ -138,6 +140,8 @@ class ProfileHeader extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   '$subtitle · $supportingText',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.white.withValues(alpha: 0.78),
                     height: 1.45,
@@ -181,6 +185,8 @@ class _InterestPill extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
           color: Colors.white,
           fontWeight: FontWeight.w700,

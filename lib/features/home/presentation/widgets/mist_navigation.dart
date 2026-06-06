@@ -22,40 +22,45 @@ class MistNavigation extends ConsumerWidget {
       return Scaffold(
         body: Row(
           children: [
-            NavigationRail(
-              selectedIndex: railSelectedIndex,
-              onDestinationSelected: (index) =>
-                  _onRailItemTapped(index, context, ref),
-              extended: MediaQuery.sizeOf(context).width > 800,
-              backgroundColor: theme.colorScheme.surface,
-              elevation: 1,
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home),
-                  label: Text('Inicio'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.map_outlined),
-                  selectedIcon: Icon(Icons.map),
-                  label: Text('Mapa'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.route_outlined),
-                  selectedIcon: Icon(Icons.route),
-                  label: Text('Itinerarios'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.chat_bubble_outline),
-                  selectedIcon: Icon(Icons.chat_bubble),
-                  label: Text('Chat'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.person_outline),
-                  selectedIcon: Icon(Icons.person),
-                  label: Text('Perfil'),
-                ),
-              ],
+            Theme(
+              data: theme.copyWith(
+                hoverColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+              ),
+              child: NavigationRail(
+                selectedIndex: railSelectedIndex,
+                onDestinationSelected: (index) =>
+                    _onRailItemTapped(index, context, ref),
+                extended: MediaQuery.sizeOf(context).width > 800,
+                backgroundColor: theme.colorScheme.surface,
+                elevation: 1,
+                destinations: const [
+                  NavigationRailDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home),
+                    label: Text('Inicio'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.map_outlined),
+                    selectedIcon: Icon(Icons.map),
+                    label: Text('Mapa'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.route_outlined),
+                    selectedIcon: Icon(Icons.route),
+                    label: Text('Itinerarios'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.chat_bubble_outline),
+                    selectedIcon: Icon(Icons.chat_bubble),
+                    label: Text('Chat'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person),
+                    label: Text('Perfil'),
+                  ),
+                ],
+              ),
             ),
             Expanded(child: child),
           ],

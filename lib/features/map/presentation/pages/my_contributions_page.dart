@@ -96,6 +96,8 @@ class _ContributionCard extends ConsumerWidget {
                     children: [
                       Text(
                         poi.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w900,
                         ),
@@ -103,6 +105,8 @@ class _ContributionCard extends ConsumerWidget {
                       const SizedBox(height: 6),
                       Text(
                         category,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -116,6 +120,8 @@ class _ContributionCard extends ConsumerWidget {
             const SizedBox(height: 12),
             Text(
               'Creado: ${_createdAtLabel(poi.createdAt)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),

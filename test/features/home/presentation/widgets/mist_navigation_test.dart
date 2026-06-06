@@ -99,5 +99,28 @@ void main() {
       final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
       expect(rail.extended, isFalse);
     });
+
+    testWidgets('NavigationRail Theme provides hover color on desktop', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1000, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final router = _buildRouter();
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpAndSettle();
+
+      final themeFinder = find.ancestor(
+        of: find.byType(NavigationRail),
+        matching: find.byType(Theme),
+      );
+      final themes = themeFinder.evaluate().toList();
+      final closestTheme = themes.last.widget as Theme;
+      final hoverColor = closestTheme.data.hoverColor;
+      expect(hoverColor, isNotNull);
+      expect(hoverColor.a, lessThan(0.12));
+    });
   });
 }
