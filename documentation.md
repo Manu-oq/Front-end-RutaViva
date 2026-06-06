@@ -1,6 +1,6 @@
 # Documentación Técnica Viva — Frontend Ruta Viva
 
-> Última actualización integral: **2026-06-03**
+> Última actualización integral: **2026-06-06**
 >
 > Documento maestro del frontend Flutter de Ruta Viva. Su objetivo es describir el estado real del código, la arquitectura aplicada, las integraciones backend activas, la navegación, los providers, los modelos, los widgets relevantes, los cambios históricos importantes y la deuda técnica vigente.
 
@@ -64,11 +64,16 @@ El frontend dejó hace tiempo de ser una maqueta y hoy funciona como app integra
 - CRUD de reviews;
 - bookmarks/favoritos;
 - historial y detalle de itinerarios;
-- edición ligera de pasos de itinerario (reorder, reschedule, replace/delete);
+- edición de pasos con reorder intra-día, drag & drop inter-día, reschedule, replace y delete;
 - flujo Ara/chat con generación de itinerarios por SSE;
+- `ItineraryMasterDetailPage` para tablet/desktop y layouts landscape activos en mapa e itinerarios;
+- `MistNavigation` adaptativa con `NavigationBar` en mobile y `NavigationRail` en tablet/desktop;
+- sistema de contribuciones separado para turista vs. emprendedor, con `creationType`, validaciones distintas y endpoints `/pois/tourist/` vs `/pois/entrepreneur/`;
 - panel emprendedor, dashboard por POI y gestión de posts;
+- responsive design completado en los Lotes A, B y C;
 - sistema de feedback unificado con banners, snackbars, skeletons y errores inline;
-- mejoras recientes de responsive, accesibilidad y refresh flows.
+- **40 archivos de test frontend** y **300 tests pasados, 0 fallidos** (`flutter test` ejecutado el 2026-06-06);
+- `flutter analyze` limpio (0 issues el 2026-06-06).
 
 ### 2.2 Decisiones vigentes más importantes
 
@@ -447,17 +452,24 @@ Archivo: `lib/features/home/presentation/widgets/mist_navigation.dart`
 
 Responsabilidades:
 
-- renderizar `NavigationBar` Material 3;
-- mapear la ruta actual a `selectedIndex`;
+- renderizar navegación principal adaptativa;
+- usar `NavigationBar` en mobile;
+- usar `NavigationRail` en tablet/desktop;
+- decidir condicionalmente mobile vs. tablet/desktop con `AppResponsive`;
+- extender el rail cuando el viewport supera `800px` de ancho;
+- mapear la ruta actual a `selectedIndex` / `railSelectedIndex`;
 - manejar `goNamed(...)` según el destino;
 - disparar resets/cargas del mapa cuando se vuelve a Home o Mapa.
 
+Detalles relevantes:
+
+- el orden visual del rail no es igual al del bottom nav: en rail queda `Inicio`, `Mapa`, `Itinerarios`, `Chat`, `Perfil`;
+- el rail aplica `hoverColor` suave en desktop para mejorar affordance sin ruido visual;
+- la shell principal sigue centralizada en `ShellRoute`, pero dejó de ser mobile-only.
+
 Destinos visibles:
 - Inicio
-- Chat
-- Mapa
-- Rutas
-- Perfil
+- Chat / Mapa / Itinerarios / Perfil según variante visual
 
 ## 6.5 `pushNamedSafe`
 
@@ -1008,6 +1020,8 @@ Capacidades:
 - `semanticSearch`
 - `getPoiById`
 
+Comentario importante: la creación de POIs ya distingue explícitamente `tourist` vs. `entrepreneur`, tanto en UI como en endpoint (`/pois/tourist/` y `/pois/entrepreneur/`).
+
 ### Provider: `MapNotifier`
 Responsabilidades:
 - modo global vs. overrides temporales;
@@ -1029,7 +1043,15 @@ Es uno de los archivos más complejos del repo.
 - maneja búsqueda textual y fallback a geocoding;
 - gestiona pull-to-refresh manual del mapa;
 - muestra header, filtros, resultados de búsqueda, notices y rail de acciones;
-- permite localizar usuario.
+- permite localizar usuario;
+- usa layout landscape real: mapa al `60%` y panel lateral al `40%`;
+- delega el panel lateral landscape a `_MapLandscapePanel`.
+
+#### Ajustes responsive recientes
+- las cards de resultados de búsqueda ahora usan ancho proporcional al viewport (`45%`, acotado entre `160` y `220`);
+- en landscape el mapa deja de depender de overlays absolutos para todo el contenido secundario;
+- el panel lateral agrega `Scrollbar` visible en desktop;
+- antes de pintar markers se validan bounds/tamaños finitos para evitar glitches visuales.
 
 #### Qué no hace
 - no es responsable de ejecutar requests directas al backend por sí sola: eso vive en provider/repository;
@@ -1057,7 +1079,15 @@ Responsabilidades:
 - imagen principal/medios;
 - coordenadas;
 - contacto;
-- navegación de retorno.
+- navegación de retorno;
+- validación distinta según `creationType` turista/emprendedor.
+
+### `LocationPickerSheet`
+Responsabilidades:
+- búsqueda geocodificada dentro del picker;
+- ajuste de altura con `MediaQuery.viewInsetsOf(context).bottom` cuando aparece el teclado;
+- `SafeArea` + `isScrollControlled` para no cortar contenido;
+- selección fina de coordenadas sin romper el layout en desktop o compact height.
 
 ### Widgets importantes de la feature
 - `CustomMapMarker`
@@ -1069,6 +1099,7 @@ Responsabilidades:
 - `AccessTypeSelector`
 - `AmenityItem`
 - `AuthenticitySeal`
+- `_MapLandscapePanel`
 
 ## 11.5 `reviews`
 
@@ -1221,34 +1252,60 @@ Responsabilidades:
 - exponer errorMessage;
 - aún incluye `generate(...)` para el flujo general no-Ara.
 
+### `ItineraryMasterDetailPage`
+Archivo: `lib/features/itinerary/presentation/pages/itinerary_master_detail_page.dart`
+
+Responsabilidades:
+- actuar como entrypoint adaptativo para la ruta de historial;
+- mostrar solo `ItineraryHistoryPage` en mobile portrait;
+- mostrar master-detail lado a lado en mobile landscape, tablet y desktop;
+- sincronizar selección local con `itineraryProvider.current`.
+
 ### `ItineraryHistoryPage`
 Responsabilidades:
 - listar historial del usuario;
 - navegar a detalle;
-- soportar refresh y estados vacíos/error.
+- soportar refresh y estados vacíos/error;
+- funcionar también como panel embebido dentro del master-detail.
 
 ### `ItineraryDetailPage`
-Es otra de las pantallas grandes del repo.
+Sigue siendo una pantalla grande, pero ya no opera como un único god object autosuficiente.
 
 #### Qué hace
 - fetch por ID o fallback al itinerario current;
+- delega mutaciones y derivaciones a `ItineraryDetailController` (`lib/features/itinerary/presentation/providers/itinerary_detail_notifier.dart`);
 - weather dashboard;
 - selector de día;
 - listado de pasos por día;
-- reorder de pasos;
+- reorder intra-día;
+- drag & drop inter-día;
 - reschedule;
 - delete step;
 - change step vía chat;
 - apertura de POIs del día en mapa;
 - warnings por pasos fuera de rango.
 
+#### Adaptación responsive reciente
+- usa `OrientationBuilder`;
+- en landscape divide el contenido en 2 columnas funcionales: pasos a la izquierda y panel contextual a la derecha;
+- conserva drawer lateral de drop mientras se arrastra entre días;
+- en desktop activa `Scrollbar` visible.
+
+#### Day filtering actual
+- `DaySelector` filtra por un solo día seleccionado;
+- ya no existe el modo `Ver todos` en esta pantalla;
+- el selector se adapta con `Wrap` o lista horizontal según ancho/text scale.
+
 #### Widgets internos importantes
-- hero del itinerario;
-- weather section;
-- `_AdaptiveWeatherCards`;
-- `_DaySelector`;
-- `_GeneratedStep`;
-- `_RescheduleDialog`.
+- `ItineraryHero`;
+- `WeatherSection`;
+- `DaySelector`;
+- `GeneratedStep`;
+- `RescheduleDialog`;
+- `InterDayDragDrawer`;
+- `DragFlyingProxy`;
+- `DayDropSection`;
+- `ItineraryInfoBanners`.
 
 ## 11.9 `entrepreneur`
 
@@ -1281,7 +1338,13 @@ Dos modos:
 - hero;
 - métricas;
 - listado de lugares propios;
-- accesos a analíticas, posts, edición y detalle.
+- accesos a analíticas, posts, edición y detalle;
+- grid adaptativo de lugares: 1 columna en mobile, 2 en tablet y 3 en desktop.
+
+#### Detalle responsive útil
+- `_PlacesSection` decide lista vertical vs. `GridView` según breakpoint;
+- `_PlaceCard` usa `LayoutBuilder` para alternar layout horizontal/vertical cuando el ancho disponible es estrecho;
+- desktop usa `Scrollbar` visible en el dashboard principal.
 
 ### `PoiDashboardPage`
 Responsabilidades:
@@ -1432,27 +1495,50 @@ Texto/acciones legales o informativas reutilizables en auth/onboarding cuando ap
 
 ## 13.1 Qué está mejor resuelto hoy
 
-- `AppResponsive` da una base consistente de paddings y breakpoints;
-- varias pantallas centran contenido con `maxContentWidth(...)`;
-- el chat ya usa `LayoutBuilder` en bubbles;
-- `MapScreen` redujo fragilidad de overlays;
-- `ItineraryDetailPage` ahora tolera mejor text scaling y cambios de ancho;
-- múltiples botones compactos subieron hacia targets más razonables.
+- `AppResponsive` ya opera como base transversal real de breakpoints, paddings y `maxContentWidth(...)`;
+- la app clampa `textScaler` globalmente desde `AppTheme.clampedTextScaler(...)`;
+- el shell principal, mapa, itinerarios y dashboard emprendedor ya no dependen de una única variante mobile;
+- el hardening reciente priorizó evitar overflow, mejorar keyboard handling y reducir layouts frágiles.
 
-## 13.2 Problemas que existían y ya quedaron parcialmente corregidos
+## 13.2 Lote A — hardening base
 
-- botones menores a 48dp;
-- refresh indicators que no esperaban recarga real;
-- widths fijos frágiles en cards de clima;
-- selector de días demasiado rígido;
-- overlays absolutos más frágiles en mapa;
-- falta de trazabilidad en fallos silenciosos.
+Incluyó mejoras transversales de bajo nivel que impactan muchas pantallas a la vez:
 
-## 13.3 Deuda UX aún visible
+- clamp global de text scale entre `0.8` y `1.4`;
+- expansión del uso de `SafeArea` en shell y pantallas de scroll principal;
+- `keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag` en formularios y listas largas;
+- manejo explícito del teclado en `LocationPickerSheet` mediante `MediaQuery.viewInsetsOf(context).bottom`;
+- ajustes de paddings y alturas para compact height;
+- targets y constraints más razonables en botones/acciones flotantes.
+
+## 13.3 Lote B — layouts adaptativos grandes
+
+Aquí quedó resuelto el salto real hacia tablet/desktop y landscape útil:
+
+- `MistNavigation` usa `NavigationRail` en tablet/desktop y `NavigationBar` en mobile;
+- el rail se extiende cuando el ancho supera `800px`;
+- la ruta de itinerarios entra por `ItineraryMasterDetailPage`, con master-detail en tablet/desktop y también en mobile landscape;
+- `ItineraryDetailPage` usa `OrientationBuilder` y layout de 2 columnas en landscape;
+- `MapScreen` usa layout landscape `60/40` con `_MapLandscapePanel`;
+- `EntrepreneurDashboardPage` usa grid de 2 columnas en tablet y 3 en desktop.
+
+## 13.4 Lote C — pulido visual, overflow y affordance
+
+Este lote se enfocó en detalles que suelen romperse tarde:
+
+- proliferación de `maxLines` + `TextOverflow.ellipsis` en cards, headers y celdas densas;
+- `DaySelector` adaptable con `Wrap` cuando el ancho o el text scale ya no toleran una sola fila;
+- hover state explícito en `NavigationRail` para desktop;
+- `Scrollbar` visible en desktop para itinerarios, mapa landscape y dashboard emprendedor;
+- bounds/tamaños finitos antes de pintar marker layers en mapa;
+- uso más consistente de `ConstrainedBox`, `ClipRRect` y límites decorativos para evitar desbordes visuales.
+
+## 13.5 Deuda UX aún visible
 
 - no hay suite de screenshot/golden tests multi-device;
 - varias pantallas siguen con demasiada responsabilidad visual y de estado;
-- la adaptación a landscape y compact height todavía depende mucho de ajustes manuales por pantalla.
+- la adaptación a landscape y compact height sigue resuelta de forma pragmática por pantalla, no desde un sistema de layout más declarativo;
+- web/desktop tienen mejoras claras, pero aún faltan pruebas sistemáticas de navegación por teclado y focus traversal.
 
 ---
 
@@ -1460,7 +1546,12 @@ Texto/acciones legales o informativas reutilizables en auth/onboarding cuando ap
 
 ## 14.1 Cantidad actual de tests
 
-Existen **26 archivos `*_test.dart`** bajo `test/`.
+Existen **40 archivos `*_test.dart`** bajo `test/`.
+
+Resultado validado hoy:
+
+- **300 tests pasados, 0 fallidos** en `flutter test` (2026-06-06);
+- **0 issues** en `flutter analyze` (2026-06-06).
 
 ## 14.2 Cobertura visible por área
 
@@ -1471,6 +1562,7 @@ Existen **26 archivos `*_test.dart`** bajo `test/`.
 - responsive
 - widgets compartidos
 - listener global de chat streaming
+- routing de `CreatePoiPage` con `creationType`
 
 ### Auth
 - repository
@@ -1479,22 +1571,37 @@ Existen **26 archivos `*_test.dart`** bajo `test/`.
 ### Chat AI
 - modelos SSE/Ara
 - provider de chat
+- candidate POI card
 - chat bubble
+- chat input field
+- trip progress bar
 
 ### Entrepreneur
 - modelos
 - repository
+- dashboard responsive (lista mobile, grid tablet/desktop, scrollbar desktop)
 
 ### Itinerary
 - repository
 - provider
 - contrato de POIs para itinerario
+- `ItineraryDetailPage`
+- `ItineraryHistoryPage`
+- `ItineraryMasterDetailPage`
+- drag & drop inter-día
+- selector de día sin `Ver todos`
 
 ### Map
 - modelos POI
 - repository
 - provider
+- `CreatePoiPage`
+- `MyContributionsPage`
+- marker logic
 - custom marker
+
+### Home / Navigation
+- `MistNavigation` responsive (`NavigationBar` vs `NavigationRail`)
 
 ### Onboarding
 - interests provider
@@ -1512,46 +1619,60 @@ Existen **26 archivos `*_test.dart`** bajo `test/`.
 - rutas protegidas;
 - parsing SSE;
 - warning/result en Ara;
-- side effects del listener global.
+- side effects del listener global;
+- navegación adaptativa (`MistNavigation`);
+- master-detail de itinerarios;
+- separación turista/emprendedor en contribuciones;
+- drag & drop inter-día.
 
 ## 14.4 Qué sigue faltando
 
-- widget tests de pantallas pesadas (`MapScreen`, `ItineraryDetailPage`, entrepreneur dashboards);
-- pruebas de responsive multi-device;
-- golden tests;
+- cobertura más integral de `MapScreen` completo (interacciones, overlays y landscape real);
+- más pruebas widget para variantes landscape/desktop de `ItineraryDetailPage` y dashboards emprendedor;
+- golden tests multi-breakpoint;
 - escenarios de error cross-feature más integrados.
 
 ---
 
 ## 15. Deuda técnica y límites actuales
 
-## 15.1 Hotspots grandes
+## 15.1 Deuda que ya salió del bucket crítico
 
-Archivos especialmente grandes o cargados de responsabilidad:
+Fixes que antes eran deuda visible y hoy deben considerarse resueltos o sustancialmente mitigados:
 
-- `lib/features/map/presentation/pages/map_screen.dart`
-- `lib/features/itinerary/presentation/pages/itinerary_detail_page.dart`
-- `lib/features/chat_ai/presentation/providers/chat_provider.dart`
-- `lib/features/chat_ai/presentation/widgets/chat_bubble.dart`
-- `lib/features/entrepreneur/presentation/pages/entrepreneur_dashboard_page.dart`
-- `lib/features/entrepreneur/presentation/pages/poi_posts_page.dart`
+- `MistNavigation` ya no es solo mobile: existe variante tablet/desktop con `NavigationRail`;
+- `ItineraryDetailPage` dejó de concentrar toda la lógica de mutación en un único widget: hoy usa `ItineraryDetailController` y widgets extraídos;
+- el selector de días rígido fue reemplazado por `DaySelector` adaptable y filtrado por día;
+- el drag & drop inter-día ya existe y tiene cobertura de tests;
+- el alta de contribuciones ya separa turista vs. emprendedor de forma explícita en frontend y repository.
 
-## 15.2 Riesgos arquitectónicos reales
+## 15.2 Hotspots grandes que siguen vigentes
+
+Archivos especialmente grandes o cargados de responsabilidad al 2026-06-06:
+
+- `lib/features/map/presentation/pages/map_screen.dart` — **1,877 líneas**;
+- `lib/features/chat_ai/presentation/providers/chat_provider.dart` — **1,223 líneas**;
+- `lib/features/itinerary/presentation/pages/itinerary_detail_page.dart` — **919 líneas**;
+- `lib/features/entrepreneur/presentation/pages/entrepreneur_dashboard_page.dart` — **892 líneas**;
+- `lib/features/entrepreneur/presentation/pages/poi_posts_page.dart` — **742 líneas**;
+- `lib/features/entrepreneur/presentation/pages/poi_dashboard_page.dart` — **711 líneas**.
+
+## 15.3 Riesgos arquitectónicos reales
 
 - acoplamiento funcional alto entre chat, itineraries y map;
-- lógica grande en notifiers/páginas en lugar de coordinadores más pequeños;
-- responsive resuelto de forma pragmática, no sistémica.
+- lógica todavía grande en notifiers/páginas en lugar de coordinadores más pequeños;
+- responsive quedó mucho mejor, pero sigue resuelto de forma pragmática y no desde un design system/layout system más estricto.
 
-## 15.3 Seguridad y persistencia
+## 15.4 Seguridad y persistencia
 
 - tokens en `shared_preferences` siguen siendo válidos para esta etapa, pero no equivalen a almacenamiento seguro móvil final.
 
-## 15.4 Notificaciones y background real
+## 15.5 Notificaciones y background real
 
 - la app **sí** muestra notificación in-app cuando Ara termina;
 - la app **no** implementa todavía push/local notification del sistema para app en background/cerrada.
 
-## 15.5 Itinerarios: coexistencia de dos mundos
+## 15.6 Itinerarios: coexistencia de dos mundos
 
 Hoy coexisten:
 
@@ -1559,6 +1680,12 @@ Hoy coexisten:
 2. flujo Ara por SSE
 
 No están mezclados a nivel de endpoint, pero sí conviene documentarlo siempre para evitar malentendidos de backend o frontend futuro.
+
+## 15.7 Deuda nueva o todavía poco visible
+
+- no existe todavía una suite de golden/screenshot tests multi-breakpoint;
+- `poi_dashboard_page.py` existe vacío dentro de `lib/features/entrepreneur/presentation/pages/` y debería eliminarse o justificarse;
+- web/desktop mejoraron bastante, pero aún faltan pruebas sistemáticas de focus, teclado y accesibilidad no táctil.
 
 ---
 
@@ -1634,17 +1761,17 @@ Ninguna. El proyecto compila, la app funciona, y los flujos principales están o
 
 | # | Item | Impacto | Plan |
 |---|------|---------|------|
-| 1 | `chat_provider.dart` (1,043 líneas, 15 campos privados) | God Notifier con 8 responsabilidades mezcladas. Agregar una feature nueva al chat requiere tocar este monolito. | Extraer 4-5 sub-notifiers: `ChatSessionNotifier`, `ChatStreamingNotifier`, `ChatNavigationNotifier`, `ChatUiStateNotifier` |
-| 2 | Acoplamiento circular `itinerary ↔ chat_ai` | `itinerary_detail_page.dart` importa `chat_provider.dart` directamente. Ningún feature puede compilar/testearse de forma independiente. | Crear `AppCoordinator` en `core/coordination/` que medie entre features sin imports cruzados |
-| 3 | `map_screen.dart` (1,452 líneas) | God Widget con cálculos pesados en build. Jank visible en pan/zoom ya mitigado con `ValueNotifier`, pero clustering de markers sigue pesado. | Extraer widgets privados a archivos + optimizar clustering |
+| 1 | `chat_provider.dart` (1,223 líneas) | God Notifier con demasiadas responsabilidades mezcladas. Agregar features nuevas al chat sigue siendo costoso y riesgoso. | Extraer sub-notifiers/coordinadores por sesión, streaming, navegación y UI |
+| 2 | `map_screen.dart` (1,877 líneas) | God Widget todavía grande. El jank principal mejoró, pero clustering/markers/layout siguen concentrados en un solo archivo. | Seguir extrayendo paneles, overlays y lógica de densidad/cálculo |
+| 3 | Acoplamiento `itinerary ↔ chat_ai` | `itinerary_detail_page.dart` sigue importando `chat_provider.dart` para iniciar reemplazos de pasos vía chat. | Crear coordinador/interfaz en `core/coordination/` o adapter de navegación/acciones |
 
 ### 17.3 Media (Tests / Pulido)
 
 | # | Item | Impacto | Plan |
 |---|------|---------|------|
-| 4 | 4 tests pre-existentes fallan | `chat_input_field_test.dart` (2), `constants_api_constants_test.dart` (1), `widget_test.dart` (1). No bloquean producción pero ensucian la suite. | Arreglar fixtures y assertions |
-| 5 | `trip_progress_bar_test.dart` | Test espera `"Hotel X · Todas las noches"` pero widget solo renderiza `"Hotel X"` (ignora `mode`). | Concatenar `name + " · " + mode` en `TripProgressData.fromAraProgress` o ajustar expectativa del test |
-| 6 | `debugPrint` en producción | 26 ocurrencias en 12 archivos. No crítico pero ensucia logs. | Reemplazar por logger estructurado o `kDebugMode` checks |
+| 4 | No hay golden/screenshot tests multi-breakpoint | Se pueden romper layouts responsive sin señal temprana en CI. | Agregar golden tests clave para mobile, tablet, desktop y landscape |
+| 5 | `ItineraryDetailController` no tiene suite unitaria directa | La lógica está mejor separada pero hoy se valida sobre todo vía widget tests. | Agregar tests unitarios del controller y payloads de reorder |
+| 6 | `debugPrint` en producción | Hay 24 ocurrencias en `lib/`. No bloquea, pero ensucia logs y mezcla tracing con UI. | Reemplazar por logger estructurado o encapsular con `kDebugMode` |
 
 ### 17.4 Baja (Nice to Have)
 
@@ -1652,21 +1779,22 @@ Ninguna. El proyecto compila, la app funciona, y los flujos principales están o
 |---|------|------|
 | 7 | Formatear todos los archivos con `dart format` | Correr `dart format lib test` y commitear |
 | 8 | Agregar `analysis_options.yaml` más estricto | Incluir `unused_import`, `avoid_print`, `prefer_final`, etc. |
-| 9 | Tests unitarios para `ItineraryDetailController` | El controller tiene lógica de negocio pero 0 tests unitarios directos. Solo hay widget tests. |
+| 9 | Eliminar o justificar `poi_dashboard_page.py` vacío | Limpiar artefacto residual dentro de `lib/features/entrepreneur/presentation/pages/` |
 
 ---
 
-## 18. Refactorización Completada (2026-06-03)
+## 18. Estado actual y refactorización completada (2026-06-06)
 
 ### 18.1 Fases 1-3 del Frontend (MVP + Fixes)
 
 | Fase | Estado | Lo que se hizo |
 |------|--------|----------------|
-| Fase 1 | ✅ | Widgets base: ChatHeader, TripProgressBar, IntentCheckpointCard, CandidatePoiCard, ChatInputField, ItineraryProgressSheet |
+| Fase 1 | ✅ | Widgets base del chat y flujo inicial integrados |
 | Fase 2.1-2.4 | ✅ | Slot Detector, Persistencia de Slots, Ara Pregunta Primero, Validación OSRM por slot |
 | Fase 2.5 | ✅ | `all_slots_filled`, botón condicional, filtrado de quick replies |
 | Fase 2.6 | ✅ | Slots de comida genéricos (`is_generic: true`, `poi_id: null`) funcionando end-to-end |
-| Fase 3 | ✅ | Drag & Drop entre días: `LongPressDraggable` + `DragTarget`, feedback visual, payload `day_index`/`position`, endpoint PATCH, rollback en error |
+| Fase 3 | ✅ | Drag & drop entre días con persistencia, feedback visual y cobertura de tests |
+| Hardening responsive A/B/C | ✅ | clamp de text scale, layouts landscape, `NavigationRail`, master-detail, grids, hover/scrollbars y control de overflows |
 
 ### 18.2 Quick Wins (Backend)
 
@@ -1678,59 +1806,55 @@ Ninguna. El proyecto compila, la app funciona, y los flujos principales están o
 | Q4 | Logging en endpoints | `ara.py`, `itineraries.py`, `ara_conversation_orchestrator.py` | Traza en producción |
 | Q5 | Eliminar `ItineraryRepository` import muerto | `tool_orchestrator.py` | Limpieza |
 
-### 18.3 God Object `itinerary_detail_page.dart` Refactorizado
+### 18.3 Refactor de `itinerary_detail_page.dart`: estado real hoy
 
-| Métrica | Antes | Después |
-|---------|-------|---------|
-| **Líneas** | 1,910 | 438 (-77%) |
-| **Clases** | 29 | 3 |
-| **Widgets extraídos** | — | 9 archivos en `widgets/` |
-| **Helpers de fecha extraídos** | — | `core/utils/date_time_utils.dart` (11 funciones) |
-| **Controller creado** | — | `ItineraryDetailController` en `itinerary_detail_notifier.dart` |
+| Métrica | Antes del refactor | Después inmediato | Estado actual 2026-06-06 |
+|---------|--------------------|-------------------|---------------------------|
+| **Líneas** | 1,910 | 438 | 919 |
+| **Clases en el archivo** | 29 | 3 | 5 |
+| **Controller** | no existía | creado | sigue vigente |
+| **Widgets extraídos** | — | 9 archivos | siguen vigentes + drawer/proxy inter-día |
 
-**Archivos nuevos:**
-- `weather_section.dart` (322 líneas) — 6 widgets de clima
-- `day_drop_section.dart` (221 líneas) — Drag & drop por día
-- `generated_step.dart` (93 líneas) — Representación de paso
-- `day_selector.dart` (67 líneas) — Selector de días
-- `reschedule_dialog.dart` (85 líneas) — Diálogo de reprogramación
-- `itinerary_hero.dart` (171 líneas) — Hero section
-- `itinerary_detail_skeleton.dart` (59 líneas) — Loading state
-- `itinerary_detail_error.dart` (125 líneas) — Error + empty states
-- `itinerary_info_banners.dart` (91 líneas) — Banners de advertencia
+Interpretación correcta: el refactor **sí funcionó** y sacó la lógica central del widget principal, pero el archivo volvió a crecer por soporte landscape, overlays adaptativos y drag & drop inter-día. Ya no es el mismo god object monolítico, aunque sigue siendo un hotspot.
 
-### 18.4 Fixes de Performance Aplicados
+**Archivos relevantes creados o incorporados en esta etapa:**
+- `lib/features/itinerary/presentation/pages/itinerary_master_detail_page.dart`
+- `lib/features/itinerary/presentation/widgets/inter_day_drag_drawer.dart`
+- `lib/features/itinerary/presentation/widgets/drag_flying_proxy.dart`
+- `lib/features/itinerary/presentation/widgets/day_selector.dart`
+- `lib/features/itinerary/presentation/widgets/day_drop_section.dart`
+- `lib/features/itinerary/presentation/providers/itinerary_detail_notifier.dart`
+
+### 18.4 Fixes de performance y estructura aplicados
 
 | Fix | Archivo | Resultado |
 |-----|---------|-----------|
-| `_WeatherSection` como `StatefulWidget` independiente | `itinerary_detail_page.dart` | Toggle de clima ya no rebuilda todo el body |
-| `_DaySelector` como `StatefulWidget` con `_selectedIndex` interno | `itinerary_detail_page.dart` | Cambio de día ya no rebuilda el padre |
-| Caché de `_tripDays()` y `_stepsForDate()` | `itinerary_detail_page.dart` | `Map` lazy + invalidación centralizada |
-| `vibe_selection_page` usa `ref.watch` reactivo | `vibe_selection_page.dart` | Sin doble fuente de verdad |
-| `ValueNotifier<(LatLng, double)>` en mapa embebido | `itinerary_detail_page.dart` | Sin jank en pan/zoom del mapa embebido |
-| `ValueNotifier<(LatLng, double)>` en `map_screen.dart` | `map_screen.dart` | Sin jank en mapa completo |
+| `ItineraryDetailController` para mutaciones/derivaciones | `itinerary_detail_notifier.dart` | menos lógica imperative mezclada en la página |
+| `ValueNotifier<(LatLng, double)>` en mapa completo | `map_screen.dart` | menos jank en pan/zoom |
+| validación de bounds finitos antes de marker layer | `map_screen.dart` | menos fragilidad visual en mapa |
+| `LayoutBuilder` en cards/layouts densos | varias pantallas | menos overflows en tablet/desktop |
+| `OrientationBuilder` en itinerarios | `itinerary_detail_page.dart` | landscape funcional de 2 columnas |
 
-### 18.5 Limpieza de Dead Code
+### 18.5 Limpieza y consolidación recientes
 
-| Archivo eliminado | Razón |
-|-------------------|-------|
-| `chat_ai/presentation/widgets/intent_checkpoint_card.dart` | Widget incompleto, referenciaba tipos/providers inexistentes, nadie lo importaba |
-| `chat_ai/presentation/widgets/itinerary_progress_sheet.dart` | Widget incompleto, referenciaba getters/modelos inexistentes, nadie lo importaba |
-| `test/chat_ai/presentation/widgets/intent_checkpoint_card_test.dart` | Test de widget muerto |
+| Cambio | Impacto |
+|--------|---------|
+| Shell principal ahora entra por `MistNavigation` adaptativa | navegación coherente en mobile, tablet y desktop |
+| contribuciones separadas turista/emprendedor | contratos frontend más explícitos y menos ambigüedad de validación |
+| `CreatePoiPage` validada por `creationType` | el flujo emprendedor exige contacto público; el turista no |
+| `MyContributionsPage` y dashboard emprendedor conviven sin mezclar responsabilidades | aportes propios vs. catálogo de negocios mejor delimitado |
 
 ### 18.6 Tests
 
 | Suite | Total | Pasados | Fallidos | Estado |
 |-------|-------|---------|----------|--------|
-| Frontend tests | 254 | 250 | 4 (pre-existentes) | ✅ Limpio |
-| Backend tests | ~232 | ~225 | 7 (pre-existentes) | ✅ Limpio |
-| `flutter analyze` | — | — | 0 errores, 0 warnings | ✅ Limpio |
-| `flutter build web` | — | — | Compila | ✅ OK |
-| `python -m compileall app/` | — | — | 0 errores | ✅ OK |
+| Frontend tests (`flutter test`) | 300 | 300 | 0 | ✅ Limpio |
+| Archivos `*_test.dart` frontend | 40 | — | — | ✅ Activos |
+| `flutter analyze` | — | — | 0 issues | ✅ Limpio |
 
-### 18.7 Estado Actual del Proyecto
+### 18.7 Estado actual del proyecto
 
-> **El proyecto está al ~90%.** Las Fases 1, 2 y 3 están completas. El God Object `itinerary_detail_page.dart` fue refactorizado exitosamente. El backend tiene 0 errores de compilación, migraciones al día, y tests al 97% de pass rate. La deuda técnica restante no bloquea producción pero debe abordarse antes de agregar features significativas al chat o al mapa.
+> **El frontend está aproximadamente entre 92% y 93% de completitud funcional.** Las Fases 1, 2 y 3 están completas, el responsive design de los Lotes A/B/C ya está aplicado, el drag & drop inter-día funciona con tests, el sistema de contribuciones quedó separado para turista/emprendedor y la shell principal ya cubre mobile/tablet/desktop. La deuda técnica restante se concentra sobre todo en hotspots grandes (`map_screen.dart`, `chat_provider.dart`, dashboards emprendedor) y en automatización visual/accesibilidad avanzada.
 
 ---
 
@@ -1747,10 +1871,12 @@ Si alguien necesita una lectura ultrarrápida y correcta del proyecto hoy, estas
 7. El SSE soporta `status`, `warning`, `result` y `error`.
 8. Hay notificación in-app global cuando un itinerario Ara queda listo.
 9. El flujo general `/itineraries/generate` sigue existiendo y es distinto del flujo Ara.
-10. **Drag & Drop entre días está implementado y funciona.**
-11. **Slots de comida genéricos (`is_generic: true`) funcionan end-to-end.**
-12. **`itinerary_detail_page.dart` fue refactorizado de 1,910 a 438 líneas (-77%).**
-13. **`chat_provider.dart` sigue siendo un God Notifier de 1,043 líneas — debe refactorizarse antes de agregar features al chat.**
-14. **`flutter analyze` está limpio (0 errores, 0 warnings).**
-15. `documentation.md` es el documento maestro y debe mantenerse alineado con el código real.
+10. **Drag & Drop entre días está implementado y funciona, incluyendo drawer lateral y persistencia de reorder.**
+11. **El sistema de contribuciones separa turista vs. emprendedor desde ruta, validación y endpoint.**
+12. **`MistNavigation` ya es adaptativa: `NavigationBar` en mobile y `NavigationRail` en tablet/desktop.**
+13. **`ItineraryMasterDetailPage` está activa para itinerarios en tablet/desktop y también en mobile landscape.**
+14. **`itinerary_detail_page.dart` sí fue refactorizado, pero hoy mide 919 líneas; la lógica principal quedó extraída en `ItineraryDetailController`.**
+15. **`chat_provider.dart` sigue siendo un God Notifier grande: 1,223 líneas al 2026-06-06.**
+16. **`flutter test` pasa con 300/300 y `flutter analyze` está limpio.**
+17. `documentation.md` es el documento maestro y debe mantenerse alineado con el código real.
 
