@@ -172,7 +172,7 @@ class _ActivateEntrepreneurPanelState
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Ingresa tu RUT chileno para verificar tu perfil emprendedor.',
+                          'Ingresa tu RUT para verificar tu perfil emprendedor.',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -849,13 +849,7 @@ class _EmptyPlacesCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Comparte tu primer lugar para gestionarlo desde este panel.',
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: onCreate,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Compartir lugar'),
+            'Usa el botón «Compartir lugar» de abajo para crear tu primer lugar y gestionarlo desde este panel.',
           ),
         ],
       ),

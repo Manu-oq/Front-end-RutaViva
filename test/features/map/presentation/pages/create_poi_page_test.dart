@@ -267,7 +267,7 @@ class _FakePoiRepository extends PoiRepository {
     required String name,
     required String description,
     required String accessType,
-    required String imageUrl,
+    required String? imageUrl,
     required double latitude,
     required double longitude,
     String? contactPhone,

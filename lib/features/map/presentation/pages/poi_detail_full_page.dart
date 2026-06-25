@@ -191,7 +191,10 @@ class _PoiDetailBody extends ConsumerWidget {
                         SectionCard(
                           title: 'Comunidad viajera',
                           icon: Icons.forum_rounded,
-                          child: ReviewsSection(poiId: poi.id),
+                          child: ReviewsSection(
+                            poiId: poi.id,
+                            poiOwnerId: poi.createdByUserId,
+                          ),
                         ),
                       ],
                     ),

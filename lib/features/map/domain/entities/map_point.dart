@@ -38,6 +38,8 @@ class MapPoint {
   final double? confidenceScore;
   final DateTime? createdAt;
   final String? createdByUserName;
+  final String? createdByUserId;
+  final String? creatorType;
 
   MapPoint({
     required this.id,
@@ -57,6 +59,8 @@ class MapPoint {
     this.confidenceScore,
     this.createdAt,
     this.createdByUserName,
+    this.createdByUserId,
+    this.creatorType,
   });
 }
 

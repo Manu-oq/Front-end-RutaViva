@@ -16,6 +16,7 @@ class GeneratedStep extends StatelessWidget {
   final VoidCallback onReschedule;
   final VoidCallback? onDragStarted;
   final VoidCallback? onDragEnded;
+  final void Function(DragUpdateDetails)? onDragUpdate;
 
   const GeneratedStep({
     super.key,
@@ -27,6 +28,7 @@ class GeneratedStep extends StatelessWidget {
     required this.onReschedule,
     this.onDragStarted,
     this.onDragEnded,
+    this.onDragUpdate,
   });
 
   @override
@@ -106,17 +108,20 @@ class GeneratedStep extends StatelessWidget {
         dragAnchorStrategy: _centeredFeedbackAnchor,
         childWhenDragging: childWhenDragging,
         onDragStarted: onDragStarted,
+        onDragUpdate: onDragUpdate,
         onDragEnd: (_) => onDragEnded?.call(),
         onDraggableCanceled: (_, _) => onDragEnded?.call(),
         child: card,
       );
     }
     return LongPressDraggable<ItineraryStepModel>(
+      delay: const Duration(milliseconds: 250),
       data: step,
       feedback: DragFlyingProxy(step: step),
       dragAnchorStrategy: _centeredFeedbackAnchor,
       childWhenDragging: childWhenDragging,
       onDragStarted: onDragStarted,
+      onDragUpdate: onDragUpdate,
       onDragEnd: (_) => onDragEnded?.call(),
       onDraggableCanceled: (_, _) => onDragEnded?.call(),
       child: card,

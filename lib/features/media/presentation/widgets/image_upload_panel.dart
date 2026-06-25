@@ -137,9 +137,26 @@ class _UploadedPreview extends StatelessWidget {
             errorBuilder: (context) => Container(
               height: 120,
               width: double.infinity,
-              alignment: Alignment.center,
-              color: theme.colorScheme.primary.withValues(alpha: 0.08),
-              child: const Icon(Icons.image_not_supported_outlined),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.image_not_supported_outlined,
+                      color: theme.colorScheme.error),
+                  const SizedBox(height: 6),
+                  Text(
+                    'La imagen se subió pero no se pudo mostrar.\nSe verá al volver a cargar el lugar.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           Positioned(

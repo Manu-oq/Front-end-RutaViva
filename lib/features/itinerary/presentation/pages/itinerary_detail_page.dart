@@ -78,6 +78,11 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
   int _daySelectorResetRevision = 0;
   bool _isDraggingStep = false;
   DateTime? _draggingFromDay;
+  final _scrollController = ScrollController();
+  final _scrollViewKey = GlobalKey();
+  Timer? _autoScrollTimer;
+  double _scrollDirection = 0;
+  double _scrollSpeed = 0;
 
   @override
   void initState() {
@@ -106,6 +111,13 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
   }
 
   void _emit(ItineraryDetailState next) => setState(() => _state = next);
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +179,8 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
         RefreshIndicator(
           onRefresh: _onRefresh,
           child: CustomScrollView(
+            key: _scrollViewKey,
+            controller: _scrollController,
             slivers: [
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(
@@ -296,6 +310,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                                 onReschedule: () => _onRescheduleDialog(step),
                                 onDragStarted: () =>
                                     _onStepDragStarted(step, entry.$2),
+                                onDragUpdate: _onDragUpdate,
                                 onDragEnded: _onStepDragEnded,
                               ),
                             ),
@@ -304,7 +319,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                   ]),
                 ),
               ),
-              SliverPadding(
+            SliverPadding(
                 padding: EdgeInsets.fromLTRB(
                   contentPadding.left,
                   12,
@@ -324,7 +339,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
           child: Align(
             alignment: Alignment.centerRight,
             child: InterDayDragDrawer(
-              visible: _isDraggingStep,
+              visible: _isDraggingStep && days.length > 1,
               days: days,
               currentDay: _draggingFromDay,
               enabled: widget.itinerary.isEditable && !_state.isSavingReorder,
@@ -380,6 +395,8 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                         child: RefreshIndicator(
                           onRefresh: _onRefresh,
                           child: ListView.builder(
+                        key: _scrollViewKey,
+                        controller: _scrollController,
                         padding: EdgeInsets.fromLTRB(
                           contentPadding.left,
                           0,
@@ -424,6 +441,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
                                   onReschedule: () => _onRescheduleDialog(step),
                                   onDragStarted: () =>
                                       _onStepDragStarted(step, day),
+                                  onDragUpdate: _onDragUpdate,
                                   onDragEnded: _onStepDragEnded,
                                 ),
                               ),
@@ -456,7 +474,7 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
           child: Align(
             alignment: Alignment.centerRight,
             child: InterDayDragDrawer(
-              visible: _isDraggingStep,
+              visible: _isDraggingStep && days.length > 1,
               days: days,
               currentDay: _draggingFromDay,
               enabled: widget.itinerary.isEditable && !_state.isSavingReorder,
@@ -490,10 +508,64 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
   }
 
   void _onStepDragEnded() {
+    _stopAutoScroll();
     if (!_isDraggingStep && _draggingFromDay == null) return;
     setState(() {
       _isDraggingStep = false;
       _draggingFromDay = null;
+    });
+  }
+
+  void _stopAutoScroll() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = null;
+    _scrollDirection = 0;
+    _scrollSpeed = 0;
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    final renderBox =
+        _scrollViewKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !_scrollController.hasClients) {
+      _stopAutoScroll();
+      return;
+    }
+
+    final scrollBounds = renderBox.localToGlobal(Offset.zero) & renderBox.size;
+    const edgeSize = 100.0;
+    final dy = details.globalPosition.dy;
+    final nearTop = dy - scrollBounds.top < edgeSize;
+    final nearBottom = scrollBounds.bottom - dy < edgeSize;
+
+    if (!nearTop && !nearBottom) {
+      _stopAutoScroll();
+      return;
+    }
+
+    _scrollDirection = nearTop ? -1.0 : 1.0;
+    final proximity = nearTop
+        ? (edgeSize - (dy - scrollBounds.top)) / edgeSize
+        : (edgeSize - (scrollBounds.bottom - dy)) / edgeSize;
+    // Quadratic curve: speed ramps up sharply as you approach the edge
+    _scrollSpeed = 24.0 * proximity * proximity;
+
+    if (_autoScrollTimer != null) return;
+    _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!_scrollController.hasClients) {
+        _stopAutoScroll();
+        return;
+      }
+      final maxExtent = _scrollController.position.maxScrollExtent;
+      final currentOffset = _scrollController.offset;
+      final newOffset = (currentOffset + _scrollDirection * _scrollSpeed)
+          .clamp(0.0, maxExtent);
+      if (newOffset == currentOffset &&
+          ((_scrollDirection < 0 && currentOffset <= 0) ||
+              (_scrollDirection > 0 && currentOffset >= maxExtent))) {
+        _stopAutoScroll();
+        return;
+      }
+      _scrollController.jumpTo(newOffset);
     });
   }
 
@@ -611,9 +683,12 @@ class _ItineraryDetailBodyState extends ConsumerState<_ItineraryDetailBody> {
         durationController: durationController,
       ),
     );
-    durationController.dispose();
-    if (result == null) return;
+    if (result == null) {
+      durationController.dispose();
+      return;
+    }
     final mins = int.tryParse(durationController.text.trim());
+    durationController.dispose();
     final next = await _controller.rescheduleStep(
       _state,
       stepId: step.id,

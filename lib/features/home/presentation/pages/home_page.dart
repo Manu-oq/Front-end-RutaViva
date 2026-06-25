@@ -118,11 +118,11 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
             const Positioned(
               top: 16,
-              left: 16,
+              right: 16,
               child: SafeArea(
                 top: true,
-                left: true,
-                right: false,
+                left: false,
+                right: true,
                 bottom: false,
                 child: EmergencyButton(),
               ),

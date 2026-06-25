@@ -15,6 +15,10 @@ class ApiConstants {
     if (_backendOriginOverride.isNotEmpty) {
       return _backendOriginOverride;
     }
+    if (_baseUrlOverride.isNotEmpty) {
+      final uri = Uri.tryParse(_baseUrlOverride);
+      if (uri != null) return '${uri.scheme}://${uri.host}:${uri.port}';
+    }
     if (kIsWeb) {
       return _localOrigin;
     }
@@ -38,6 +42,7 @@ class ApiConstants {
     if (normalized.startsWith('/')) {
       return '$backendOrigin$normalized';
     }
-    return null;
+    // Handle relative URLs without a leading slash (e.g. "media/foo.jpg")
+    return '$backendOrigin/$normalized';
   }
 }

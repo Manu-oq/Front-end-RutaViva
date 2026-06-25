@@ -94,8 +94,10 @@ class ApiException implements Exception {
       return 'La contraseña debe tener al menos ${minLength ?? 8} caracteres.';
     }
     if (field == 'email' ||
+        field == 'contact_email' ||
         type.contains('email') ||
-        msg.toLowerCase().contains('email')) {
+        msg.toLowerCase().contains('email') ||
+        msg.toLowerCase().contains('correo')) {
       return 'Ingresa un correo electrónico válido.';
     }
     if (type.contains('missing')) {
@@ -167,7 +169,8 @@ class ApiException implements Exception {
     }
     if (normalized.contains('invalid email') ||
         normalized.contains('valid email') ||
-        normalized.contains('value is not a valid email')) {
+        normalized.contains('value is not a valid email') ||
+        normalized.contains('correo')) {
       return 'Ingresa un correo electrónico válido.';
     }
     if (statusCode == 401 || statusCode == 403) {
@@ -204,6 +207,7 @@ class ApiException implements Exception {
   static String _friendlyFieldName(String field) {
     return switch (field) {
       'email' => 'correo electrónico',
+      'contact_email' => 'correo electrónico',
       'password' => 'contraseña',
       'full_name' => 'nombre completo',
       'name' => 'nombre',

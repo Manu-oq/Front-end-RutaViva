@@ -505,7 +505,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             point: marker.point.coordinates,
                             width: marker.size,
                             height: marker.showLabel
-                                ? marker.size + 24
+                                ? marker.size +
+                                    (marker.highlighted ? 30 : 24)
                                 : marker.size,
                             child: CustomMapMarker(
                               point: marker.point,

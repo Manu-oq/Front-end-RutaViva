@@ -66,7 +66,7 @@ class PoiRepository {
     required String name,
     required String description,
     required String accessType,
-    required String imageUrl,
+    required String? imageUrl,
     required double latitude,
     required double longitude,
     String? contactPhone,
@@ -270,7 +270,7 @@ class PoiRepository {
     required String name,
     required String description,
     required String accessType,
-    required String imageUrl,
+    required String? imageUrl,
     required double latitude,
     required double longitude,
     String? contactPhone,
@@ -327,20 +327,23 @@ class PoiRepository {
     required String name,
     required String description,
     required String accessType,
-    required String imageUrl,
+    required String? imageUrl,
     required double latitude,
     required double longitude,
     required String? contactPhone,
     required String? contactEmail,
     required List<int> categoryIds,
   }) {
+    final effectiveImageUrl = (imageUrl != null && imageUrl.trim().isNotEmpty)
+        ? imageUrl.trim()
+        : null;
     return {
       'name': name,
       'description': description,
       'access_type': accessType,
       'contact_phone': contactPhone?.isEmpty == true ? null : contactPhone,
       'contact_email': contactEmail?.isEmpty == true ? null : contactEmail,
-      'image_url': imageUrl,
+      'image_url': effectiveImageUrl,
       'category_ids': categoryIds,
       'latitude': latitude,
       'longitude': longitude,

@@ -176,9 +176,45 @@ class _CandidatePoiList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = AppResponsive.isMobile(context);
     if (candidates.isEmpty) {
       return const SizedBox.shrink();
     }
+
+    final listView = ListView.separated(
+      scrollDirection: Axis.vertical,
+      shrinkWrap: !isMobile,
+      primary: false,
+      physics: isMobile
+          ? const ClampingScrollPhysics()
+          : const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: candidates.length,
+      itemBuilder: (context, index) => SizedBox(
+        width: double.infinity,
+        child: _CandidatePoiCard(
+          candidate: candidates[index],
+          actionsLocked: actionsLocked,
+          onOpenPoi: onOpenPoi,
+          onShowPoiOnMap: onShowPoiOnMap,
+          onUseCandidate: onUseCandidate,
+        ),
+      ),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+    );
+
+    final constrainedListView = isMobile
+        ? ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 210),
+            child: listView,
+          )
+        : listView;
+
+    final hintText = candidates.length == 1
+        ? 'Toca la card para elegir este lugar'
+        : isMobile
+            ? 'Desliza hacia abajo y toca una card para cambiar el lugar'
+            : 'Toca una card para elegir el lugar';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,9 +259,7 @@ class _CandidatePoiList extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(top: 10),
           child: Text(
-            candidates.length == 1
-                ? 'Toca la card para elegir este lugar'
-                : 'Desliza hacia abajo y toca una card para cambiar el lugar',
+            hintText,
             style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
@@ -233,25 +267,7 @@ class _CandidatePoiList extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        ListView.separated(
-          scrollDirection: Axis.vertical,
-          shrinkWrap: true,
-          primary: false,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          itemCount: candidates.length,
-          itemBuilder: (context, index) => SizedBox(
-            width: double.infinity,
-            child: _CandidatePoiCard(
-              candidate: candidates[index],
-              actionsLocked: actionsLocked,
-              onOpenPoi: onOpenPoi,
-              onShowPoiOnMap: onShowPoiOnMap,
-              onUseCandidate: onUseCandidate,
-            ),
-          ),
-          separatorBuilder: (_, _) => const SizedBox(height: 10),
-        ),
+        constrainedListView,
       ],
     );
   }

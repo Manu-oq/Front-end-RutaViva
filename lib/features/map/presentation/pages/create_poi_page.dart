@@ -100,7 +100,7 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
             name: _nameController.text.trim(),
             description: _descriptionController.text.trim(),
             accessType: _accessType,
-            imageUrl: _uploadedImageUrl?.trim() ?? '',
+            imageUrl: _uploadedImageUrl?.trim(),
             contactPhone: _emptyToNull(_normalizedPhone(_phoneController.text)),
             contactEmail: _emptyToNull(_emailController.text.trim()),
             categoryIds: _selectedCategoryIds.toList()..sort(),
@@ -343,10 +343,10 @@ class _CreatePoiPageState extends ConsumerState<CreatePoiPage> {
   void _toggleCategory(int id, bool selected) {
     if (selected &&
         !_selectedCategoryIds.contains(id) &&
-        _selectedCategoryIds.length >= 4) {
+        _selectedCategoryIds.length >= 3) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Máximo 4 categorías')));
+      ).showSnackBar(const SnackBar(content: Text('Máximo 3 categorías')));
       return;
     }
     setState(() {
@@ -429,26 +429,117 @@ class _CategorySelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return categories.when(
-      data: (items) => Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: items.map((category) {
-          final selected = selectedCategoryIds.contains(category.id);
-          return FilterChip(
-            label: Text(
-              category.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      data: (items) {
+        final topLevel = items.topLevelAttractionCategories();
+
+        final grouped = <({CategoryModel parent, List<CategoryModel> children})>[];
+        final standalone = <CategoryModel>[];
+
+        for (final category in topLevel) {
+          final children = items.childrenOf(category.id);
+          if (children.isNotEmpty) {
+            grouped.add((parent: category, children: children));
+          } else {
+            standalone.add(category);
+          }
+        }
+
+        if (grouped.isEmpty && standalone.isEmpty) {
+          return const Text('No hay categorías disponibles.');
+        }
+
+        final children = <Widget>[];
+
+        for (final group in grouped) {
+          children.add(_GroupHeader(text: group.parent.name));
+          children.add(
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: group.children.map((child) {
+                  final selected = selectedCategoryIds.contains(child.id);
+                  return FilterChip(
+                    label: Text(
+                      child.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    selected: selected,
+                    onSelected: (value) => onToggle(child.id, value),
+                  );
+                }).toList(),
+              ),
             ),
-            selected: selected,
-            onSelected: (value) => onToggle(category.id, value),
           );
-        }).toList(),
-      ),
+        }
+
+        if (standalone.isNotEmpty) {
+          children.add(const _GroupHeader(text: 'Otros'));
+          children.add(
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: standalone.map((category) {
+                  final selected = selectedCategoryIds.contains(category.id);
+                  return FilterChip(
+                    label: Text(
+                      category.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    selected: selected,
+                    onSelected: (value) => onToggle(category.id, value),
+                  );
+                }).toList(),
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        );
+      },
       loading: () => const LinearProgressIndicator(minHeight: 3),
       error: (error, stackTrace) => InlineErrorWidget(
         message: 'No se pudieron cargar las categorías.',
         onRetry: onRetry,
+      ),
+    );
+  }
+}
+
+class _GroupHeader extends StatelessWidget {
+  final String text;
+
+  const _GroupHeader({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(endIndent: 12, color: theme.colorScheme.outlineVariant),
+          ),
+          Text(
+            text,
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Expanded(
+            child: Divider(indent: 12, color: theme.colorScheme.outlineVariant),
+          ),
+        ],
       ),
     );
   }

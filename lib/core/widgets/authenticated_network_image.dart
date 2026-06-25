@@ -88,7 +88,11 @@ class _AuthenticatedNetworkImageState
         height: widget.height,
         fit: widget.fit,
         alignment: widget.alignment,
-        errorBuilder: (context, error, stackTrace) => _error(context),
+        errorBuilder: (context, error, stackTrace) {
+          // ignore: avoid_print
+          print('[AuthenticatedNetworkImage] network load failed for $resolvedUrl: $error');
+          return _error(context);
+        },
       );
     }
 
@@ -102,10 +106,16 @@ class _AuthenticatedNetworkImageState
             height: widget.height,
             fit: widget.fit,
             alignment: widget.alignment,
-            errorBuilder: (context, error, stackTrace) => _error(context),
+            errorBuilder: (context, error, stackTrace) {
+              // ignore: avoid_print
+              print('[AuthenticatedNetworkImage] memory decode failed for ${widget.imageUrl}: $error');
+              return _error(context);
+            },
           );
         }
         if (snapshot.hasError) {
+          // ignore: avoid_print
+          print('[AuthenticatedNetworkImage] fetch error for ${widget.imageUrl}: ${snapshot.error}');
           return _error(context);
         }
         return _placeholder(context);
@@ -129,8 +139,22 @@ class _AuthenticatedNetworkImageState
       options: Options(
         responseType: ResponseType.bytes,
         headers: {'Authorization': 'Bearer $token'},
+        connectTimeout: const Duration(seconds: 15),
+        sendTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
       ),
     );
+
+    if (response.statusCode == null || response.statusCode! < 200 || response.statusCode! >= 300) {
+      // ignore: avoid_print
+      print(
+        '[AuthenticatedNetworkImage] Media fetch failed '
+        '(${response.statusCode}) for $resolvedUrl',
+      );
+      throw StateError(
+        'Media server returned HTTP ${response.statusCode} for $resolvedUrl.',
+      );
+    }
 
     final data = response.data;
     if (data is Uint8List) {

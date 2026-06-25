@@ -12,7 +12,6 @@ import '../../../categories/data/models/category_model.dart';
 import '../../../categories/data/repositories/category_repository.dart';
 import '../../../map/data/models/poi_model.dart';
 import '../../../map/data/repositories/poi_repository.dart';
-import '../../../reviews/presentation/widgets/reviews_section.dart';
 import '../../data/models/entrepreneur_models.dart';
 import '../../data/repositories/entrepreneur_repository.dart';
 
@@ -211,11 +210,6 @@ class _PoiDashboardBody extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        SectionCard(
-                          title: 'Opiniones',
-                          icon: Icons.reviews_rounded,
-                          child: ReviewsSection(poiId: poi.id),
-                        ),
                       ],
                     ),
                   ),

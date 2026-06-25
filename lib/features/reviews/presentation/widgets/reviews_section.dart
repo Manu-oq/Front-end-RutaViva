@@ -11,8 +11,13 @@ import '../../data/repositories/review_repository.dart';
 
 class ReviewsSection extends ConsumerStatefulWidget {
   final String poiId;
+  final String? poiOwnerId;
 
-  const ReviewsSection({super.key, required this.poiId});
+  const ReviewsSection({
+    super.key,
+    required this.poiId,
+    this.poiOwnerId,
+  });
 
   @override
   ConsumerState<ReviewsSection> createState() => _ReviewsSectionState();
@@ -171,6 +176,9 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
     final reviews = ref.watch(reviewsByPoiProvider(widget.poiId));
     final summary = ref.watch(reviewSummaryByPoiProvider(widget.poiId));
     final currentUserId = ref.watch(authProvider).user?.id;
+    final isPoiOwner = widget.poiOwnerId != null &&
+        currentUserId != null &&
+        currentUserId == widget.poiOwnerId;
 
     return SingleChildScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -186,7 +194,9 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
             const SizedBox(height: 14),
           ],
           Text(
-            'Comparte tu experiencia y revisa lo que otros viajeros recomiendan antes de ir.',
+            isPoiOwner
+                ? 'Revisa las opiniones que dejó la comunidad viajera sobre tu lugar.'
+                : 'Comparte tu experiencia y revisa lo que otros viajeros recomiendan antes de ir.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               height: 1.45,
@@ -208,14 +218,17 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
               if (items.isEmpty) {
                 return Column(
                   children: [
-                    _ReviewForm(
-                      controller: _controller,
-                      rating: _rating,
-                      isSubmitting: _isSubmitting,
-                      onRatingChanged: (value) =>
-                          setState(() => _rating = value),
-                      onSubmit: _submitReview,
-                    ),
+                    if (isPoiOwner)
+                      const _OwnerReviewNotice()
+                    else
+                      _ReviewForm(
+                        controller: _controller,
+                        rating: _rating,
+                        isSubmitting: _isSubmitting,
+                        onRatingChanged: (value) =>
+                            setState(() => _rating = value),
+                        onSubmit: _submitReview,
+                      ),
                     const SizedBox(height: 18),
                     const _EmptyReviewsCard(),
                   ],
@@ -224,7 +237,9 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
 
               return Column(
                 children: [
-                  if (ownReview == null) ...[
+                  if (isPoiOwner)
+                    const _OwnerReviewNotice()
+                  else if (ownReview == null) ...[
                     _ReviewForm(
                       controller: _controller,
                       rating: _rating,
@@ -874,6 +889,40 @@ class _ReviewEditDialogState extends State<_ReviewEditDialog> {
           child: const Text('Guardar'),
         ),
       ],
+    );
+  }
+}
+
+class _OwnerReviewNotice extends StatelessWidget {
+  const _OwnerReviewNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.3,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, color: theme.colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'No puedes opinar en tu propio lugar. Las opiniones están reservadas para la comunidad viajera.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

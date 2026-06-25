@@ -341,6 +341,14 @@ class _EditPoiFormState extends ConsumerState<_EditPoiForm> {
   }
 
   void _toggleCategory(int id, bool selected) {
+    if (selected &&
+        !_selectedCategoryIds.contains(id) &&
+        _selectedCategoryIds.length >= 3) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Máximo 3 categorías')));
+      return;
+    }
     setState(() {
       if (selected) {
         _selectedCategoryIds.add(id);

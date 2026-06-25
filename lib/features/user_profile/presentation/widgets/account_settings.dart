@@ -137,22 +137,19 @@ class _ThemeModeTile extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                SegmentedButton<ThemeMode>(
+                 SegmentedButton<ThemeMode>(
                   segments: const [
                     ButtonSegment(
                       value: ThemeMode.system,
                       label: Text('Auto'),
-                      icon: Icon(Icons.brightness_auto_rounded),
                     ),
                     ButtonSegment(
                       value: ThemeMode.light,
                       label: Text('Claro'),
-                      icon: Icon(Icons.light_mode_rounded),
                     ),
                     ButtonSegment(
                       value: ThemeMode.dark,
                       label: Text('Oscuro'),
-                      icon: Icon(Icons.dark_mode_rounded),
                     ),
                   ],
                   selected: {mode},

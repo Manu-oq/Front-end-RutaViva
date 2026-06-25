@@ -63,6 +63,8 @@ class PoiModel {
   final double? confidenceScore;
   final DateTime? createdAt;
   final String? createdByUserName;
+  final String? createdByUserId;
+  final String? creatorType;
 
   const PoiModel({
     required this.id,
@@ -83,6 +85,8 @@ class PoiModel {
     this.confidenceScore,
     this.createdAt,
     this.createdByUserName,
+    this.createdByUserId,
+    this.creatorType,
   });
 
   factory PoiModel.fromJson(Map<String, dynamic> json) {
@@ -110,6 +114,8 @@ class PoiModel {
       confidenceScore: (json['confidence_score'] as num?)?.toDouble(),
       createdAt: _parseDateTime(json['created_at']),
       createdByUserName: _readCreatedByUserName(json),
+      createdByUserId: json['created_by_user_id'] as String?,
+      creatorType: json['creator_type'] as String?,
     );
   }
 
@@ -132,6 +138,8 @@ class PoiModel {
       confidenceScore: confidenceScore,
       createdAt: createdAt,
       createdByUserName: createdByUserName,
+      createdByUserId: createdByUserId,
+      creatorType: creatorType,
     );
   }
 

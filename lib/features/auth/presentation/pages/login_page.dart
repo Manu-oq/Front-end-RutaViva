@@ -113,14 +113,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                     ),
                     SizedBox(height: isMobile ? 22 : 32),
-                    if (_errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: ErrorBanner(
-                          message: _errorMessage!,
-                          onDismiss: () => setState(() => _errorMessage = null),
-                        ),
-                      ),
                     Card(
                       elevation: 0,
                       color: isDark
@@ -148,6 +140,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 style: theme.textTheme.headlineMedium,
                               ),
                               const SizedBox(height: 20),
+                              if (_errorMessage != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: ErrorBanner(
+                                    message: _errorMessage!,
+                                    onDismiss: () =>
+                                        setState(() => _errorMessage = null),
+                                  ),
+                                ),
                               AutofillGroup(
                                 child: Column(
                                   children: [

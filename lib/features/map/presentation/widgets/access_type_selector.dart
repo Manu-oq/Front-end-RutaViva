@@ -24,15 +24,15 @@ class AccessTypeSelector extends StatelessWidget {
       items: const [
         DropdownMenuItem(
           value: 'public',
-          child: Text('Público — acceso libre'),
+          child: Text('Público', overflow: TextOverflow.ellipsis),
         ),
         DropdownMenuItem(
           value: 'restricted',
-          child: Text('Restringido — requiere permiso o pago'),
+          child: Text('Restringido', overflow: TextOverflow.ellipsis),
         ),
         DropdownMenuItem(
           value: 'private',
-          child: Text('Privado — acceso privado'),
+          child: Text('Privado', overflow: TextOverflow.ellipsis),
         ),
       ],
       onChanged: (value) {
