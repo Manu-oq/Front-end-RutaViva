@@ -28,15 +28,19 @@ Este repositorio consume la API de [Back-end-RutaViva](https://github.com/Manu-o
 
 ## Vistas del producto
 
-Las siguientes capturas se incorporarán al repositorio cuando estén disponibles. Guárdalas en `docs/images/` con estos nombres para enlazarlas directamente:
+<p align="center">
+  <img src="docs/home.png" width="30%" alt="Inicio de Ruta Viva con puntos de interés" />
+  <img src="docs/map.png" width="30%" alt="Mapa de Ruta Viva con puntos de interés" />
+  <img src="docs/chat.png" width="30%" alt="Pantalla inicial del asistente Ara" />
+</p>
 
-| Archivo | Contenido recomendado |
+| Archivo | Vista |
 |---|---|
-| `home.png` | Inicio autenticado con POIs o navegación principal visible. |
-| `map.png` | Mapa con marcadores y categorías. |
-| `itinerary.png` | Detalle de un itinerario generado o guardado. |
+| `docs/home.png` | Inicio autenticado con recomendaciones y navegación principal. |
+| `docs/map.png` | Mapa con marcadores y filtros por categoría. |
+| `docs/chat.png` | Pantalla inicial de Ara, el asistente de rutas e ideas de viaje. |
 
-No es necesario capturar el chat si las claves de IA fueron revocadas: esas tres vistas comunican mejor el producto sin mostrar información sensible.
+Las capturas muestran la interfaz y datos locales de demostración. Las funciones de IA requieren proveedores configurados exclusivamente en el backend.
 
 ## Ejecución local en Linux
 
