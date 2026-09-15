@@ -118,7 +118,7 @@ void main() {
 
     expect(find.text('5 opciones recomendadas'), findsOneWidget);
     expect(
-      find.text('Desliza hacia abajo y toca una card para cambiar el lugar'),
+      find.text('Toca una card para elegir el lugar'),
       findsOneWidget,
     );
     final listView = tester.widget<ListView>(find.byType(ListView));

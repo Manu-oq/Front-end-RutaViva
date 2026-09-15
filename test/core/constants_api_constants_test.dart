@@ -3,9 +3,15 @@ import 'package:ruta_viva/core/constants/api_constants.dart';
 
 void main() {
   group('ApiConstants.resolveBackendUrl', () {
-    test('returns null for hostless text values', () {
-      expect(ApiConstants.resolveBackendUrl('OpenStreetMap'), isNull);
-      expect(ApiConstants.resolveBackendUrl(' example.png '), isNull);
+    test('resolves relative paths without a leading slash', () {
+      expect(
+        ApiConstants.resolveBackendUrl('OpenStreetMap'),
+        endsWith('/OpenStreetMap'),
+      );
+      expect(
+        ApiConstants.resolveBackendUrl(' example.png '),
+        endsWith('/example.png'),
+      );
     });
 
     test('keeps valid absolute URLs', () {

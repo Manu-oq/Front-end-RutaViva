@@ -194,7 +194,7 @@ void main() {
       expect(body.keys, isNot(contains('longitud')));
     });
 
-    test('create body allows empty image_url when user skips upload', () {
+    test('create body sends null image_url when user skips upload', () {
       final body = PoiRepository.createPoiRequestBodyForTesting(
         name: 'Mirador local',
         description: 'Mirador recomendado por la comunidad',
@@ -204,7 +204,7 @@ void main() {
         longitude: -71.9,
       );
 
-      expect(body['image_url'], equals(''));
+      expect(body['image_url'], isNull);
       expect(body['access_type'], equals('private'));
     });
   });
